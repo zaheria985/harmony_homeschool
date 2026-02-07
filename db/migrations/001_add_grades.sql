@@ -1,0 +1,3 @@
+ALTER TABLE lesson_completions
+  ADD COLUMN IF NOT EXISTS grade NUMERIC(5,2),
+  ADD COLUMN IF NOT EXISTS notes TEXT;

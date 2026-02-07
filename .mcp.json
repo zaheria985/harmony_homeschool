@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "homeschool": {
+      "command": "npx",
+      "args": ["tsx", "mcp/homeschool-server.ts"]
+    }
+  }
+}
