@@ -13,7 +13,7 @@ export default async function AdminCurriculaPage() {
 
   return (
     <div>
-      <PageHeader title="Manage Curricula" />
+      <PageHeader title="Manage Courses" />
       <AdminCurriculaClient curricula={curricula} children={children} />
     </div>
   );

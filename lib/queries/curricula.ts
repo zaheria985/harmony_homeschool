@@ -4,6 +4,7 @@ export async function getAllCurricula() {
   const res = await pool.query(
     `SELECT
        cu.id, cu.name, cu.description, cu.order_index, cu.cover_image,
+       cu.course_type, cu.status, cu.start_date::text, cu.end_date::text,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        ca.child_id,
        c.name AS child_name,
@@ -14,8 +15,9 @@ export async function getAllCurricula() {
      JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id
      JOIN children c ON c.id = ca.child_id
      LEFT JOIN lessons l ON l.curriculum_id = cu.id
-     GROUP BY cu.id, cu.name, cu.description, cu.order_index, cu.cover_image,
-              s.id, s.name, s.color, ca.child_id, c.name
+      GROUP BY cu.id, cu.name, cu.description, cu.order_index, cu.cover_image,
+               cu.course_type, cu.status, cu.start_date, cu.end_date,
+               s.id, s.name, s.color, ca.child_id, c.name
      ORDER BY c.name, s.name, cu.order_index, cu.name`
   );
   return res.rows;
@@ -25,6 +27,7 @@ export async function getCurriculumDetail(id: string) {
   const res = await pool.query(
     `SELECT
        cu.id, cu.name, cu.description, cu.order_index, cu.cover_image,
+       cu.course_type, cu.status, cu.start_date::text, cu.end_date::text,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        ca.child_id,
        c.name AS child_name
@@ -61,6 +64,7 @@ export async function getCurriculumBoardData(id: string) {
   const res = await pool.query(
     `SELECT
        cu.id, cu.name, cu.description, cu.order_index, cu.cover_image,
+       cu.course_type, cu.status, cu.start_date::text, cu.end_date::text,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        ca.child_id,
        c.name AS child_name

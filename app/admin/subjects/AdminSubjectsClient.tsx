@@ -22,6 +22,7 @@ type Subject = {
   id: string;
   name: string;
   color: string | null;
+  thumbnail_url: string | null;
   curriculum_count: number;
   lesson_count: number;
 };
@@ -36,6 +37,8 @@ export default function AdminSubjectsClient({
   const [editing, setEditing] = useState<Subject | null>(null);
   const [name, setName] = useState("");
   const [color, setColor] = useState("");
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [clearThumbnail, setClearThumbnail] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<Subject | null>(null);
@@ -44,6 +47,8 @@ export default function AdminSubjectsClient({
     setEditing(null);
     setName("");
     setColor("indigo-500");
+    setThumbnailFile(null);
+    setClearThumbnail(false);
     setError("");
     setModalOpen(true);
   }
@@ -52,6 +57,8 @@ export default function AdminSubjectsClient({
     setEditing(subject);
     setName(subject.name);
     setColor(subject.color || "indigo-500");
+    setThumbnailFile(null);
+    setClearThumbnail(false);
     setError("");
     setModalOpen(true);
   }
@@ -64,19 +71,23 @@ export default function AdminSubjectsClient({
     const formData = new FormData();
     formData.set("name", name);
     formData.set("color", color);
+    formData.set("clear_thumbnail", clearThumbnail ? "true" : "false");
+    if (thumbnailFile) {
+      formData.set("thumbnail_file", thumbnailFile);
+    }
 
     if (editing) {
       formData.set("id", editing.id);
       const result = await updateSubject(formData);
-      if (result.error) {
-        setError(result.error);
+      if ("error" in result) {
+        setError(result.error || "Failed to save subject");
         setSubmitting(false);
         return;
       }
     } else {
       const result = await createSubject(formData);
-      if (result.error) {
-        setError(result.error);
+      if ("error" in result) {
+        setError(result.error || "Failed to create subject");
         setSubmitting(false);
         return;
       }
@@ -90,8 +101,8 @@ export default function AdminSubjectsClient({
   async function handleDelete(subject: Subject) {
     setSubmitting(true);
     const result = await deleteSubject(subject.id);
-    if (result.error) {
-      setError(result.error);
+    if ("error" in result) {
+      setError(result.error || "Failed to delete subject");
     }
     setSubmitting(false);
     setConfirmDelete(null);
@@ -119,7 +130,7 @@ export default function AdminSubjectsClient({
                 <tr className="border-b text-gray-500">
                   <th className="pb-3 font-medium">Color</th>
                   <th className="pb-3 font-medium">Name</th>
-                  <th className="pb-3 font-medium">Curricula</th>
+                  <th className="pb-3 font-medium">Courses</th>
                   <th className="pb-3 font-medium">Lessons</th>
                   <th className="pb-3 text-right font-medium">Actions</th>
                 </tr>
@@ -196,6 +207,45 @@ export default function AdminSubjectsClient({
                 </button>
               ))}
             </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Subject Photo <span className="text-gray-400">(optional)</span>
+            </label>
+            {editing?.thumbnail_url && !clearThumbnail && !thumbnailFile && (
+              <div className="mb-2 flex items-center gap-2 rounded-lg border bg-gray-50 p-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={editing.thumbnail_url}
+                  alt={editing.name}
+                  className="h-10 w-10 rounded object-cover"
+                />
+                <span className="text-xs text-gray-500">Current image</span>
+              </div>
+            )}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                setThumbnailFile(e.target.files?.[0] || null);
+                if (e.target.files?.[0]) setClearThumbnail(false);
+              }}
+              className="w-full rounded-lg border px-3 py-2 text-sm"
+            />
+            {editing?.thumbnail_url && (
+              <label className="mt-2 flex items-center gap-2 text-xs text-gray-600">
+                <input
+                  type="checkbox"
+                  checked={clearThumbnail}
+                  onChange={(e) => {
+                    setClearThumbnail(e.target.checked);
+                    if (e.target.checked) setThumbnailFile(null);
+                  }}
+                />
+                Remove current photo
+              </label>
+            )}
           </div>
 
           {error && <p className="text-sm text-red-600">{error}</p>}

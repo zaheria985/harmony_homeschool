@@ -11,6 +11,7 @@ CREATE TABLE users (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email       TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
+    name        TEXT,
     role        TEXT NOT NULL DEFAULT 'parent'
                     CHECK (role IN ('parent', 'kid')),
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -19,6 +20,8 @@ CREATE TABLE users (
 CREATE TABLE children (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name        TEXT NOT NULL,
+    emoji       TEXT,
+    banner_url  TEXT,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -52,6 +55,7 @@ CREATE TABLE subjects (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name            TEXT NOT NULL UNIQUE,
     color           TEXT,
+    thumbnail_url   TEXT,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -60,7 +64,15 @@ CREATE TABLE curricula (
     subject_id  UUID NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
     name        TEXT NOT NULL,
     description TEXT,
-    order_index INTEGER NOT NULL DEFAULT 0
+    order_index INTEGER NOT NULL DEFAULT 0,
+    cover_image TEXT,
+    course_type TEXT NOT NULL DEFAULT 'curriculum'
+                  CHECK (course_type IN ('curriculum', 'unit_study')),
+    status      TEXT NOT NULL DEFAULT 'active'
+                  CHECK (status IN ('active', 'archived', 'draft')),
+    start_date  DATE,
+    end_date    DATE,
+    notes       TEXT
 );
 
 CREATE TABLE curriculum_assignments (
@@ -83,9 +95,35 @@ CREATE TABLE lessons (
                         CHECK (status IN ('planned', 'in_progress', 'completed'))
 );
 
+-- ============================================================================
+-- RESOURCES
+-- ============================================================================
+
+CREATE TABLE resources (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title           TEXT NOT NULL,
+    type            TEXT NOT NULL
+                        CHECK (type IN ('book', 'video', 'pdf', 'link', 'supply')),
+    author          TEXT,
+    url             TEXT,
+    thumbnail_url   TEXT,
+    description     TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE curriculum_resources (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    curriculum_id   UUID NOT NULL REFERENCES curricula(id) ON DELETE CASCADE,
+    resource_id     UUID NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+    notes           TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (curriculum_id, resource_id)
+);
+
 CREATE TABLE lesson_resources (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     lesson_id       UUID NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+    resource_id     UUID REFERENCES resources(id) ON DELETE SET NULL,
     type            TEXT NOT NULL
                         CHECK (type IN ('youtube', 'pdf', 'filerun', 'url')),
     url             TEXT NOT NULL,
@@ -167,9 +205,13 @@ CREATE INDEX idx_lessons_planned_date  ON lessons(planned_date);
 CREATE INDEX idx_lessons_status        ON lessons(status);
 
 -- resources & completions
-CREATE INDEX idx_lesson_resources_lesson     ON lesson_resources(lesson_id);
-CREATE INDEX idx_lesson_completions_lesson   ON lesson_completions(lesson_id);
-CREATE INDEX idx_lesson_completions_child    ON lesson_completions(child_id);
+CREATE INDEX idx_resources_type                    ON resources(type);
+CREATE INDEX idx_curriculum_resources_curriculum    ON curriculum_resources(curriculum_id);
+CREATE INDEX idx_curriculum_resources_resource      ON curriculum_resources(resource_id);
+CREATE INDEX idx_lesson_resources_lesson            ON lesson_resources(lesson_id);
+CREATE INDEX idx_lesson_resources_resource          ON lesson_resources(resource_id);
+CREATE INDEX idx_lesson_completions_lesson          ON lesson_completions(lesson_id);
+CREATE INDEX idx_lesson_completions_child           ON lesson_completions(child_id);
 
 -- books
 CREATE INDEX idx_books_child           ON books(child_id);

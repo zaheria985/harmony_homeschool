@@ -85,7 +85,7 @@ export default function SubjectsView({
                   style={{ backgroundColor: subject.color || "#6366f1" }}
                 />
                 {subject.thumbnail_url && (
-                  <div className="h-36 overflow-hidden border-b">
+                  <div className="aspect-[2005/880] overflow-hidden border-b">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={subject.thumbnail_url}
@@ -104,7 +104,7 @@ export default function SubjectsView({
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-500">
-                      {subject.curriculum_count} curricul{subject.curriculum_count === 1 ? "um" : "a"}
+                      {subject.curriculum_count} course{subject.curriculum_count === 1 ? "" : "s"}
                     </span>
                     <span className="text-gray-500">
                       {subject.completed_count}/{subject.lesson_count} lessons
@@ -140,7 +140,7 @@ export default function SubjectsView({
                   Thumbnail
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Curricula
+                  Courses
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                   Lessons

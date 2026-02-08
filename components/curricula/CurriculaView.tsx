@@ -13,6 +13,9 @@ type Curriculum = {
   description: string | null;
   order_index: number;
   cover_image: string | null;
+  course_type: "curriculum" | "unit_study";
+  status: "active" | "archived" | "draft";
+  end_date: string | null;
   subject_id: string;
   subject_name: string;
   subject_color: string | null;
@@ -65,10 +68,24 @@ export default function CurriculaView({
     return result;
   }, [curricula, childFilter, effectiveSubjectFilter]);
 
+  const galleryFiltered = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const oneYearOut = new Date(today);
+    oneYearOut.setFullYear(oneYearOut.getFullYear() + 1);
+
+    return filtered.filter((c) => {
+      if (c.status !== "active") return false;
+      if (!c.end_date) return false;
+      const due = new Date(`${c.end_date}T00:00:00`);
+      return due >= today && due <= oneYearOut;
+    });
+  }, [filtered]);
+
   const saveCurriculumField = useCallback(
     (
       curriculum: Curriculum,
-      field: "name" | "description" | "subject_id" | "cover_image"
+      field: "name" | "description" | "subject_id" | "cover_image" | "course_type"
     ) =>
       async (value: string) => {
         const formData = new FormData();
@@ -81,6 +98,10 @@ export default function CurriculaView({
         formData.set(
           "cover_image",
           field === "cover_image" ? value : curriculum.cover_image || ""
+        );
+        formData.set(
+          "course_type",
+          field === "course_type" ? value : curriculum.course_type
         );
         if (field === "subject_id") formData.set("subject_id", value);
         return updateCurriculum(formData);
@@ -124,7 +145,7 @@ export default function CurriculaView({
         </select>
 
         <span className="text-sm text-gray-500">
-          {filtered.length} curricul{filtered.length === 1 ? "um" : "a"}
+          {filtered.length} course{filtered.length === 1 ? "" : "s"}
         </span>
 
         <div className="ml-auto">
@@ -140,16 +161,22 @@ export default function CurriculaView({
         </div>
       </div>
 
-      {filtered.length === 0 && (
+      {view === "table" && filtered.length === 0 && (
         <p className="py-12 text-center text-sm text-gray-400">
-          No curricula match the selected filters.
+          No courses match the selected filters.
+        </p>
+      )}
+
+      {view === "gallery" && galleryFiltered.length === 0 && (
+        <p className="py-12 text-center text-sm text-gray-400">
+          No active courses due in the next 12 months match the selected filters.
         </p>
       )}
 
       {/* Gallery View */}
-      {view === "gallery" && filtered.length > 0 && (
+      {view === "gallery" && galleryFiltered.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((curriculum) => {
+          {galleryFiltered.map((curriculum) => {
             const pct =
               curriculum.lesson_count > 0
                 ? Math.round(
@@ -185,6 +212,9 @@ export default function CurriculaView({
                   </h3>
                   <div className="mb-2 flex items-center gap-2">
                     <Badge variant="primary">{curriculum.subject_name}</Badge>
+                    <Badge variant="default" >
+                      {curriculum.course_type === "unit_study" ? "Unit Study" : "Curriculum"}
+                    </Badge>
                     <span className="text-xs text-gray-400">
                       {curriculum.child_name}
                     </span>
@@ -222,7 +252,10 @@ export default function CurriculaView({
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Curriculum
+                  Course
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Type
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                   Subject
@@ -262,6 +295,22 @@ export default function CurriculaView({
                       <EditableCell
                         value={curriculum.name}
                         onSave={saveCurriculumField(curriculum, "name")}
+                      />
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                      <EditableCell
+                        value={curriculum.course_type}
+                        onSave={saveCurriculumField(curriculum, "course_type")}
+                        type="select"
+                        options={[
+                          { value: "curriculum", label: "Curriculum" },
+                          { value: "unit_study", label: "Unit Study" },
+                        ]}
+                        displayValue={
+                          <span className="capitalize">
+                            {curriculum.course_type.replace("_", " ")}
+                          </span>
+                        }
                       />
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm">

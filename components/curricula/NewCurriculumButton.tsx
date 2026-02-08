@@ -22,6 +22,7 @@ export default function NewCurriculumButton({
   const [yearId, setYearId] = useState(schoolYears[0]?.id || "");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [courseType, setCourseType] = useState<"curriculum" | "unit_study">("curriculum");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -31,6 +32,7 @@ export default function NewCurriculumButton({
     setYearId(schoolYears[0]?.id || "");
     setName("");
     setDescription("");
+    setCourseType("curriculum");
     setError("");
     setSubmitting(false);
   }
@@ -54,12 +56,13 @@ export default function NewCurriculumButton({
     formData.set("name", name);
     formData.set("subject_id", subjectId);
     formData.set("description", description);
+    formData.set("course_type", courseType);
     if (childId) formData.set("child_id", childId);
     if (yearId) formData.set("school_year_id", yearId);
 
     const result = await createCurriculum(formData);
-    if (result.error) {
-      setError(result.error);
+    if ("error" in result) {
+      setError(result.error || "Failed to create curriculum");
       setSubmitting(false);
       return;
     }
@@ -74,9 +77,9 @@ export default function NewCurriculumButton({
         onClick={() => { reset(); setOpen(true); }}
         className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
       >
-        + New Curriculum
+        + New Course
       </button>
-      <Modal open={open} onClose={() => setOpen(false)} title="New Curriculum">
+      <Modal open={open} onClose={() => setOpen(false)} title="New Course">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Subject</label>
@@ -114,6 +117,18 @@ export default function NewCurriculumButton({
               rows={3}
               placeholder="Optional description"
             />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Course Type</label>
+            <select
+              value={courseType}
+              onChange={(e) => setCourseType(e.target.value as "curriculum" | "unit_study")}
+              className="w-full rounded-lg border px-3 py-2 text-sm"
+            >
+              <option value="curriculum">Curriculum</option>
+              <option value="unit_study">Unit Study</option>
+            </select>
           </div>
 
           <div>
@@ -161,7 +176,7 @@ export default function NewCurriculumButton({
               disabled={submitting || !subjectId || !name}
               className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
             >
-              {submitting ? "Creating..." : "Create Curriculum"}
+              {submitting ? "Creating..." : "Create Course"}
             </button>
           </div>
         </form>

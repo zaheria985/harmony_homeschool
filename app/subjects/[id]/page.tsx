@@ -93,10 +93,10 @@ export default async function SubjectDetailPage({
         </Card>
       </div>
 
-      {/* Curricula */}
-      <Card title="Curricula" className="mb-8">
+      {/* Courses */}
+      <Card title="Courses" className="mb-8">
         {subject.curricula.length === 0 ? (
-          <p className="py-4 text-center text-gray-400">No curricula yet</p>
+          <p className="py-4 text-center text-gray-400">No courses yet</p>
         ) : (
           <div className="space-y-3">
             {subject.curricula.map(

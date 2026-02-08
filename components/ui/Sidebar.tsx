@@ -3,16 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { signOut } from "next-auth/react";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: "📊" },
   { href: "/students", label: "Students", icon: "👨‍🎓" },
   { href: "/subjects", label: "Subjects", icon: "🎨" },
-  { href: "/curricula", label: "Curricula", icon: "📖" },
+  { href: "/curricula", label: "Courses", icon: "📖" },
   { href: "/week", label: "Planner", icon: "📚" },
   { href: "/grades", label: "Grades", icon: "📝" },
   { href: "/resources", label: "Resources", icon: "📦" },
   { href: "/calendar", label: "Calendar", icon: "📅" },
+  { href: "/completed", label: "Completed", icon: "✅" },
   { href: "/reports", label: "Reports", icon: "📈" },
   { href: "/admin", label: "Admin", icon: "⚙️" },
 ];
@@ -71,8 +73,16 @@ export default function Sidebar() {
           })}
         </nav>
 
-        <div className="border-t p-4 text-xs text-gray-400">
-          Harmony Homeschool v0.1
+        <div className="border-t p-4">
+          <button
+            onClick={() => signOut({ callbackUrl: "/login" })}
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+          >
+            Sign Out
+          </button>
+          <p className="mt-2 px-3 text-xs text-gray-400">
+            Harmony Homeschool v0.1
+          </p>
         </div>
       </aside>
     </>

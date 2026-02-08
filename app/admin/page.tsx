@@ -22,9 +22,9 @@ const sections = [
   },
   {
     href: "/admin/curricula",
-    label: "Curricula",
+    label: "Courses",
     icon: "📋",
-    description: "Organize units and curricula within subjects",
+    description: "Manage courses and unit studies within subjects",
     statKey: "curriculum_count" as const,
   },
 ];
@@ -37,8 +37,8 @@ export default async function AdminPage() {
       <PageHeader title="Admin" />
 
       <div className="mb-8 rounded-lg border border-primary-100 bg-primary-50 p-4 text-sm text-primary-800">
-        <strong>Data hierarchy:</strong> Children → Subjects → Curricula → Lessons → Resources.
-        Create items top-down — a child must exist before adding subjects, subjects before curricula, etc.
+        <strong>Data hierarchy:</strong> Children → Subjects → Courses → Lessons → Resources.
+        Create items top-down — a child must exist before adding subjects, subjects before courses, etc.
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -60,7 +60,21 @@ export default async function AdminPage() {
         ))}
       </div>
 
-      <div className="mt-6">
+      <div className="mt-6 space-y-4">
+        <Link href="/admin/calendar">
+          <Card className="transition-shadow hover:shadow-md">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">📅</span>
+              <div>
+                <h3 className="text-lg font-semibold">School Calendar</h3>
+                <p className="text-sm text-gray-500">
+                  Configure school years, school days, holidays, and make-up days
+                </p>
+              </div>
+            </div>
+          </Card>
+        </Link>
+
         <Card>
           <div className="flex items-center gap-3">
             <span className="text-2xl">📝</span>
@@ -78,6 +92,24 @@ export default async function AdminPage() {
               </p>
             </div>
           </div>
+        </Card>
+
+        <Card>
+          <h3 className="mb-2 text-lg font-semibold">Field Coverage</h3>
+          <ul className="space-y-1 text-sm text-gray-600">
+            <li>
+              <strong>Children:</strong> name, emoji, banner image editable in <Link href="/admin/children" className="text-primary-600 underline">Children</Link>.
+            </li>
+            <li>
+              <strong>Subjects:</strong> name, color, thumbnail editable in <Link href="/admin/subjects" className="text-primary-600 underline">Subjects</Link>.
+            </li>
+            <li>
+              <strong>Courses:</strong> name, description, subject, type, status, dates, notes, cover image editable in <Link href="/admin/curricula" className="text-primary-600 underline">Courses</Link>.
+            </li>
+            <li>
+              <strong>Lessons:</strong> title, due date, status editable in <Link href="/lessons/table" className="text-primary-600 underline">Lessons Table</Link>; order index and timestamps are system-managed.
+            </li>
+          </ul>
         </Card>
       </div>
     </div>

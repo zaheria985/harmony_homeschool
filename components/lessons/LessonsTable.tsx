@@ -28,6 +28,10 @@ type Child = { id: string; name: string };
 type SortField = "planned_date" | "title" | "status";
 type SortDir = "asc" | "desc";
 
+function toSafeText(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
 const statusVariant: Record<string, "default" | "warning" | "success"> = {
   planned: "default",
   in_progress: "warning",
@@ -56,9 +60,13 @@ export default function LessonsTable({
   const router = useRouter();
 
   // Filter state
+  const [childFilter, setChildFilter] = useState("");
   const [subjectFilter, setSubjectFilter] = useState("");
   const [curriculumFilter, setCurriculumFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+
+  // Expanded rows
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   // Sort state
   const [sortField, setSortField] = useState<SortField>("planned_date");
@@ -70,7 +78,10 @@ export default function LessonsTable({
   // Derive filter options from data
   const subjects = useMemo(() => {
     const map = new Map<string, string>();
-    for (const l of lessons) map.set(l.subject_id, l.subject_name);
+    for (const l of lessons) {
+      if (!l.subject_id) continue;
+      map.set(l.subject_id, toSafeText(l.subject_name));
+    }
     return Array.from(map, ([id, name]) => ({ id, name })).sort((a, b) =>
       a.name.localeCompare(b.name)
     );
@@ -81,7 +92,10 @@ export default function LessonsTable({
       ? lessons.filter((l) => l.subject_id === subjectFilter)
       : lessons;
     const map = new Map<string, string>();
-    for (const l of filtered) map.set(l.curriculum_id, l.curriculum_name);
+    for (const l of filtered) {
+      if (!l.curriculum_id) continue;
+      map.set(l.curriculum_id, toSafeText(l.curriculum_name));
+    }
     return Array.from(map, ([id, name]) => ({ id, name })).sort((a, b) =>
       a.name.localeCompare(b.name)
     );
@@ -94,9 +108,20 @@ export default function LessonsTable({
     ? curriculumFilter
     : "";
 
+  function toggleExpanded(id: string) {
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   // Filter + sort
   const filtered = useMemo(() => {
     let result = lessons;
+    if (childFilter)
+      result = result.filter((l) => l.child_id === childFilter);
     if (subjectFilter)
       result = result.filter((l) => l.subject_id === subjectFilter);
     if (effectiveCurriculumFilter)
@@ -109,7 +134,7 @@ export default function LessonsTable({
     result = [...result].sort((a, b) => {
       let cmp = 0;
       if (sortField === "title") {
-        cmp = a.title.localeCompare(b.title);
+        cmp = toSafeText(a.title).localeCompare(toSafeText(b.title));
       } else if (sortField === "status") {
         cmp = (statusOrder[a.status] ?? 0) - (statusOrder[b.status] ?? 0);
       } else {
@@ -125,7 +150,7 @@ export default function LessonsTable({
     });
 
     return result;
-  }, [lessons, subjectFilter, effectiveCurriculumFilter, statusFilter, sortField, sortDir]);
+  }, [lessons, childFilter, subjectFilter, effectiveCurriculumFilter, statusFilter, sortField, sortDir]);
 
   function toggleSort(field: SortField) {
     if (sortField === field) {
@@ -145,6 +170,21 @@ export default function LessonsTable({
     <>
       {/* Filters */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
+        {children.length > 1 && (
+          <select
+            value={childFilter}
+            onChange={(e) => setChildFilter(e.target.value)}
+            className="rounded-lg border bg-white px-3 py-2 text-sm"
+          >
+            <option value="">All Students</option>
+            {children.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        )}
+
         <select
           value={subjectFilter}
           onChange={(e) => {
@@ -231,52 +271,85 @@ export default function LessonsTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {filtered.map((lesson) => (
-              <tr
-                key={lesson.id}
-                onClick={() => router.push(`/lessons/${lesson.id}`)}
-                className="cursor-pointer hover:bg-gray-50"
-              >
-                <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
-                  {lesson.title}
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                  {lesson.child_name}
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-sm">
-                  <Badge variant="primary">{lesson.subject_name}</Badge>
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                  {lesson.curriculum_name}
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-sm">
-                  <Badge variant={statusVariant[lesson.status] || "default"}>
-                    {statusLabel[lesson.status] || lesson.status}
-                  </Badge>
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                  {lesson.planned_date
-                    ? new Date(lesson.planned_date).toLocaleDateString()
-                    : "\u2014"}
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-primary-600">
-                  {lesson.grade != null
-                    ? Number(lesson.grade).toFixed(0)
-                    : "\u2014"}
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-right text-sm">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditLesson(lesson);
-                    }}
-                    className="rounded px-2 py-1 text-xs font-medium text-primary-600 hover:bg-primary-50"
-                  >
-                    Edit
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {filtered.map((lesson) => {
+              const isExpanded = expandedRows.has(lesson.id);
+              const hasDetails = lesson.description || lesson.completion_notes;
+              return (
+                <tr
+                  key={lesson.id}
+                  onClick={() => router.push(`/lessons/${lesson.id}`)}
+                  className="group cursor-pointer hover:bg-gray-50"
+                >
+                  <td className="px-4 py-3 text-sm">
+                    <div className="flex items-start gap-2">
+                      {hasDetails && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleExpanded(lesson.id);
+                          }}
+                          className="mt-0.5 flex-shrink-0 text-xs text-gray-400 hover:text-gray-600"
+                        >
+                          {isExpanded ? "▾" : "▸"}
+                        </button>
+                      )}
+                      <div className="min-w-0">
+                        <span className="font-medium text-gray-900">
+                          {toSafeText(lesson.title) || "Untitled lesson"}
+                        </span>
+                        {isExpanded && lesson.description && (
+                          <p className="mt-1 text-xs text-gray-500 whitespace-pre-wrap line-clamp-4">
+                            {lesson.description}
+                          </p>
+                        )}
+                        {isExpanded && lesson.completion_notes && (
+                          <p className="mt-1 text-xs italic text-gray-400">
+                            Note: {lesson.completion_notes}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                    {toSafeText(lesson.child_name) || "Unknown student"}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm">
+                    <Badge variant="primary">
+                      {toSafeText(lesson.subject_name) || "Unknown subject"}
+                    </Badge>
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                    {toSafeText(lesson.curriculum_name) || "Unknown curriculum"}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm">
+                    <Badge variant={statusVariant[lesson.status] || "default"}>
+                      {statusLabel[lesson.status] || lesson.status}
+                    </Badge>
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                    {lesson.planned_date
+                      ? new Date(lesson.planned_date).toLocaleDateString()
+                      : "\u2014"}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-primary-600">
+                    {lesson.grade != null
+                      ? Number(lesson.grade).toFixed(0)
+                      : "\u2014"}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditLesson(lesson);
+                      }}
+                      className="rounded px-2 py-1 text-xs font-medium text-primary-600 hover:bg-primary-50"
+                    >
+                      Edit
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
             {filtered.length === 0 && (
               <tr>
                 <td

@@ -35,7 +35,7 @@ export default async function CurriculaPage() {
 
   return (
     <div>
-      <PageHeader title="Curricula">
+      <PageHeader title="Courses">
         <NewCurriculumButton children={children} schoolYears={years} />
       </PageHeader>
 
