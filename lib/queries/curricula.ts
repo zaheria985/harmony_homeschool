@@ -3,7 +3,7 @@ import pool from "@/lib/db";
 export async function getAllCurricula() {
   const res = await pool.query(
     `SELECT
-       cu.id, cu.name, cu.description, cu.order_index,
+       cu.id, cu.name, cu.description, cu.order_index, cu.cover_image,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        ca.child_id,
        c.name AS child_name,
@@ -14,7 +14,7 @@ export async function getAllCurricula() {
      JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id
      JOIN children c ON c.id = ca.child_id
      LEFT JOIN lessons l ON l.curriculum_id = cu.id
-     GROUP BY cu.id, cu.name, cu.description, cu.order_index,
+     GROUP BY cu.id, cu.name, cu.description, cu.order_index, cu.cover_image,
               s.id, s.name, s.color, ca.child_id, c.name
      ORDER BY c.name, s.name, cu.order_index, cu.name`
   );
@@ -24,7 +24,7 @@ export async function getAllCurricula() {
 export async function getCurriculumDetail(id: string) {
   const res = await pool.query(
     `SELECT
-       cu.id, cu.name, cu.description, cu.order_index,
+       cu.id, cu.name, cu.description, cu.order_index, cu.cover_image,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        ca.child_id,
        c.name AS child_name
@@ -60,7 +60,7 @@ export async function getCurriculumBoardData(id: string) {
   // Curriculum info
   const res = await pool.query(
     `SELECT
-       cu.id, cu.name, cu.description, cu.order_index,
+       cu.id, cu.name, cu.description, cu.order_index, cu.cover_image,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        ca.child_id,
        c.name AS child_name
@@ -125,15 +125,15 @@ export async function getCurriculumBoardData(id: string) {
     [id]
   );
 
-  // Curriculum-level resources (distinct global resources used across lessons)
+  // Curriculum-level shared resources (directly attached to curriculum)
   const curriculumResources = await pool.query(
-    `SELECT DISTINCT ON (r.id)
-       r.id, r.title, r.type, r.url, r.thumbnail_url, r.description
-     FROM resources r
-     JOIN lesson_resources lr ON lr.resource_id = r.id
-     JOIN lessons l ON l.id = lr.lesson_id
-     WHERE l.curriculum_id = $1
-     ORDER BY r.id, r.type, r.title`,
+    `SELECT
+       r.id, r.title, r.type, r.url, r.thumbnail_url, r.description,
+       cr.notes AS attachment_notes, cr.created_at AS attached_at
+     FROM curriculum_resources cr
+     JOIN resources r ON r.id = cr.resource_id
+     WHERE cr.curriculum_id = $1
+     ORDER BY r.type, r.title`,
     [id]
   );
 

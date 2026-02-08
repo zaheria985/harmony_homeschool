@@ -26,6 +26,17 @@ export default async function CurriculumDetailPage({
 
   return (
     <div>
+      {curriculum.cover_image && (
+        <div className="mb-6 h-48 overflow-hidden rounded-xl">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={curriculum.cover_image}
+            alt={curriculum.name}
+            className="h-full w-full object-cover"
+          />
+        </div>
+      )}
+
       <PageHeader title={curriculum.name}>
         <div className="flex items-center gap-2">
           <CurriculumViewToggle curriculumId={params.id} />

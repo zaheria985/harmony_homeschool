@@ -10,6 +10,7 @@ type Subject = {
   id: string;
   name: string;
   color: string | null;
+  thumbnail_url: string | null;
   lesson_count: number;
   completed_count: number;
   curriculum_count: number;
@@ -24,12 +25,16 @@ export default function SubjectsView({
   const [view, setView] = useState<string>("gallery");
 
   const saveSubjectField = useCallback(
-    (subject: Subject, field: "name" | "color") =>
+    (subject: Subject, field: "name" | "color" | "thumbnail_url") =>
       async (value: string) => {
         const formData = new FormData();
         formData.set("id", subject.id);
         formData.set("name", field === "name" ? value : subject.name);
         formData.set("color", field === "color" ? value : subject.color || "");
+        formData.set(
+          "thumbnail_url",
+          field === "thumbnail_url" ? value : subject.thumbnail_url || ""
+        );
         return updateSubject(formData);
       },
     []
@@ -79,6 +84,16 @@ export default function SubjectsView({
                   className="h-2 rounded-t-xl"
                   style={{ backgroundColor: subject.color || "#6366f1" }}
                 />
+                {subject.thumbnail_url && (
+                  <div className="h-36 overflow-hidden border-b">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={subject.thumbnail_url}
+                      alt={subject.name}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                )}
                 <div className="p-5">
                   <div className="mb-2 flex items-start justify-between">
                     <h3 className="font-semibold text-gray-900">{subject.name}</h3>
@@ -122,6 +137,9 @@ export default function SubjectsView({
                   Color
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Thumbnail
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                   Curricula
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -161,6 +179,29 @@ export default function SubjectsView({
                             className="inline-block h-4 w-4 rounded-full"
                             style={{ backgroundColor: subject.color || "#6366f1" }}
                           />
+                        }
+                      />
+                    </td>
+                    <td className="max-w-xs px-4 py-3 text-sm text-gray-600">
+                      <EditableCell
+                        value={subject.thumbnail_url || ""}
+                        onSave={saveSubjectField(subject, "thumbnail_url")}
+                        displayValue={
+                          subject.thumbnail_url ? (
+                            <div className="flex items-center gap-2">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={subject.thumbnail_url}
+                                alt={subject.name}
+                                className="h-8 w-8 rounded object-cover"
+                              />
+                              <span className="max-w-[16rem] truncate text-xs text-gray-500">
+                                {subject.thumbnail_url}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 italic">Add image URL</span>
+                          )
                         }
                       />
                     </td>

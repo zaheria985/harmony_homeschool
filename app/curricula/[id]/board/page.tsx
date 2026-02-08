@@ -17,6 +17,17 @@ export default async function CurriculumBoardPage({
 
   return (
     <div>
+      {data.cover_image && (
+        <div className="mb-6 h-48 overflow-hidden rounded-xl">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={data.cover_image}
+            alt={data.name}
+            className="h-full w-full object-cover"
+          />
+        </div>
+      )}
+
       <PageHeader title={data.name}>
         <div className="flex items-center gap-2">
           <CurriculumViewToggle curriculumId={params.id} />

@@ -12,6 +12,7 @@ type Curriculum = {
   name: string;
   description: string | null;
   order_index: number;
+  cover_image: string | null;
   subject_id: string;
   subject_name: string;
   subject_color: string | null;
@@ -65,7 +66,10 @@ export default function CurriculaView({
   }, [curricula, childFilter, effectiveSubjectFilter]);
 
   const saveCurriculumField = useCallback(
-    (curriculum: Curriculum, field: "name" | "description" | "subject_id") =>
+    (
+      curriculum: Curriculum,
+      field: "name" | "description" | "subject_id" | "cover_image"
+    ) =>
       async (value: string) => {
         const formData = new FormData();
         formData.set("id", curriculum.id);
@@ -73,6 +77,10 @@ export default function CurriculaView({
         formData.set(
           "description",
           field === "description" ? value : curriculum.description || ""
+        );
+        formData.set(
+          "cover_image",
+          field === "cover_image" ? value : curriculum.cover_image || ""
         );
         if (field === "subject_id") formData.set("subject_id", value);
         return updateCurriculum(formData);
@@ -161,6 +169,16 @@ export default function CurriculaView({
                     backgroundColor: curriculum.subject_color || "#6366f1",
                   }}
                 />
+                {curriculum.cover_image && (
+                  <div className="h-36 overflow-hidden border-b">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={curriculum.cover_image}
+                      alt={curriculum.name}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                )}
                 <div className="p-5">
                   <h3 className="mb-1 font-semibold text-gray-900">
                     {curriculum.name}
@@ -214,6 +232,9 @@ export default function CurriculaView({
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                   Description
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Cover Image
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                   Lessons
@@ -270,6 +291,29 @@ export default function CurriculaView({
                       <EditableCell
                         value={curriculum.description || ""}
                         onSave={saveCurriculumField(curriculum, "description")}
+                      />
+                    </td>
+                    <td className="max-w-xs px-4 py-3 text-sm text-gray-600">
+                      <EditableCell
+                        value={curriculum.cover_image || ""}
+                        onSave={saveCurriculumField(curriculum, "cover_image")}
+                        displayValue={
+                          curriculum.cover_image ? (
+                            <div className="flex items-center gap-2">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={curriculum.cover_image}
+                                alt={curriculum.name}
+                                className="h-8 w-8 rounded object-cover"
+                              />
+                              <span className="max-w-[16rem] truncate text-xs text-gray-500">
+                                {curriculum.cover_image}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 italic">Add image URL</span>
+                          )
+                        }
                       />
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
