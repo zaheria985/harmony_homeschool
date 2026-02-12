@@ -37,14 +37,7 @@ services:
       - uploads:/app/public/uploads
     ports:
       - "3000:3000"
-    networks:
-      - default
-      - caddy
 
 volumes:
   pgdata:
   uploads:
-
-networks:
-  caddy:
-    external: true
