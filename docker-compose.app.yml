@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   app:
-    build: .
+    image: ${APP_IMAGE:-ghcr.io/zaheria985/harmony_homeschool:latest}
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}

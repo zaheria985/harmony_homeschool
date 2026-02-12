@@ -25,7 +25,8 @@ cp .env.example .env
 4. Start the default stack (app + PostgreSQL):
 
 ```bash
-docker compose up --build -d
+docker compose pull
+docker compose up -d
 ```
 
 5. Open `http://localhost:3000`
@@ -58,7 +59,7 @@ services:
       retries: 5
 
   app:
-    build: .
+    image: ${APP_IMAGE:-ghcr.io/zaheria985/harmony_homeschool:latest}
     restart: unless-stopped
     depends_on:
       db:
@@ -85,7 +86,8 @@ volumes:
 Run it:
 
 ```bash
-docker compose up --build -d
+docker compose pull
+docker compose up -d
 ```
 
 ### Option B: App-only stack (use your own external PostgreSQL)
@@ -97,7 +99,7 @@ version: "3.8"
 
 services:
   app:
-    build: .
+    image: ${APP_IMAGE:-ghcr.io/zaheria985/harmony_homeschool:latest}
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
@@ -120,10 +122,23 @@ volumes:
 Run it:
 
 ```bash
-docker compose -f docker-compose.app.yml up --build -d
+docker compose -f docker-compose.app.yml pull
+docker compose -f docker-compose.app.yml up -d
 ```
 
 For this mode, set `DATABASE_URL` in `.env` to your external PostgreSQL connection string.
+
+## Docker Image Publishing
+
+- Image: `ghcr.io/zaheria985/harmony_homeschool`
+- `latest` is published automatically from `main` via `.github/workflows/docker-publish.yml`.
+- Every publish also includes a short SHA tag.
+
+If you want to build locally instead of pulling the prebuilt image:
+
+```bash
+docker compose up --build -d
+```
 
 ## Local Dev (Without Docker)
 
