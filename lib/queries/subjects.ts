@@ -4,11 +4,13 @@ export async function getAllSubjects() {
   const res = await pool.query(
     `SELECT
        s.id, s.name, s.color, s.thumbnail_url,
+       COALESCE(ARRAY_AGG(DISTINCT ca.child_id) FILTER (WHERE ca.child_id IS NOT NULL), ARRAY[]::uuid[]) AS child_ids,
        COUNT(DISTINCT l.id)::int AS lesson_count,
        COUNT(DISTINCT CASE WHEN l.status = 'completed' THEN l.id END)::int AS completed_count,
        COUNT(DISTINCT cu.id)::int AS curriculum_count
      FROM subjects s
      LEFT JOIN curricula cu ON cu.subject_id = s.id
+     LEFT JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id
      LEFT JOIN lessons l ON l.curriculum_id = cu.id
      GROUP BY s.id, s.name, s.color, s.thumbnail_url
      ORDER BY s.name`

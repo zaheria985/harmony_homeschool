@@ -1,10 +1,7 @@
 "use client";
-
 import { useState } from "react";
 import LessonFormModal from "./LessonFormModal";
-
 type Child = { id: string; name: string };
-
 type LessonData = {
   id: string;
   title: string;
@@ -13,7 +10,6 @@ type LessonData = {
   curriculum_id: string;
   child_id?: string;
 };
-
 export default function EditLessonButton({
   lesson,
   children,
@@ -22,21 +18,22 @@ export default function EditLessonButton({
   children: Child[];
 }) {
   const [open, setOpen] = useState(false);
-
   return (
     <>
+      {" "}
       <button
         onClick={() => setOpen(true)}
-        className="rounded-lg border px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+        className="rounded-lg border px-3 py-1.5 text-sm text-tertiary hover:bg-surface-muted"
       >
-        Edit
-      </button>
+        {" "}
+        Edit{" "}
+      </button>{" "}
       <LessonFormModal
         open={open}
         onClose={() => setOpen(false)}
         lesson={lesson}
         children={children}
-      />
+      />{" "}
     </>
   );
 }

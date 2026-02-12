@@ -71,7 +71,7 @@ export default function EditableCell({
         cancel();
       }
     },
-    [save, cancel]
+    [save, cancel],
   );
 
   const startEditing = useCallback((e: React.MouseEvent) => {
@@ -81,7 +81,10 @@ export default function EditableCell({
 
   if (editing) {
     return (
-      <div className={`relative ${className}`} onClick={(e) => e.stopPropagation()}>
+      <div
+        className={`relative ${className}`}
+        onClick={(e) => e.stopPropagation()}
+      >
         {type === "select" && options ? (
           <select
             ref={inputRef as React.RefObject<HTMLSelectElement>}
@@ -108,7 +111,7 @@ export default function EditableCell({
             onBlur={cancel}
             onKeyDown={handleKeyDown}
             disabled={saving}
-            className="w-full rounded border border-primary-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50"
+            className="w-full rounded border border-interactive-border bg-surface px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-focus disabled:opacity-50"
           >
             {options.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -126,7 +129,7 @@ export default function EditableCell({
               onBlur={save}
               onKeyDown={handleKeyDown}
               disabled={saving}
-              className="h-7 w-10 cursor-pointer rounded border border-gray-300 disabled:opacity-50"
+              className="h-7 w-10 cursor-pointer rounded border border-border disabled:opacity-50"
             />
           </div>
         ) : (
@@ -138,11 +141,11 @@ export default function EditableCell({
             onBlur={save}
             onKeyDown={handleKeyDown}
             disabled={saving}
-            className="w-full rounded border border-primary-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50"
+            className="w-full rounded border border-interactive-border bg-surface px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-focus disabled:opacity-50"
           />
         )}
         {saving && (
-          <span className="absolute -top-5 left-0 text-xs text-primary-600">
+          <span className="absolute -top-5 left-0 text-xs text-interactive">
             Saving...
           </span>
         )}
@@ -158,10 +161,11 @@ export default function EditableCell({
   return (
     <div
       onClick={startEditing}
-      className={`group cursor-pointer rounded px-1 py-0.5 -mx-1 -my-0.5 hover:bg-primary-50 hover:ring-1 hover:ring-primary-200 transition-colors ${className}`}
+      className={`group cursor-pointer rounded px-1 py-0.5 -mx-1 -my-0.5 hover:bg-interactive-light hover:ring-1 hover:ring-primary-200 transition-colors ${className}`}
       title="Click to edit"
     >
-      {displayValue ?? (editValue || <span className="text-gray-400 italic">—</span>)}
+      {displayValue ??
+        (editValue || <span className="text-muted italic">—</span>)}
     </div>
   );
 }

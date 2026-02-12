@@ -1,6 +1,10 @@
 import type { LessonResource } from "@/lib/queries/week";
 
-export default function ResourceEmbed({ resource }: { resource: LessonResource }) {
+export default function ResourceEmbed({
+  resource,
+}: {
+  resource: LessonResource;
+}) {
   const label = resource.title || resource.url;
 
   if (resource.type === "youtube") {
@@ -8,7 +12,7 @@ export default function ResourceEmbed({ resource }: { resource: LessonResource }
     const videoId = extractYouTubeId(resource.url);
     if (videoId) {
       return (
-        <div className="overflow-hidden rounded-lg border border-gray-200">
+        <div className="overflow-hidden rounded-lg border border-light">
           <iframe
             src={`https://www.youtube-nocookie.com/embed/${videoId}`}
             className="aspect-video w-full"
@@ -27,12 +31,14 @@ export default function ResourceEmbed({ resource }: { resource: LessonResource }
         href={resource.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+        className="flex items-center gap-2 rounded-lg border border-light px-3 py-2 text-sm text-secondary hover:bg-surface-muted"
       >
         <span className="text-red-500">PDF</span>
         <span className="truncate">{label}</span>
         {resource.page_number && (
-          <span className="text-xs text-gray-400">p.{resource.page_number}</span>
+          <span className="text-xs text-gray-400">
+            p.{resource.page_number}
+          </span>
         )}
       </a>
     );
@@ -44,7 +50,7 @@ export default function ResourceEmbed({ resource }: { resource: LessonResource }
       href={resource.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-primary-600 hover:bg-gray-50"
+      className="flex items-center gap-2 rounded-lg border border-light px-3 py-2 text-sm text-interactive hover:bg-surface-muted"
     >
       <span className="truncate">{label}</span>
     </a>

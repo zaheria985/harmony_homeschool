@@ -24,6 +24,7 @@ export async function chatCompletion(
   let body: Record<string, unknown>;
 
   if (provider === "claude") {
+    const model = process.env.LLM_MODEL || "claude-sonnet-4-5-20250929";
     url = "https://api.anthropic.com/v1/messages";
     headers = {
       "Content-Type": "application/json",
@@ -32,20 +33,21 @@ export async function chatCompletion(
     };
     const system = messages.find((m) => m.role === "system")?.content;
     body = {
-      model: "claude-sonnet-4-20250514",
+      model,
       max_tokens: 4096,
       system,
       messages: messages.filter((m) => m.role !== "system"),
     };
   } else {
     // openai or openai_compatible
+    const model = process.env.LLM_MODEL || "gpt-4o";
     url = `${baseUrl}/chat/completions`;
     headers = {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     };
     body = {
-      model: "gpt-4o",
+      model,
       messages,
     };
   }
@@ -68,4 +70,8 @@ export async function chatCompletion(
   }
 
   return { content: data.choices[0].message.content };
+}
+
+export function isLlmConfigured(): boolean {
+  return !!process.env.LLM_API_KEY;
 }

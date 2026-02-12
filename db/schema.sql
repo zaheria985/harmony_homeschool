@@ -12,6 +12,7 @@ CREATE TABLE users (
     email       TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     name        TEXT,
+    child_id    UUID REFERENCES children(id) ON DELETE SET NULL,
     role        TEXT NOT NULL DEFAULT 'parent'
                     CHECK (role IN ('parent', 'kid')),
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -24,6 +25,16 @@ CREATE TABLE children (
     banner_url  TEXT,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE TABLE parent_children (
+    parent_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    child_id    UUID NOT NULL REFERENCES children(id) ON DELETE CASCADE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (parent_id, child_id)
+);
+
+CREATE INDEX idx_parent_children_parent ON parent_children(parent_id);
+CREATE INDEX idx_parent_children_child ON parent_children(child_id);
 
 CREATE TABLE school_years (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -70,6 +81,8 @@ CREATE TABLE curricula (
                   CHECK (course_type IN ('curriculum', 'unit_study')),
     status      TEXT NOT NULL DEFAULT 'active'
                   CHECK (status IN ('active', 'archived', 'draft')),
+    grade_type  TEXT NOT NULL DEFAULT 'numeric'
+                  CHECK (grade_type IN ('numeric', 'pass_fail')),
     start_date  DATE,
     end_date    DATE,
     notes       TEXT
@@ -82,6 +95,13 @@ CREATE TABLE curriculum_assignments (
     school_year_id  UUID NOT NULL REFERENCES school_years(id) ON DELETE CASCADE,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (curriculum_id, child_id, school_year_id)
+);
+
+CREATE TABLE curriculum_assignment_days (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    assignment_id   UUID NOT NULL REFERENCES curriculum_assignments(id) ON DELETE CASCADE,
+    weekday         SMALLINT NOT NULL CHECK (weekday BETWEEN 0 AND 6),
+    UNIQUE (assignment_id, weekday)
 );
 
 CREATE TABLE lessons (
@@ -138,54 +158,41 @@ CREATE TABLE lesson_completions (
     child_id            UUID NOT NULL REFERENCES children(id) ON DELETE CASCADE,
     completed_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
     completed_by_user_id UUID NOT NULL REFERENCES users(id),
+    grade               NUMERIC(5,2),
+    pass_fail           TEXT CHECK (pass_fail IN ('pass', 'fail')),
+    notes               TEXT,
     UNIQUE (lesson_id, child_id)
 );
 
--- ============================================================================
--- BOOKS
--- ============================================================================
-
-CREATE TABLE books (
+CREATE TABLE tags (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    child_id        UUID NOT NULL REFERENCES children(id) ON DELETE CASCADE,
-    school_year_id  UUID NOT NULL REFERENCES school_years(id) ON DELETE CASCADE,
-    title           TEXT NOT NULL,
-    author          TEXT,
-    isbn            TEXT,
-    cover_url       TEXT,
-    status          TEXT NOT NULL DEFAULT 'planned'
-                        CHECK (status IN ('planned', 'reading', 'completed')),
-    added_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
-    started_at      TIMESTAMPTZ,
-    completed_at    TIMESTAMPTZ,
-    notes           TEXT
-);
-
--- ============================================================================
--- AI IMPORT
--- ============================================================================
-
-CREATE TABLE import_batches (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    filename        TEXT,
-    prompt_profile  TEXT,
-    status          TEXT NOT NULL DEFAULT 'pending'
-                        CHECK (status IN ('pending', 'reviewed', 'committed')),
+    name            TEXT NOT NULL UNIQUE,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE import_items (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    batch_id        UUID NOT NULL REFERENCES import_batches(id) ON DELETE CASCADE,
-    item_type       TEXT NOT NULL CHECK (item_type IN ('lesson', 'book')),
-    extracted_json  JSONB NOT NULL DEFAULT '{}',
-    source_page     INTEGER,
-    confidence      REAL,
-    review_status   TEXT NOT NULL DEFAULT 'pending'
-                        CHECK (review_status IN ('pending', 'approved', 'rejected', 'edited')),
-    reviewer_notes  TEXT
+CREATE TABLE resource_tags (
+    resource_id     UUID NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+    tag_id          UUID NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (resource_id, tag_id)
 );
+
+CREATE TABLE booklists (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name            TEXT NOT NULL,
+    owner_child_id  UUID REFERENCES children(id) ON DELETE SET NULL,
+    description     TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE booklist_resources (
+    booklist_id     UUID NOT NULL REFERENCES booklists(id) ON DELETE CASCADE,
+    resource_id     UUID NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+    position        INTEGER NOT NULL DEFAULT 0,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (booklist_id, resource_id)
+);
+
 
 -- ============================================================================
 -- INDEXES
@@ -200,6 +207,7 @@ CREATE INDEX idx_curricula_subject     ON curricula(subject_id);
 CREATE INDEX idx_ca_curriculum         ON curriculum_assignments(curriculum_id);
 CREATE INDEX idx_ca_child              ON curriculum_assignments(child_id);
 CREATE INDEX idx_ca_school_year        ON curriculum_assignments(school_year_id);
+CREATE INDEX idx_cad_assignment        ON curriculum_assignment_days(assignment_id);
 CREATE INDEX idx_lessons_curriculum    ON lessons(curriculum_id);
 CREATE INDEX idx_lessons_planned_date  ON lessons(planned_date);
 CREATE INDEX idx_lessons_status        ON lessons(status);
@@ -212,13 +220,8 @@ CREATE INDEX idx_lesson_resources_lesson            ON lesson_resources(lesson_i
 CREATE INDEX idx_lesson_resources_resource          ON lesson_resources(resource_id);
 CREATE INDEX idx_lesson_completions_lesson          ON lesson_completions(lesson_id);
 CREATE INDEX idx_lesson_completions_child           ON lesson_completions(child_id);
+CREATE INDEX idx_resource_tags_resource             ON resource_tags(resource_id);
+CREATE INDEX idx_resource_tags_tag                  ON resource_tags(tag_id);
 
--- books
-CREATE INDEX idx_books_child           ON books(child_id);
-CREATE INDEX idx_books_year            ON books(school_year_id);
-CREATE INDEX idx_books_status          ON books(status);
-
--- AI import
-CREATE INDEX idx_import_batches_user   ON import_batches(user_id);
-CREATE INDEX idx_import_items_batch    ON import_items(batch_id);
-CREATE INDEX idx_import_items_review   ON import_items(review_status);
+CREATE INDEX idx_booklist_resources_booklist ON booklist_resources(booklist_id);
+CREATE INDEX idx_booklist_resources_resource ON booklist_resources(resource_id);

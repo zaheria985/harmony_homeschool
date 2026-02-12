@@ -14,14 +14,20 @@ export default function StatCard({
     success: "border-l-success-500",
     warning: "border-l-warning-500",
   };
-
   return (
     <div
-      className={`rounded-xl border border-gray-200 border-l-4 bg-white p-6 shadow-sm ${colorClasses[color]}`}
+      className={`rounded-xl border border-light border-l-4 bg-surface p-6 shadow-sm ${colorClasses[color]}`}
     >
-      <p className="text-sm font-medium text-gray-500">{label}</p>
-      <p className="mt-1 text-3xl font-bold text-gray-900">{value}</p>
-      {sublabel && <p className="mt-1 text-sm text-gray-400">{sublabel}</p>}
+      {" "}
+      <p className="text-sm font-medium text-muted dark:text-slate-400">
+        {label}
+      </p>{" "}
+      <p className="mt-1 text-3xl font-bold text-primary">{value}</p>{" "}
+      {sublabel && (
+        <p className="mt-1 text-sm text-gray-400 dark:text-slate-500">
+          {sublabel}
+        </p>
+      )}{" "}
     </div>
   );
 }

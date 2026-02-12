@@ -4,7 +4,7 @@ export async function getAllCurricula() {
   const res = await pool.query(
     `SELECT
        cu.id, cu.name, cu.description, cu.order_index, cu.cover_image,
-       cu.course_type, cu.status, cu.start_date::text, cu.end_date::text,
+       cu.course_type, cu.grade_type, cu.status, cu.start_date::text, cu.end_date::text,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        ca.child_id,
        c.name AS child_name,
@@ -16,7 +16,7 @@ export async function getAllCurricula() {
      JOIN children c ON c.id = ca.child_id
      LEFT JOIN lessons l ON l.curriculum_id = cu.id
       GROUP BY cu.id, cu.name, cu.description, cu.order_index, cu.cover_image,
-               cu.course_type, cu.status, cu.start_date, cu.end_date,
+               cu.course_type, cu.grade_type, cu.status, cu.start_date, cu.end_date,
                s.id, s.name, s.color, ca.child_id, c.name
      ORDER BY c.name, s.name, cu.order_index, cu.name`
   );
@@ -27,7 +27,7 @@ export async function getCurriculumDetail(id: string) {
   const res = await pool.query(
     `SELECT
        cu.id, cu.name, cu.description, cu.order_index, cu.cover_image,
-       cu.course_type, cu.status, cu.start_date::text, cu.end_date::text,
+       cu.course_type, cu.grade_type, cu.status, cu.start_date::text, cu.end_date::text,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        ca.child_id,
        c.name AS child_name
@@ -64,7 +64,7 @@ export async function getCurriculumBoardData(id: string) {
   const res = await pool.query(
     `SELECT
        cu.id, cu.name, cu.description, cu.order_index, cu.cover_image,
-       cu.course_type, cu.status, cu.start_date::text, cu.end_date::text,
+       cu.course_type, cu.grade_type, cu.status, cu.start_date::text, cu.end_date::text,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        ca.child_id,
        c.name AS child_name
@@ -168,4 +168,33 @@ export async function getCurriculumBoardData(id: string) {
     children: assignedChildren.rows,
     curriculumResources: curriculumResources.rows,
   };
+}
+
+export async function getAssignmentDaysForCurriculum(curriculumId: string) {
+  const res = await pool.query(
+    `SELECT
+       ca.id AS assignment_id,
+       ca.child_id,
+       c.name AS child_name,
+       COALESCE(array_agg(DISTINCT cad.weekday ORDER BY cad.weekday)
+         FILTER (WHERE cad.weekday IS NOT NULL), '{}') AS configured_weekdays,
+       COALESCE(array_agg(DISTINCT sd.weekday ORDER BY sd.weekday)
+         FILTER (WHERE sd.weekday IS NOT NULL), '{}') AS school_weekdays
+     FROM curriculum_assignments ca
+     JOIN children c ON c.id = ca.child_id
+     LEFT JOIN curriculum_assignment_days cad ON cad.assignment_id = ca.id
+     LEFT JOIN school_days sd ON sd.school_year_id = ca.school_year_id
+     WHERE ca.curriculum_id = $1
+     GROUP BY ca.id, ca.child_id, c.name
+     ORDER BY c.name`,
+    [curriculumId]
+  );
+
+  return res.rows as Array<{
+    assignment_id: string;
+    child_id: string;
+    child_name: string;
+    configured_weekdays: number[];
+    school_weekdays: number[];
+  }>;
 }

@@ -6,7 +6,12 @@ import { createLesson, updateLesson } from "@/lib/actions/lessons";
 import SubjectFormModal from "./SubjectFormModal";
 import CurriculumFormModal from "./CurriculumFormModal";
 
-type Subject = { id: string; name: string; color: string; school_year_id: string };
+type Subject = {
+  id: string;
+  name: string;
+  color: string;
+  school_year_id: string;
+};
 type Curriculum = { id: string; name: string; description: string | null };
 type ResourceRow = { type: string; url: string; title: string };
 
@@ -81,7 +86,7 @@ export default function LessonFormModal({
           type: r.type,
           url: r.url,
           title: r.title || "",
-        }))
+        })),
       );
     } else if (open) {
       setTitle("");
@@ -102,8 +107,14 @@ export default function LessonFormModal({
     setResources(resources.filter((_, i) => i !== idx));
   }
 
-  function updateResource(idx: number, field: keyof ResourceRow, value: string) {
-    setResources(resources.map((r, i) => (i === idx ? { ...r, [field]: value } : r)));
+  function updateResource(
+    idx: number,
+    field: keyof ResourceRow,
+    value: string,
+  ) {
+    setResources(
+      resources.map((r, i) => (i === idx ? { ...r, [field]: value } : r)),
+    );
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -160,8 +171,10 @@ export default function LessonFormModal({
     setShowNewCurriculum(false);
   }
 
-  const schoolYearId = subjects.find((s) => s.id === subjectId)?.school_year_id
-    || subjects[0]?.school_year_id || "";
+  const schoolYearId =
+    subjects.find((s) => s.id === subjectId)?.school_year_id ||
+    subjects[0]?.school_year_id ||
+    "";
 
   return (
     <>
@@ -172,12 +185,14 @@ export default function LessonFormModal({
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <p className="rounded-lg bg-red-50 p-2 text-sm text-red-600">{error}</p>
+            <p className="rounded-lg bg-[var(--error-bg)] p-2 text-sm text-red-600">
+              {error}
+            </p>
           )}
 
           {/* Title */}
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+            <label className="mb-1 block text-sm font-medium text-secondary">
               Title <span className="text-red-400">*</span>
             </label>
             <input
@@ -191,7 +206,7 @@ export default function LessonFormModal({
 
           {/* Description */}
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+            <label className="mb-1 block text-sm font-medium text-secondary">
               Description
             </label>
             <textarea
@@ -204,7 +219,7 @@ export default function LessonFormModal({
 
           {/* Subject */}
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+            <label className="mb-1 block text-sm font-medium text-secondary">
               Subject <span className="text-red-400">*</span>
             </label>
             <div className="flex gap-2">
@@ -224,7 +239,7 @@ export default function LessonFormModal({
               <button
                 type="button"
                 onClick={() => setShowNewSubject(true)}
-                className="whitespace-nowrap rounded-lg border px-3 py-2 text-sm text-primary-600 hover:bg-primary-50"
+                className="whitespace-nowrap rounded-lg border px-3 py-2 text-sm text-interactive hover:bg-interactive-light"
               >
                 + New
               </button>
@@ -233,7 +248,7 @@ export default function LessonFormModal({
 
           {/* Curriculum */}
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+            <label className="mb-1 block text-sm font-medium text-secondary">
               Curriculum <span className="text-red-400">*</span>
             </label>
             <div className="flex gap-2">
@@ -242,10 +257,12 @@ export default function LessonFormModal({
                 onChange={(e) => setCurriculumId(e.target.value)}
                 required
                 disabled={!subjectId}
-                className="flex-1 rounded-lg border px-3 py-2 text-sm disabled:bg-gray-50"
+                className="flex-1 rounded-lg border px-3 py-2 text-sm disabled:bg-surface-muted"
               >
                 <option value="">
-                  {subjectId ? "Select curriculum..." : "Select a subject first"}
+                  {subjectId
+                    ? "Select curriculum..."
+                    : "Select a subject first"}
                 </option>
                 {curricula.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -257,7 +274,7 @@ export default function LessonFormModal({
                 type="button"
                 onClick={() => setShowNewCurriculum(true)}
                 disabled={!subjectId}
-                className="whitespace-nowrap rounded-lg border px-3 py-2 text-sm text-primary-600 hover:bg-primary-50 disabled:opacity-50"
+                className="whitespace-nowrap rounded-lg border px-3 py-2 text-sm text-interactive hover:bg-interactive-light disabled:opacity-50"
               >
                 + New
               </button>
@@ -266,7 +283,7 @@ export default function LessonFormModal({
 
           {/* Date */}
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+            <label className="mb-1 block text-sm font-medium text-secondary">
               Planned Date
             </label>
             <input
@@ -280,11 +297,13 @@ export default function LessonFormModal({
           {/* Resources */}
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <label className="text-sm font-medium text-gray-700">Resources</label>
+              <label className="text-sm font-medium text-secondary">
+                Resources
+              </label>
               <button
                 type="button"
                 onClick={addResource}
-                className="text-sm text-primary-600 hover:text-primary-700"
+                className="text-sm text-interactive hover:text-interactive-hover"
               >
                 + Add Resource
               </button>
@@ -331,16 +350,20 @@ export default function LessonFormModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="rounded-lg border px-4 py-2 text-sm font-medium text-secondary hover:bg-surface-muted"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+              className="rounded-lg bg-interactive px-4 py-2 text-sm font-medium text-white hover:bg-interactive-hover disabled:opacity-50"
             >
-              {saving ? "Saving..." : editData ? "Update Lesson" : "Create Lesson"}
+              {saving
+                ? "Saving..."
+                : editData
+                  ? "Update Lesson"
+                  : "Create Lesson"}
             </button>
           </div>
         </form>

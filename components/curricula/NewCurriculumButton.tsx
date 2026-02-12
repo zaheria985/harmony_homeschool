@@ -22,7 +22,9 @@ export default function NewCurriculumButton({
   const [yearId, setYearId] = useState(schoolYears[0]?.id || "");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [courseType, setCourseType] = useState<"curriculum" | "unit_study">("curriculum");
+  const [courseType, setCourseType] = useState<"curriculum" | "unit_study">(
+    "curriculum",
+  );
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -74,15 +76,20 @@ export default function NewCurriculumButton({
   return (
     <>
       <button
-        onClick={() => { reset(); setOpen(true); }}
-        className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+        onClick={() => {
+          reset();
+          setOpen(true);
+        }}
+        className="rounded-lg bg-interactive px-4 py-2 text-sm font-medium text-white hover:bg-interactive-hover"
       >
         + New Course
       </button>
       <Modal open={open} onClose={() => setOpen(false)} title="New Course">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Subject</label>
+            <label className="mb-1 block text-sm font-medium text-secondary">
+              Subject
+            </label>
             <select
               value={subjectId}
               onChange={(e) => setSubjectId(e.target.value)}
@@ -91,13 +98,17 @@ export default function NewCurriculumButton({
             >
               <option value="">Select a subject...</option>
               {subjects.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Name</label>
+            <label className="mb-1 block text-sm font-medium text-secondary">
+              Name
+            </label>
             <input
               type="text"
               value={name}
@@ -109,7 +120,9 @@ export default function NewCurriculumButton({
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Description</label>
+            <label className="mb-1 block text-sm font-medium text-secondary">
+              Description
+            </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -120,10 +133,14 @@ export default function NewCurriculumButton({
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Course Type</label>
+            <label className="mb-1 block text-sm font-medium text-secondary">
+              Course Type
+            </label>
             <select
               value={courseType}
-              onChange={(e) => setCourseType(e.target.value as "curriculum" | "unit_study")}
+              onChange={(e) =>
+                setCourseType(e.target.value as "curriculum" | "unit_study")
+              }
               className="w-full rounded-lg border px-3 py-2 text-sm"
             >
               <option value="curriculum">Curriculum</option>
@@ -132,7 +149,9 @@ export default function NewCurriculumButton({
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Assign to Student (optional)</label>
+            <label className="mb-1 block text-sm font-medium text-secondary">
+              Assign to Student (optional)
+            </label>
             <select
               value={childId}
               onChange={(e) => setChildId(e.target.value)}
@@ -140,14 +159,18 @@ export default function NewCurriculumButton({
             >
               <option value="">No assignment</option>
               {children.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
               ))}
             </select>
           </div>
 
           {childId && (
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">School Year</label>
+              <label className="mb-1 block text-sm font-medium text-secondary">
+                School Year
+              </label>
               <select
                 value={yearId}
                 onChange={(e) => setYearId(e.target.value)}
@@ -155,7 +178,9 @@ export default function NewCurriculumButton({
                 required
               >
                 {schoolYears.map((y) => (
-                  <option key={y.id} value={y.id}>{y.label}</option>
+                  <option key={y.id} value={y.id}>
+                    {y.label}
+                  </option>
                 ))}
               </select>
             </div>
@@ -167,14 +192,14 @@ export default function NewCurriculumButton({
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="rounded-lg border px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+              className="rounded-lg border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting || !subjectId || !name}
-              className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+              className="rounded-lg bg-interactive px-4 py-2 text-sm font-medium text-white hover:bg-interactive-hover disabled:opacity-50"
             >
               {submitting ? "Creating..." : "Create Course"}
             </button>

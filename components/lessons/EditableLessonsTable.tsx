@@ -113,7 +113,7 @@ function EditableTextCell({
             setEditing(true);
           }
         }}
-        className="cursor-text rounded px-1 py-0.5 text-sm font-medium text-gray-900 outline-none ring-primary-500 focus:ring-2"
+        className="cursor-text rounded px-1 py-0.5 text-sm font-medium text-primary outline-none ring-focus focus:ring-2"
       >
         {value}
       </div>
@@ -128,7 +128,7 @@ function EditableTextCell({
       onChange={(e) => setDraft(e.target.value)}
       onBlur={commit}
       onKeyDown={handleKeyDown}
-      className="w-full rounded border border-primary-400 px-1 py-0.5 text-sm outline-none ring-primary-500 focus:ring-2"
+      className="w-full rounded border border-primary-400 px-1 py-0.5 text-sm outline-none ring-focus focus:ring-2"
     />
   );
 }
@@ -184,7 +184,7 @@ function EditableDateCell({
             setEditing(true);
           }
         }}
-        className="cursor-pointer rounded px-1 py-0.5 text-sm text-gray-600 outline-none ring-primary-500 focus:ring-2"
+        className="cursor-pointer rounded px-1 py-0.5 text-sm text-tertiary outline-none ring-focus focus:ring-2"
       >
         {display}
       </div>
@@ -200,7 +200,7 @@ function EditableDateCell({
       onChange={handleChange}
       onBlur={() => setEditing(false)}
       onKeyDown={handleKeyDown}
-      className="rounded border border-primary-400 px-1 py-0.5 text-sm outline-none ring-primary-500 focus:ring-2"
+      className="rounded border border-primary-400 px-1 py-0.5 text-sm outline-none ring-focus focus:ring-2"
     />
   );
 }
@@ -261,7 +261,7 @@ function EditableStatusCell({
             setEditing(true);
           }
         }}
-        className="cursor-pointer outline-none ring-primary-500 focus:ring-2 rounded px-1 py-0.5"
+        className="cursor-pointer outline-none ring-focus focus:ring-2 rounded px-1 py-0.5"
       >
         <Badge variant={statusVariant[value] || "default"}>
           {statusLabel[value] || value}
@@ -278,7 +278,7 @@ function EditableStatusCell({
       onChange={handleChange}
       onBlur={() => setEditing(false)}
       onKeyDown={handleKeyDown}
-      className="rounded border border-primary-400 px-1 py-0.5 text-sm outline-none ring-primary-500 focus:ring-2"
+      className="rounded border border-primary-400 px-1 py-0.5 text-sm outline-none ring-focus focus:ring-2"
     >
       <option value="planned">Planned</option>
       <option value="in_progress">In Progress</option>
@@ -367,11 +367,11 @@ export default function EditableLessonsTable({
 
       const nextCellId = `${nextRow}-${editableColumns[nextCol]}`;
       const el = tableRef.current?.querySelector(
-        `[data-cell-id="${nextCellId}"]`
+        `[data-cell-id="${nextCellId}"]`,
       ) as HTMLElement | null;
       el?.focus();
     },
-    []
+    [],
   );
 
   // ============================================================================
@@ -380,7 +380,7 @@ export default function EditableLessonsTable({
 
   function optimisticUpdate(id: string, field: string, value: string | null) {
     setLessons((prev) =>
-      prev.map((l) => (l.id === id ? { ...l, [field]: value } : l))
+      prev.map((l) => (l.id === id ? { ...l, [field]: value } : l)),
     );
   }
 
@@ -439,8 +439,8 @@ export default function EditableLessonsTable({
     // Optimistic
     setLessons((prev) =>
       prev.map((l) =>
-        selectedIds.includes(l.id) ? { ...l, planned_date: bulkDate } : l
-      )
+        selectedIds.includes(l.id) ? { ...l, planned_date: bulkDate } : l,
+      ),
     );
     startTransition(async () => {
       const result = await bulkUpdateLessonDate(selectedIds, bulkDate);
@@ -456,8 +456,8 @@ export default function EditableLessonsTable({
     if (selectedIds.length === 0) return;
     setLessons((prev) =>
       prev.map((l) =>
-        selectedIds.includes(l.id) ? { ...l, status: bulkStatus } : l
-      )
+        selectedIds.includes(l.id) ? { ...l, status: bulkStatus } : l,
+      ),
     );
     startTransition(async () => {
       const result = await bulkUpdateLessonStatus(selectedIds, bulkStatus);
@@ -528,7 +528,7 @@ export default function EditableLessonsTable({
           type="checkbox"
           checked={table.getIsAllRowsSelected()}
           onChange={table.getToggleAllRowsSelectedHandler()}
-          className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+          className="rounded border-border text-interactive focus:ring-focus"
         />
       ),
       cell: ({ row }) => (
@@ -536,7 +536,7 @@ export default function EditableLessonsTable({
           type="checkbox"
           checked={row.getIsSelected()}
           onChange={row.getToggleSelectedHandler()}
-          className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+          className="rounded border-border text-interactive focus:ring-focus"
         />
       ),
       size: 40,
@@ -564,7 +564,7 @@ export default function EditableLessonsTable({
       accessorKey: "child_name",
       header: "Student",
       cell: ({ getValue }) => (
-        <span className="text-sm text-gray-600">{getValue() as string}</span>
+        <span className="text-sm text-tertiary">{getValue() as string}</span>
       ),
       size: 100,
       enableSorting: true,
@@ -578,7 +578,9 @@ export default function EditableLessonsTable({
             className="h-2.5 w-2.5 rounded-full flex-shrink-0"
             style={{ backgroundColor: row.original.subject_color }}
           />
-          <span className="text-sm text-gray-700">{row.original.subject_name}</span>
+          <span className="text-sm text-secondary">
+            {row.original.subject_name}
+          </span>
         </div>
       ),
       size: 120,
@@ -588,7 +590,7 @@ export default function EditableLessonsTable({
       accessorKey: "curriculum_name",
       header: "Curriculum",
       cell: ({ getValue }) => (
-        <span className="text-sm text-gray-600 truncate block max-w-[150px]">
+        <span className="text-sm text-tertiary truncate block max-w-[150px]">
           {getValue() as string}
         </span>
       ),
@@ -639,9 +641,9 @@ export default function EditableLessonsTable({
       accessorKey: "resource_count",
       header: "Resources",
       cell: ({ row }) => (
-        <span className="text-sm text-gray-500">
+        <span className="text-sm text-muted">
           {row.original.resource_count > 0 ? (
-            <span className="rounded-full bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-700">
+            <span className="rounded-full bg-interactive-light px-2 py-0.5 text-xs font-medium text-interactive-hover">
               {row.original.resource_count}
             </span>
           ) : (
@@ -683,7 +685,7 @@ export default function EditableLessonsTable({
   const filteredResources = resources.filter(
     (r) =>
       !resourceSearch ||
-      r.title.toLowerCase().includes(resourceSearch.toLowerCase())
+      r.title.toLowerCase().includes(resourceSearch.toLowerCase()),
   );
 
   // ============================================================================
@@ -699,9 +701,9 @@ export default function EditableLessonsTable({
           placeholder="Search lessons..."
           value={globalFilter}
           onChange={(e) => setGlobalFilter(e.target.value)}
-          className="rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          className="rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"
         />
-        <span className="text-sm text-gray-500">
+        <span className="text-sm text-muted">
           {table.getFilteredRowModel().rows.length} lesson
           {table.getFilteredRowModel().rows.length !== 1 ? "s" : ""}
         </span>
@@ -709,24 +711,24 @@ export default function EditableLessonsTable({
         {/* Bulk actions */}
         {selectedIds.length > 0 && (
           <div className="ml-auto flex items-center gap-2">
-            <span className="text-sm font-medium text-primary-700">
+            <span className="text-sm font-medium text-interactive-hover">
               {selectedIds.length} selected
             </span>
             <button
               onClick={() => setShowBulkDateModal(true)}
-              className="rounded-lg border border-primary-300 px-3 py-1.5 text-xs font-medium text-primary-700 hover:bg-primary-50"
+              className="rounded-lg border border-interactive-border px-3 py-1.5 text-xs font-medium text-interactive-hover hover:bg-interactive-light"
             >
               Set Date
             </button>
             <button
               onClick={() => setShowBulkStatusModal(true)}
-              className="rounded-lg border border-primary-300 px-3 py-1.5 text-xs font-medium text-primary-700 hover:bg-primary-50"
+              className="rounded-lg border border-interactive-border px-3 py-1.5 text-xs font-medium text-interactive-hover hover:bg-interactive-light"
             >
               Set Status
             </button>
             <button
               onClick={() => setShowAttachModal(true)}
-              className="rounded-lg border border-primary-300 px-3 py-1.5 text-xs font-medium text-primary-700 hover:bg-primary-50"
+              className="rounded-lg border border-interactive-border px-3 py-1.5 text-xs font-medium text-interactive-hover hover:bg-interactive-light"
             >
               Attach Resources
             </button>
@@ -735,20 +737,21 @@ export default function EditableLessonsTable({
       </div>
 
       {/* Paste hint */}
-      <p className="mb-2 text-xs text-gray-400">
-        Double-click or press Enter to edit cells. Tab to move between cells. Paste multiple lines to bulk-create lessons.
+      <p className="mb-2 text-xs text-muted">
+        Double-click or press Enter to edit cells. Tab to move between cells.
+        Paste multiple lines to bulk-create lessons.
       </p>
 
       {/* Saving indicator */}
       {isPending && (
-        <div className="mb-2 text-xs text-primary-600 animate-pulse">
+        <div className="mb-2 text-xs text-interactive animate-pulse">
           Saving...
         </div>
       )}
 
       {/* Toast */}
       {toast && (
-        <div className="mb-2 rounded-lg bg-success-50 px-3 py-1.5 text-xs font-medium text-success-700">
+        <div className="mb-2 rounded-lg bg-[var(--success-bg)] px-3 py-1.5 text-xs font-medium text-[var(--success-text)]">
           {toast}
         </div>
       )}
@@ -757,10 +760,10 @@ export default function EditableLessonsTable({
       <div
         ref={tableRef}
         onPaste={handlePaste}
-        className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm"
+        className="overflow-x-auto rounded-xl border border-light bg-surface shadow-sm"
       >
         <table className="w-full text-left">
-          <thead className="border-b bg-gray-50">
+          <thead className="border-b bg-surface-muted">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
@@ -768,15 +771,15 @@ export default function EditableLessonsTable({
                     key={header.id}
                     onClick={header.column.getToggleSortingHandler()}
                     style={{ width: header.getSize() }}
-                    className={`px-3 py-3 text-xs font-medium uppercase tracking-wider text-gray-500 ${
+                    className={`px-3 py-3 text-xs font-medium uppercase tracking-wider text-muted ${
                       header.column.getCanSort()
-                        ? "cursor-pointer select-none hover:text-gray-700"
+                        ? "cursor-pointer select-none hover:text-secondary"
                         : ""
                     }`}
                   >
                     {flexRender(
                       header.column.columnDef.header,
-                      header.getContext()
+                      header.getContext(),
                     )}
                     {header.column.getIsSorted() === "asc"
                       ? " \u2191"
@@ -793,7 +796,9 @@ export default function EditableLessonsTable({
               <tr
                 key={row.id}
                 className={`${
-                  row.getIsSelected() ? "bg-primary-50" : "hover:bg-gray-50"
+                  row.getIsSelected()
+                    ? "bg-interactive-light"
+                    : "hover:bg-surface-muted"
                 }`}
               >
                 {row.getVisibleCells().map((cell) => (
@@ -811,7 +816,7 @@ export default function EditableLessonsTable({
               <tr>
                 <td
                   colSpan={columns.length}
-                  className="px-4 py-8 text-center text-sm text-gray-400"
+                  className="px-4 py-8 text-center text-sm text-muted"
                 >
                   No lessons found.
                 </td>
@@ -839,18 +844,18 @@ export default function EditableLessonsTable({
             placeholder="Search resources..."
             value={resourceSearch}
             onChange={(e) => setResourceSearch(e.target.value)}
-            className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"
           />
           <div className="max-h-64 space-y-1 overflow-y-auto">
             {filteredResources.length === 0 ? (
-              <p className="py-4 text-center text-sm text-gray-400">
+              <p className="py-4 text-center text-sm text-muted">
                 No resources found
               </p>
             ) : (
               filteredResources.map((r) => (
                 <label
                   key={r.id}
-                  className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 hover:bg-gray-50"
+                  className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 hover:bg-surface-muted"
                 >
                   <input
                     type="checkbox"
@@ -859,16 +864,16 @@ export default function EditableLessonsTable({
                       setSelectedResources((prev) =>
                         prev.includes(r.id)
                           ? prev.filter((x) => x !== r.id)
-                          : [...prev, r.id]
+                          : [...prev, r.id],
                       )
                     }
-                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    className="rounded border-border text-interactive focus:ring-focus"
                   />
                   <div>
-                    <p className="text-sm font-medium text-gray-900">
+                    <p className="text-sm font-medium text-primary">
                       {r.title}
                     </p>
-                    <p className="text-xs text-gray-400">{r.type}</p>
+                    <p className="text-xs text-muted">{r.type}</p>
                   </div>
                 </label>
               ))
@@ -880,14 +885,14 @@ export default function EditableLessonsTable({
                 setShowAttachModal(false);
                 setSelectedResources([]);
               }}
-              className="rounded-lg border px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+              className="rounded-lg border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted"
             >
               Cancel
             </button>
             <button
               onClick={handleBulkAttach}
               disabled={isPending || selectedResources.length === 0}
-              className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+              className="rounded-lg bg-interactive px-4 py-2 text-sm font-medium text-white hover:bg-interactive-hover disabled:opacity-50"
             >
               {isPending
                 ? "Attaching..."
@@ -910,19 +915,19 @@ export default function EditableLessonsTable({
             type="date"
             value={bulkDate}
             onChange={(e) => setBulkDate(e.target.value)}
-            className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"
           />
           <div className="flex justify-end gap-2">
             <button
               onClick={() => setShowBulkDateModal(false)}
-              className="rounded-lg border px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+              className="rounded-lg border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted"
             >
               Cancel
             </button>
             <button
               onClick={handleBulkDate}
               disabled={isPending || !bulkDate}
-              className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+              className="rounded-lg bg-interactive px-4 py-2 text-sm font-medium text-white hover:bg-interactive-hover disabled:opacity-50"
             >
               {isPending ? "Updating..." : "Apply"}
             </button>
@@ -942,7 +947,7 @@ export default function EditableLessonsTable({
           <select
             value={bulkStatus}
             onChange={(e) => setBulkStatus(e.target.value)}
-            className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"
           >
             <option value="planned">Planned</option>
             <option value="in_progress">In Progress</option>
@@ -951,14 +956,14 @@ export default function EditableLessonsTable({
           <div className="flex justify-end gap-2">
             <button
               onClick={() => setShowBulkStatusModal(false)}
-              className="rounded-lg border px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+              className="rounded-lg border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted"
             >
               Cancel
             </button>
             <button
               onClick={handleBulkStatus}
               disabled={isPending}
-              className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+              className="rounded-lg bg-interactive px-4 py-2 text-sm font-medium text-white hover:bg-interactive-hover disabled:opacity-50"
             >
               {isPending ? "Updating..." : "Apply"}
             </button>
@@ -978,14 +983,14 @@ export default function EditableLessonsTable({
         title={`Bulk Create ${pastedLines.length} Lesson(s)`}
       >
         <div className="space-y-4">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-tertiary">
             {pastedLines.length} lines detected. Choose a curriculum to create
             them under:
           </p>
           <select
             value={pasteTargetCurriculum}
             onChange={(e) => setPasteTargetCurriculum(e.target.value)}
-            className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"
           >
             <option value="">Select curriculum...</option>
             {curricula.map((c) => (
@@ -994,8 +999,8 @@ export default function EditableLessonsTable({
               </option>
             ))}
           </select>
-          <div className="max-h-40 overflow-y-auto rounded-lg border bg-gray-50 p-3">
-            <ul className="space-y-1 text-xs text-gray-700">
+          <div className="max-h-40 overflow-y-auto rounded-lg border bg-surface-muted p-3">
+            <ul className="space-y-1 text-xs text-secondary">
               {pastedLines.map((line, i) => (
                 <li key={i} className="truncate">
                   {i + 1}. {line}
@@ -1009,16 +1014,18 @@ export default function EditableLessonsTable({
                 setShowPasteModal(false);
                 setPastedLines([]);
               }}
-              className="rounded-lg border px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+              className="rounded-lg border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted"
             >
               Cancel
             </button>
             <button
               onClick={handlePasteConfirm}
               disabled={isPending || !pasteTargetCurriculum}
-              className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+              className="rounded-lg bg-interactive px-4 py-2 text-sm font-medium text-white hover:bg-interactive-hover disabled:opacity-50"
             >
-              {isPending ? "Creating..." : `Create ${pastedLines.length} Lessons`}
+              {isPending
+                ? "Creating..."
+                : `Create ${pastedLines.length} Lessons`}
             </button>
           </div>
         </div>

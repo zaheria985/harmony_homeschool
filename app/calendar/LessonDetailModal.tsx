@@ -1,10 +1,9 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import Modal from "@/components/ui/Modal";
 import Badge from "@/components/ui/Badge";
+import ResourcePreviewModal from "@/components/ui/ResourcePreviewModal";
 import { markLessonComplete } from "@/lib/actions/completions";
-
 type Resource = {
   id: string;
   type: string;
@@ -12,7 +11,6 @@ type Resource = {
   title: string | null;
   page_number: number | null;
 };
-
 type LessonDetail = {
   id: string;
   title: string;
@@ -29,24 +27,30 @@ type LessonDetail = {
   resources: Resource[];
   completion: { id: string; completed_at: string; child_id: string } | null;
 };
-
 export default function LessonDetailModal({
   lessonId,
   open,
   onClose,
   onEdit,
   onChanged,
+  readOnly = false,
 }: {
   lessonId: string | null;
   open: boolean;
   onClose: () => void;
   onEdit: (lesson: LessonDetail) => void;
   onChanged: () => void;
+  readOnly?: boolean;
 }) {
   const [lesson, setLesson] = useState<LessonDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [completing, setCompleting] = useState(false);
-
+  const [completeError, setCompleteError] = useState<string | null>(null);
+  const [previewResource, setPreviewResource] = useState<{
+    title: string;
+    type: string;
+    url: string | null;
+  } | null>(null);
   useEffect(() => {
     if (!lessonId || !open) {
       setLesson(null);
@@ -58,40 +62,59 @@ export default function LessonDetailModal({
       .then((data) => setLesson(data.lesson || null))
       .finally(() => setLoading(false));
   }, [lessonId, open]);
-
   async function handleComplete() {
     if (!lesson) return;
     setCompleting(true);
+    setCompleteError(null);
     const fd = new FormData();
     fd.set("lessonId", lesson.id);
     fd.set("childId", lesson.child_id);
-    await markLessonComplete(fd);
-    setCompleting(false);
-    onChanged();
-    onClose();
+    try {
+      const result = await markLessonComplete(fd);
+      if (result?.error) {
+        setCompleteError(result.error);
+        return;
+      }
+      onChanged();
+      onClose();
+    } catch {
+      setCompleteError("Failed to mark lesson complete");
+    } finally {
+      setCompleting(false);
+    }
   }
-
   return (
-    <Modal open={open} onClose={onClose} title={lesson?.title || "Lesson Details"}>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={lesson?.title || "Lesson Details"}
+    >
+      {" "}
       {loading ? (
-        <p className="text-gray-400">Loading...</p>
+        <p className="text-gray-400 dark:text-slate-500">Loading...</p>
       ) : !lesson ? (
-        <p className="text-gray-400">Lesson not found</p>
+        <p className="text-gray-400 dark:text-slate-500">Lesson not found</p>
       ) : (
         <div className="space-y-4">
-          {/* Subject & Curriculum */}
+          {" "}
+          {/* Subject & Curriculum */}{" "}
           <div className="flex items-center gap-2">
+            {" "}
             <span
               className="h-3 w-3 rounded-full"
               style={{ backgroundColor: lesson.subject_color }}
-            />
-            <span className="text-sm font-medium">{lesson.subject_name}</span>
-            <span className="text-sm text-gray-400">·</span>
-            <span className="text-sm text-gray-500">{lesson.curriculum_name}</span>
-          </div>
-
-          {/* Status & Date */}
+            />{" "}
+            <span className="text-sm font-medium text-primary">
+              {lesson.subject_name}
+            </span>{" "}
+            <span className="text-sm text-gray-400">·</span>{" "}
+            <span className="text-sm text-muted dark:text-slate-400">
+              {lesson.curriculum_name}
+            </span>{" "}
+          </div>{" "}
+          {/* Status & Date */}{" "}
           <div className="flex items-center gap-3">
+            {" "}
             <Badge
               variant={
                 lesson.status === "completed"
@@ -101,69 +124,96 @@ export default function LessonDetailModal({
                     : "default"
               }
             >
-              {lesson.status.replace("_", " ")}
-            </Badge>
+              {" "}
+              {lesson.status.replace("_", "")}{" "}
+            </Badge>{" "}
             {lesson.planned_date && (
-              <span className="text-sm text-gray-500">
-                {new Date(lesson.planned_date + "T12:00:00").toLocaleDateString(undefined, {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })}
+              <span className="text-sm text-muted dark:text-slate-400">
+                {" "}
+                {new Date(lesson.planned_date + "T12:00:00").toLocaleDateString(
+                  undefined,
+                  { month: "short", day: "numeric", year: "numeric" },
+                )}{" "}
               </span>
-            )}
-          </div>
-
-          {/* Description */}
+            )}{" "}
+          </div>{" "}
+          {/* Description */}{" "}
           {lesson.description && (
-            <p className="text-sm text-gray-600">{lesson.description}</p>
-          )}
-
-          {/* Resources */}
+            <p className="text-sm text-tertiary">{lesson.description}</p>
+          )}{" "}
+          {/* Resources */}{" "}
           {lesson.resources.length > 0 && (
             <div>
-              <h3 className="mb-2 text-sm font-medium text-gray-700">Resources</h3>
+              {" "}
+              <h3 className="mb-2 text-sm font-medium text-secondary">
+                Resources
+              </h3>{" "}
               <div className="space-y-2">
+                {" "}
                 {lesson.resources.map((r) => (
-                  <a
+                  <button
                     key={r.id}
-                    href={r.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 rounded-lg border p-2 text-sm hover:bg-gray-50"
+                    type="button"
+                    onClick={() =>
+                      setPreviewResource({
+                        title: r.title || r.url,
+                        type: r.type,
+                        url: r.url,
+                      })
+                    }
+                    className="flex w-full items-center gap-2 rounded-lg border border-light p-2 text-left text-sm hover:bg-surface-muted dark:hover:bg-slate-800"
                   >
-                    <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium uppercase text-gray-600">
-                      {r.type}
-                    </span>
-                    <span className="truncate text-primary-600">
-                      {r.title || r.url}
-                    </span>
-                  </a>
-                ))}
-              </div>
+                    {" "}
+                    <span className="rounded bg-surface-subtle px-1.5 py-0.5 text-xs font-medium uppercase text-tertiary">
+                      {" "}
+                      {r.type}{" "}
+                    </span>{" "}
+                    <span className="truncate text-interactive">
+                      {" "}
+                      {r.title || r.url}{" "}
+                    </span>{" "}
+                  </button>
+                ))}{" "}
+              </div>{" "}
             </div>
-          )}
-
-          {/* Actions */}
-          <div className="flex gap-2 border-t pt-4">
+          )}{" "}
+          {/* Actions */}{" "}
+          {completeError && (
+            <p className="text-sm text-red-600 dark:text-red-400">
+              {completeError}
+            </p>
+          )}{" "}
+          <div className="flex gap-2 border-t border-light pt-4">
+            {" "}
             {lesson.status !== "completed" && (
               <button
                 onClick={handleComplete}
                 disabled={completing}
-                className="rounded-lg bg-success-50 px-4 py-2 text-sm font-medium text-success-700 hover:bg-success-100 disabled:opacity-50"
+                className="rounded-lg bg-[var(--success-bg)] px-4 py-2 text-sm font-medium text-[var(--success-text)] hover:bg-success-100 disabled:opacity-50/20 dark:hover:bg-success-900/30"
               >
-                {completing ? "Completing..." : "Mark Complete"}
+                {" "}
+                {completing ? "Completing..." : "Mark Complete"}{" "}
               </button>
-            )}
-            <button
-              onClick={() => onEdit(lesson)}
-              className="rounded-lg border px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Edit
-            </button>
-          </div>
+            )}{" "}
+            {!readOnly && (
+              <button
+                onClick={() => onEdit(lesson)}
+                className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-secondary hover:bg-surface-muted dark:hover:bg-slate-800"
+              >
+                {" "}
+                Edit{" "}
+              </button>
+            )}{" "}
+          </div>{" "}
         </div>
-      )}
+      )}{" "}
+      <ResourcePreviewModal
+        open={!!previewResource}
+        onClose={() => setPreviewResource(null)}
+        title={previewResource?.title || "Resource"}
+        type={previewResource?.type || "link"}
+        url={previewResource?.url || null}
+      />{" "}
     </Modal>
   );
 }

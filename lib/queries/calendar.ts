@@ -3,7 +3,9 @@ import pool from "@/lib/db";
 export async function getLessonsForMonth(
   childId: string,
   year: number,
-  month: number
+  month: number,
+  viewMode: "all" | "completed" | "planned" = "planned",
+  parentId?: string
 ) {
   const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
   const endDate =
@@ -11,19 +13,63 @@ export async function getLessonsForMonth(
       ? `${year + 1}-01-01`
       : `${year}-${String(month + 1).padStart(2, "0")}-01`;
 
+  const params: (string | number)[] = [startDate, endDate];
+  const conditions: string[] = [];
+
+  if (viewMode === "completed") {
+    conditions.push("l.status = 'completed'");
+    conditions.push("lc.completed_at IS NOT NULL");
+    conditions.push("lc.completed_at::date >= $1::date");
+    conditions.push("lc.completed_at::date < $2::date");
+  } else if (viewMode === "planned") {
+    conditions.push("l.status != 'completed'");
+    conditions.push("l.planned_date IS NOT NULL");
+    conditions.push("l.planned_date >= $1::date");
+    conditions.push("l.planned_date < $2::date");
+  } else {
+    conditions.push(`(
+      (l.status = 'completed' AND lc.completed_at IS NOT NULL AND lc.completed_at::date >= $1::date AND lc.completed_at::date < $2::date)
+      OR
+      (l.status != 'completed' AND l.planned_date IS NOT NULL AND l.planned_date >= $1::date AND l.planned_date < $2::date)
+    )`);
+  }
+
+  if (childId) {
+    conditions.push(`ca.child_id = $${params.length + 1}`);
+    params.push(childId);
+  }
+
+  if (parentId) {
+    conditions.push(`EXISTS (SELECT 1 FROM parent_children pc WHERE pc.parent_id = $${params.length + 1} AND pc.child_id = ca.child_id)`);
+    params.push(parentId);
+  }
+
   const res = await pool.query(
     `SELECT
-       l.id, l.title, l.status, l.planned_date,
-       s.name AS subject_name, s.color AS subject_color
+       l.id,
+       l.title,
+       l.status,
+       l.planned_date,
+       lc.completed_at,
+       CASE
+         WHEN l.status = 'completed' AND lc.completed_at IS NOT NULL THEN lc.completed_at::date
+         ELSE l.planned_date
+       END AS display_date,
+       s.name AS subject_name, s.color AS subject_color,
+       cu.name AS curriculum_name,
+       c.name AS child_name,
+       s.id AS subject_id
      FROM lessons l
      JOIN curricula cu ON cu.id = l.curriculum_id
      JOIN subjects s ON s.id = cu.subject_id
      JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id
-     WHERE ca.child_id = $1
-       AND l.planned_date >= $2::date
-       AND l.planned_date < $3::date
-     ORDER BY l.planned_date, l.order_index`,
-    [childId, startDate, endDate]
+     JOIN children c ON c.id = ca.child_id
+     LEFT JOIN lesson_completions lc
+       ON lc.lesson_id = l.id
+      AND lc.child_id = ca.child_id
+     WHERE ${conditions.join(" AND ")}
+     ORDER BY display_date, s.name, cu.name, l.order_index`,
+    params
   );
   return res.rows;
 }
@@ -43,7 +89,12 @@ export async function getSchoolDaysConfig(yearId: string) {
   };
 }
 
-export async function getLessonDetail(lessonId: string) {
+export async function getLessonDetail(lessonId: string, childId?: string) {
+  const childJoin = childId ? "JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id" : "LEFT JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id";
+  const childWhere = childId ? "AND ca.child_id = $2" : "";
+  const params: string[] = [lessonId];
+  if (childId) params.push(childId);
+
   const res = await pool.query(
     `SELECT
        l.id, l.title, l.description, l.status, l.planned_date, l.order_index,
@@ -51,14 +102,15 @@ export async function getLessonDetail(lessonId: string) {
        s.name AS subject_name, s.color AS subject_color, s.id AS subject_id,
        ca.child_id,
        c.name AS child_name
-     FROM lessons l
-     JOIN curricula cu ON cu.id = l.curriculum_id
-     JOIN subjects s ON s.id = cu.subject_id
-     LEFT JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id
-     LEFT JOIN children c ON c.id = ca.child_id
-     WHERE l.id = $1
-     LIMIT 1`,
-    [lessonId]
+      FROM lessons l
+      JOIN curricula cu ON cu.id = l.curriculum_id
+      JOIN subjects s ON s.id = cu.subject_id
+      ${childJoin}
+      LEFT JOIN children c ON c.id = ca.child_id
+      WHERE l.id = $1
+      ${childWhere}
+      LIMIT 1`,
+    params
   );
   if (!res.rows[0]) return null;
 
@@ -98,6 +150,18 @@ export async function getCurriculaForSubject(subjectId: string) {
     `SELECT c.id, c.name, c.description
      FROM curricula c WHERE c.subject_id = $1 ORDER BY c.order_index, c.name`,
     [subjectId]
+  );
+  return res.rows;
+}
+
+export async function getCurriculaForSubjectForChild(subjectId: string, childId: string) {
+  const res = await pool.query(
+    `SELECT DISTINCT c.id, c.name, c.description
+     FROM curricula c
+     JOIN curriculum_assignments ca ON ca.curriculum_id = c.id
+     WHERE c.subject_id = $1 AND ca.child_id = $2
+     ORDER BY c.order_index, c.name`,
+    [subjectId, childId]
   );
   return res.rows;
 }

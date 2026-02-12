@@ -3,16 +3,13 @@ import pool from "@/lib/db";
 export interface WeekLesson {
   id: string;
   title: string;
-  description: string | null;
   status: string;
   planned_date: string;
-  order_index: number;
   curriculum_name: string;
   subject_id: string;
   subject_name: string;
   subject_color: string | null;
   grade: number | null;
-  completed_at: string | null;
 }
 
 /**
@@ -26,17 +23,19 @@ export async function getWeekLessons(
 ): Promise<WeekLesson[]> {
   const res = await pool.query(
     `SELECT
-       l.id, l.title, l.description, l.status, l.planned_date::text,
-       l.order_index,
+       l.id, l.title, l.status, l.planned_date::text,
        cu.name AS curriculum_name,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
-       lc.grade, lc.completed_at
+       lc.grade
      FROM lessons l
      JOIN curricula cu ON cu.id = l.curriculum_id
      JOIN subjects s ON s.id = cu.subject_id
-     JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id
      LEFT JOIN lesson_completions lc ON lc.lesson_id = l.id AND lc.child_id = $1
-     WHERE ca.child_id = $1
+     WHERE EXISTS (
+       SELECT 1
+       FROM curriculum_assignments ca
+       WHERE ca.curriculum_id = cu.id AND ca.child_id = $1
+     )
        AND l.planned_date >= $2::date
        AND l.planned_date <= $3::date
      ORDER BY l.planned_date, s.name, l.order_index`,
@@ -161,9 +160,19 @@ export async function getSchoolDaysConfig(schoolYearId: string) {
 /**
  * Get all children (simple list for the selector).
  */
-export async function getChildren() {
+export async function getChildren(parentId?: string) {
+  const params: string[] = [];
+  const join = parentId ? "JOIN parent_children pc ON pc.child_id = c.id" : "";
+  const where = parentId ? "WHERE pc.parent_id = $1" : "";
+  if (parentId) params.push(parentId);
+
   const res = await pool.query(
-    `SELECT id, name FROM children ORDER BY name`
+    `SELECT c.id, c.name
+     FROM children c
+     ${join}
+     ${where}
+     ORDER BY c.name`,
+    params
   );
   return res.rows as { id: string; name: string }[];
 }

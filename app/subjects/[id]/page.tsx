@@ -22,7 +22,7 @@ async function getCurriculaForSubject(subjectId: string) {
      JOIN children c ON c.id = ca.child_id
      WHERE cu.subject_id = $1
      ORDER BY c.name, cu.name`,
-    [subjectId]
+    [subjectId],
   );
   return res.rows;
 }
@@ -41,7 +41,7 @@ export default async function SubjectDetailPage({
 
   const totalLessons = subject.lessons.length;
   const completedLessons = subject.lessons.filter(
-    (l: { status: string }) => l.status === "completed"
+    (l: { status: string }) => l.status === "completed",
   ).length;
   const completionPct =
     totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
@@ -63,7 +63,7 @@ export default async function SubjectDetailPage({
       <PageHeader title={subject.name}>
         <Link
           href="/subjects"
-          className="rounded-lg border px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+          className="rounded-lg border px-3 py-1.5 text-sm text-tertiary hover:bg-surface-muted"
         >
           Back to Subjects
         </Link>
@@ -79,17 +79,23 @@ export default async function SubjectDetailPage({
       {/* Overview */}
       <div className="mb-8 grid gap-4 sm:grid-cols-3">
         <Card>
-          <p className="text-sm text-gray-500">Total Lessons</p>
+          <p className="text-sm text-muted">Total Lessons</p>
           <p className="text-2xl font-bold">{totalLessons}</p>
         </Card>
         <Card>
-          <p className="text-sm text-gray-500">Completed</p>
-          <p className="text-2xl font-bold text-success-600">{completedLessons}</p>
+          <p className="text-sm text-muted">Completed</p>
+          <p className="text-2xl font-bold text-success-600">
+            {completedLessons}
+          </p>
         </Card>
         <Card>
-          <p className="text-sm text-gray-500">Progress</p>
+          <p className="text-sm text-muted">Progress</p>
           <p className="text-2xl font-bold">{completionPct}%</p>
-          <ProgressBar value={completionPct} showLabel={false} color="success" />
+          <ProgressBar
+            value={completionPct}
+            showLabel={false}
+            color="success"
+          />
         </Card>
       </div>
 
@@ -99,37 +105,35 @@ export default async function SubjectDetailPage({
           <p className="py-4 text-center text-gray-400">No courses yet</p>
         ) : (
           <div className="space-y-3">
-            {subject.curricula.map(
-              (cu: Record<string, string | number>) => (
-                <Link
-                  key={String(cu.id)}
-                  href={`/curricula/${cu.id}`}
-                  className="flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-gray-50"
-                >
-                  <div className="flex items-center gap-3">
-                    {cu.cover_image && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={String(cu.cover_image)}
-                        alt={String(cu.name)}
-                        className="h-12 w-12 rounded object-cover"
-                      />
-                    )}
-                    <div>
+            {subject.curricula.map((cu: Record<string, string | number>) => (
+              <Link
+                key={String(cu.id)}
+                href={`/curricula/${cu.id}`}
+                className="flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-surface-muted"
+              >
+                <div className="flex items-center gap-3">
+                  {cu.cover_image && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={String(cu.cover_image)}
+                      alt={String(cu.name)}
+                      className="h-12 w-12 rounded object-cover"
+                    />
+                  )}
+                  <div>
                     <p className="font-medium">{String(cu.name)}</p>
                     {cu.description && (
-                      <p className="mt-0.5 text-sm text-gray-500">
+                      <p className="mt-0.5 text-sm text-muted">
                         {String(cu.description)}
                       </p>
                     )}
-                    </div>
                   </div>
-                  <div className="text-right text-sm text-gray-500">
-                    {cu.completed_lessons}/{cu.total_lessons} lessons
-                  </div>
-                </Link>
-              )
-            )}
+                </div>
+                <div className="text-right text-sm text-muted">
+                  {cu.completed_lessons}/{cu.total_lessons} lessons
+                </div>
+              </Link>
+            ))}
           </div>
         )}
       </Card>
@@ -141,11 +145,13 @@ export default async function SubjectDetailPage({
         ) : (
           <EditableLessonsTable
             lessons={subject.lessons}
-            resources={resources.map((r: { id: string; title: string; type: string }) => ({
-              id: r.id,
-              title: r.title,
-              type: r.type,
-            }))}
+            resources={resources.map(
+              (r: { id: string; title: string; type: string }) => ({
+                id: r.id,
+                title: r.title,
+                type: r.type,
+              }),
+            )}
             curricula={curricula}
           />
         )}

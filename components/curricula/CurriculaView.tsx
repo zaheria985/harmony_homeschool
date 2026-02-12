@@ -15,6 +15,7 @@ type Curriculum = {
   cover_image: string | null;
   course_type: "curriculum" | "unit_study";
   status: "active" | "archived" | "draft";
+  start_date: string | null;
   end_date: string | null;
   subject_id: string;
   subject_name: string;
@@ -41,6 +42,9 @@ export default function CurriculaView({
   const [view, setView] = useState("gallery");
   const [childFilter, setChildFilter] = useState("");
   const [subjectFilter, setSubjectFilter] = useState("");
+  const [timelineFilter, setTimelineFilter] = useState<
+    "due-12mo" | "completed" | "future-12mo"
+  >("due-12mo");
 
   // Derive subject options from data, scoped to child filter
   const subjectFilterOptions = useMemo(() => {
@@ -50,12 +54,12 @@ export default function CurriculaView({
     const map = new Map<string, string>();
     for (const c of source) map.set(c.subject_id, c.subject_name);
     return Array.from(map, ([id, name]) => ({ id, name })).sort((a, b) =>
-      a.name.localeCompare(b.name)
+      a.name.localeCompare(b.name),
     );
   }, [curricula, childFilter]);
 
   const effectiveSubjectFilter = subjectFilterOptions.some(
-    (s) => s.id === subjectFilter
+    (s) => s.id === subjectFilter,
   )
     ? subjectFilter
     : "";
@@ -68,24 +72,39 @@ export default function CurriculaView({
     return result;
   }, [curricula, childFilter, effectiveSubjectFilter]);
 
-  const galleryFiltered = useMemo(() => {
+  const timelineFiltered = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const oneYearOut = new Date(today);
     oneYearOut.setFullYear(oneYearOut.getFullYear() + 1);
 
     return filtered.filter((c) => {
+      if (timelineFilter === "completed") {
+        return c.lesson_count > 0 && c.completed_count === c.lesson_count;
+      }
+
+      if (timelineFilter === "future-12mo") {
+        if (!c.start_date) return false;
+        const start = new Date(`${c.start_date}T00:00:00`);
+        return start > oneYearOut;
+      }
+
       if (c.status !== "active") return false;
-      if (!c.end_date) return false;
+      if (!c.end_date) return true;
       const due = new Date(`${c.end_date}T00:00:00`);
       return due >= today && due <= oneYearOut;
     });
-  }, [filtered]);
+  }, [filtered, timelineFilter]);
 
   const saveCurriculumField = useCallback(
     (
       curriculum: Curriculum,
-      field: "name" | "description" | "subject_id" | "cover_image" | "course_type"
+      field:
+        | "name"
+        | "description"
+        | "subject_id"
+        | "cover_image"
+        | "course_type",
     ) =>
       async (value: string) => {
         const formData = new FormData();
@@ -93,26 +112,26 @@ export default function CurriculaView({
         formData.set("name", field === "name" ? value : curriculum.name);
         formData.set(
           "description",
-          field === "description" ? value : curriculum.description || ""
+          field === "description" ? value : curriculum.description || "",
         );
         formData.set(
           "cover_image",
-          field === "cover_image" ? value : curriculum.cover_image || ""
+          field === "cover_image" ? value : curriculum.cover_image || "",
         );
         formData.set(
           "course_type",
-          field === "course_type" ? value : curriculum.course_type
+          field === "course_type" ? value : curriculum.course_type,
         );
         if (field === "subject_id") formData.set("subject_id", value);
         return updateCurriculum(formData);
       },
-    []
+    [],
   );
 
   // Get subject options (global subjects)
   const subjectOptions = useMemo(
     () => subjects.map((s) => ({ value: s.id, label: s.name })),
-    [subjects]
+    [subjects],
   );
 
   return (
@@ -125,27 +144,45 @@ export default function CurriculaView({
             setChildFilter(e.target.value);
             setSubjectFilter("");
           }}
-          className="rounded-lg border bg-white px-3 py-2 text-sm"
+          className="rounded-lg border bg-surface px-3 py-2 text-sm"
         >
           <option value="">All Students</option>
           {children.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
           ))}
         </select>
 
         <select
           value={effectiveSubjectFilter}
           onChange={(e) => setSubjectFilter(e.target.value)}
-          className="rounded-lg border bg-white px-3 py-2 text-sm"
+          className="rounded-lg border bg-surface px-3 py-2 text-sm"
         >
           <option value="">All Subjects</option>
           {subjectFilterOptions.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
           ))}
         </select>
 
-        <span className="text-sm text-gray-500">
-          {filtered.length} course{filtered.length === 1 ? "" : "s"}
+        <select
+          value={timelineFilter}
+          onChange={(e) =>
+            setTimelineFilter(
+              e.target.value as "due-12mo" | "completed" | "future-12mo",
+            )
+          }
+          className="rounded-lg border bg-surface px-3 py-2 text-sm"
+        >
+          <option value="due-12mo">Due in next 12 months</option>
+          <option value="completed">Completed courses</option>
+          <option value="future-12mo">Planned 12+ months out</option>
+        </select>
+
+        <span className="text-sm text-muted">
+          {timelineFiltered.length} course{timelineFiltered.length === 1 ? "" : "s"}
         </span>
 
         <div className="ml-auto">
@@ -161,33 +198,39 @@ export default function CurriculaView({
         </div>
       </div>
 
-      {view === "table" && filtered.length === 0 && (
-        <p className="py-12 text-center text-sm text-gray-400">
+      {view === "table" && timelineFiltered.length === 0 && (
+        <p className="py-12 text-center text-sm text-muted">
           No courses match the selected filters.
         </p>
       )}
 
-      {view === "gallery" && galleryFiltered.length === 0 && (
-        <p className="py-12 text-center text-sm text-gray-400">
-          No active courses due in the next 12 months match the selected filters.
+      {view === "gallery" && timelineFiltered.length === 0 && (
+        <p className="py-12 text-center text-sm text-muted">
+          {timelineFilter === "due-12mo" &&
+            "No active courses due in the next 12 months match the selected filters."}
+          {timelineFilter === "completed" &&
+            "No completed courses match the selected filters."}
+          {timelineFilter === "future-12mo" &&
+            "No courses planned to begin 12+ months from now match the selected filters."}
         </p>
       )}
 
       {/* Gallery View */}
-      {view === "gallery" && galleryFiltered.length > 0 && (
+      {view === "gallery" && timelineFiltered.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {galleryFiltered.map((curriculum) => {
+          {timelineFiltered.map((curriculum) => {
             const pct =
               curriculum.lesson_count > 0
                 ? Math.round(
-                    (curriculum.completed_count / curriculum.lesson_count) * 100
+                    (curriculum.completed_count / curriculum.lesson_count) *
+                      100,
                   )
                 : 0;
             return (
               <div
                 key={curriculum.id}
                 onClick={() => router.push(`/curricula/${curriculum.id}`)}
-                className="cursor-pointer rounded-xl border bg-white shadow-sm transition-shadow hover:shadow-md"
+                className="cursor-pointer rounded-xl border bg-surface shadow-sm transition-shadow hover:shadow-md"
               >
                 {/* Color bar from subject */}
                 <div
@@ -207,34 +250,36 @@ export default function CurriculaView({
                   </div>
                 )}
                 <div className="p-5">
-                  <h3 className="mb-1 font-semibold text-gray-900">
+                  <h3 className="mb-1 font-semibold text-primary">
                     {curriculum.name}
                   </h3>
                   <div className="mb-2 flex items-center gap-2">
                     <Badge variant="primary">{curriculum.subject_name}</Badge>
-                    <Badge variant="default" >
-                      {curriculum.course_type === "unit_study" ? "Unit Study" : "Curriculum"}
+                    <Badge variant="default">
+                      {curriculum.course_type === "unit_study"
+                        ? "Unit Study"
+                        : "Curriculum"}
                     </Badge>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-muted">
                       {curriculum.child_name}
                     </span>
                   </div>
                   {curriculum.description && (
-                    <p className="mb-3 line-clamp-2 text-sm text-gray-500">
+                    <p className="mb-3 line-clamp-2 text-sm text-muted">
                       {curriculum.description}
                     </p>
                   )}
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">
+                    <span className="text-muted">
                       {curriculum.completed_count}/{curriculum.lesson_count}{" "}
                       lessons
                     </span>
-                    <span className="text-xs text-gray-400">{pct}%</span>
+                    <span className="text-xs text-muted">{pct}%</span>
                   </div>
                   {/* Progress bar */}
-                  <div className="mt-2 h-1.5 w-full rounded-full bg-gray-100">
+                  <div className="mt-2 h-1.5 w-full rounded-full bg-surface-subtle">
                     <div
-                      className="h-1.5 rounded-full bg-success-500"
+                      className="h-1.5 rounded-full bg-[var(--success-bg)]0"
                       style={{ width: `${pct}%` }}
                     />
                   </div>
@@ -246,58 +291,55 @@ export default function CurriculaView({
       )}
 
       {/* Table View */}
-      {view === "table" && filtered.length > 0 && (
-        <div className="overflow-x-auto rounded-lg border bg-white shadow-sm">
+      {view === "table" && timelineFiltered.length > 0 && (
+        <div className="overflow-x-auto rounded-lg border bg-surface shadow-sm">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="bg-surface-muted">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">
                   Course
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">
                   Type
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">
                   Subject
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">
                   Student
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">
                   Description
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">
                   Cover Image
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">
                   Lessons
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">
                   Progress
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {filtered.map((curriculum) => {
+              {timelineFiltered.map((curriculum) => {
                 const pct =
                   curriculum.lesson_count > 0
                     ? Math.round(
                         (curriculum.completed_count / curriculum.lesson_count) *
-                          100
+                          100,
                       )
                     : 0;
                 return (
-                  <tr
-                    key={curriculum.id}
-                    className="hover:bg-gray-50"
-                  >
-                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
+                  <tr key={curriculum.id} className="hover:bg-surface-muted">
+                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-primary">
                       <EditableCell
                         value={curriculum.name}
                         onSave={saveCurriculumField(curriculum, "name")}
                       />
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-tertiary">
                       <EditableCell
                         value={curriculum.course_type}
                         onSave={saveCurriculumField(curriculum, "course_type")}
@@ -333,16 +375,16 @@ export default function CurriculaView({
                         }
                       />
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-tertiary">
                       {curriculum.child_name}
                     </td>
-                    <td className="max-w-xs px-4 py-3 text-sm text-gray-500">
+                    <td className="max-w-xs px-4 py-3 text-sm text-muted">
                       <EditableCell
                         value={curriculum.description || ""}
                         onSave={saveCurriculumField(curriculum, "description")}
                       />
                     </td>
-                    <td className="max-w-xs px-4 py-3 text-sm text-gray-600">
+                    <td className="max-w-xs px-4 py-3 text-sm text-tertiary">
                       <EditableCell
                         value={curriculum.cover_image || ""}
                         onSave={saveCurriculumField(curriculum, "cover_image")}
@@ -355,28 +397,30 @@ export default function CurriculaView({
                                 alt={curriculum.name}
                                 className="h-8 w-8 rounded object-cover"
                               />
-                              <span className="max-w-[16rem] truncate text-xs text-gray-500">
+                              <span className="max-w-[16rem] truncate text-xs text-muted">
                                 {curriculum.cover_image}
                               </span>
                             </div>
                           ) : (
-                            <span className="text-gray-400 italic">Add image URL</span>
+                            <span className="text-muted italic">
+                              Add image URL
+                            </span>
                           )
                         }
                       />
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-tertiary">
                       {curriculum.completed_count}/{curriculum.lesson_count}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm">
                       <div className="flex items-center gap-2">
-                        <div className="h-1.5 w-16 rounded-full bg-gray-100">
+                        <div className="h-1.5 w-16 rounded-full bg-surface-subtle">
                           <div
-                            className="h-1.5 rounded-full bg-success-500"
+                            className="h-1.5 rounded-full bg-[var(--success-bg)]0"
                             style={{ width: `${pct}%` }}
                           />
                         </div>
-                        <span className="text-xs text-gray-500">{pct}%</span>
+                        <span className="text-xs text-muted">{pct}%</span>
                       </div>
                     </td>
                   </tr>

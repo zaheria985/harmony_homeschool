@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/bump-lessons",
+      "schedule": "30 23 * * *"
+    }
+  ]
+}

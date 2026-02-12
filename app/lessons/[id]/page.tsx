@@ -1,9 +1,7 @@
 export const dynamic = "force-dynamic";
-
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import PageHeader from "@/components/ui/PageHeader";
-import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import { getLessonDetails } from "@/lib/queries/lessons";
 import { getAllChildren } from "@/lib/queries/students";
@@ -11,170 +9,234 @@ import { getAllResources } from "@/lib/queries/resources";
 import EditLessonButton from "@/components/lessons/EditLessonButton";
 import LessonResourcesManager from "@/components/lessons/LessonResourcesManager";
 import CompletionForm from "./CompletionForm";
-
+import KidCompletionModal from "@/components/lessons/KidCompletionModal";
+import { getCurrentUser } from "@/lib/session";
 export default async function LessonDetailPage({
   params,
 }: {
   params: { id: string };
 }) {
-  const [lesson, childrenData, libraryResources] = await Promise.all([
-    getLessonDetails(params.id),
-    getAllChildren(),
-    getAllResources(),
-  ]);
+  if (!params?.id || typeof params.id !== "string") {
+    notFound();
+  }
+  let lesson: Awaited<ReturnType<typeof getLessonDetails>>;
+  let childrenData: Awaited<ReturnType<typeof getAllChildren>>;
+  let libraryResources: Awaited<ReturnType<typeof getAllResources>>;
+  const user = await getCurrentUser();
+  try {
+    [lesson, childrenData, libraryResources] = await Promise.all([
+      getLessonDetails(
+        params.id,
+        user.role === "kid" ? user.childId || undefined : undefined,
+      ),
+      getAllChildren(user.role === "parent" ? user.id : undefined),
+      getAllResources(),
+    ]);
+  } catch {
+    notFound();
+  }
   if (!lesson) notFound();
+  const readOnlyKid = user.role === "kid";
+  if (readOnlyKid && user.childId && lesson.child_id !== user.childId) {
+    notFound();
+  }
   const children = childrenData.map((c: { id: string; name: string }) => ({
     id: c.id,
     name: c.name,
   }));
-
   const statusVariant =
     lesson.status === "completed"
       ? "success"
       : lesson.status === "in_progress"
         ? "warning"
         : "default";
-
+  const isCompleted = lesson.status === "completed";
   return (
-    <div>
+    <div className="mx-auto max-w-4xl">
+      {" "}
+      {/* Header with title, status, and actions */}{" "}
       <PageHeader title={lesson.title}>
+        {" "}
         <div className="flex gap-2">
-          <EditLessonButton
-            lesson={{
-              id: lesson.id,
-              title: lesson.title,
-              description: lesson.description,
-              planned_date: lesson.planned_date,
-              curriculum_id: lesson.curriculum_id,
-              child_id: lesson.child_id,
-            }}
-            children={children}
-          />
+          {" "}
+          {!readOnlyKid && (
+            <EditLessonButton
+              lesson={{
+                id: lesson.id,
+                title: lesson.title,
+                description: lesson.description,
+                planned_date: lesson.planned_date,
+                curriculum_id: lesson.curriculum_id,
+                child_id: lesson.child_id,
+              }}
+              children={children}
+            />
+          )}{" "}
           <Link
-            href="/lessons"
-            className="rounded-lg border px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+            href="/lessons/table"
+            className="rounded-lg border border-border px-3 py-1.5 text-sm text-tertiary hover:bg-surface-muted dark:hover:bg-slate-800"
           >
-            Back to Lessons
-          </Link>
+            {" "}
+            Back to Lessons{" "}
+          </Link>{" "}
+        </div>{" "}
+      </PageHeader>{" "}
+      {/* Inherited context bar — always visible */}{" "}
+      <div className="mb-6 flex flex-wrap items-center gap-4 rounded-xl border border-light bg-surface p-4 shadow-sm">
+        {" "}
+        {/* Student */}{" "}
+        <Link
+          href={`/students/${lesson.child_id}`}
+          className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-secondary hover:bg-surface-muted dark:hover:bg-slate-800"
+        >
+          {" "}
+          <span className="text-lg">👤</span> {lesson.child_name}{" "}
+        </Link>{" "}
+        <span className="text-gray-300 dark:text-slate-600">|</span>{" "}
+        {/* Subject with color */}{" "}
+        <Link
+          href={`/subjects/${lesson.subject_id}`}
+          className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-secondary hover:bg-surface-muted dark:hover:bg-slate-800"
+        >
+          {" "}
+          <span
+            className="h-3 w-3 rounded-full"
+            style={{ backgroundColor: lesson.subject_color }}
+          />{" "}
+          {lesson.subject_name}{" "}
+        </Link>{" "}
+        <span className="text-gray-300 dark:text-slate-600">|</span>{" "}
+        {/* Curriculum */}{" "}
+        <Link
+          href={`/curricula/${lesson.curriculum_id}`}
+          className="rounded-lg px-3 py-1.5 text-sm font-medium text-secondary hover:bg-surface-muted dark:hover:bg-slate-800"
+        >
+          {" "}
+          📋 {lesson.curriculum_name}{" "}
+        </Link>{" "}
+        <span className="text-gray-300 dark:text-slate-600">|</span>{" "}
+        {/* Status */} <Badge variant={statusVariant}>{lesson.status}</Badge>{" "}
+        {/* Date */}{" "}
+        {lesson.planned_date && (
+          <>
+            {" "}
+            <span className="text-gray-300 dark:text-slate-600">|</span>{" "}
+            <span className="text-sm text-muted dark:text-slate-400">
+              {" "}
+              📅 {new Date(lesson.planned_date).toLocaleDateString()}{" "}
+            </span>{" "}
+          </>
+        )}{" "}
+      </div>{" "}
+      {/* Description */}{" "}
+      {lesson.description && (
+        <div className="mb-6 rounded-xl border border-light bg-surface p-5 shadow-sm">
+          {" "}
+          <h3 className="mb-2 text-sm font-semibold text-muted uppercase tracking-wider dark:text-slate-400">
+            {" "}
+            Description{" "}
+          </h3>{" "}
+          <p className="text-secondary whitespace-pre-wrap">
+            {lesson.description}
+          </p>{" "}
         </div>
-      </PageHeader>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Left column: Details + Completion */}
-        <div className="space-y-6">
-          <Card title="Details">
-            <dl className="space-y-3">
+      )}{" "}
+      {/* Completion section */}{" "}
+      <div className="mb-6 rounded-xl border border-light bg-surface p-5 shadow-sm">
+        {" "}
+        <h3 className="mb-3 text-sm font-semibold text-muted uppercase tracking-wider dark:text-slate-400">
+          {" "}
+          Completion{" "}
+        </h3>{" "}
+        {lesson.completion ? (
+          <div className="flex items-center gap-6">
+            {" "}
+            <div className="flex items-center gap-2">
+              {" "}
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-success-100 text-success-600">
+                {" "}
+                ✓{" "}
+              </span>{" "}
+              <span className="text-sm font-medium text-[var(--success-text)]">
+                Completed
+              </span>{" "}
+            </div>{" "}
+            {lesson.completion.grade != null && (
               <div>
-                <dt className="text-sm text-gray-500">Status</dt>
-                <dd>
-                  <Badge variant={statusVariant}>{lesson.status}</Badge>
-                </dd>
+                {" "}
+                <span className="text-sm text-muted dark:text-slate-400">
+                  Grade:{" "}
+                </span>{" "}
+                <span className="text-lg font-bold">
+                  {" "}
+                  {Number(lesson.completion.grade).toFixed(0)}{" "}
+                </span>{" "}
               </div>
+            )}{" "}
+            {lesson.completion.pass_fail && (
               <div>
-                <dt className="text-sm text-gray-500">Student</dt>
-                <dd className="font-medium">
-                  <Link
-                    href={`/students/${lesson.child_id}`}
-                    className="text-primary-600 hover:underline"
-                  >
-                    {lesson.child_name}
-                  </Link>
-                </dd>
+                {" "}
+                <span className="text-sm text-muted dark:text-slate-400">
+                  Result:{" "}
+                </span>{" "}
+                <span className="text-lg font-bold">
+                  {" "}
+                  {lesson.completion.pass_fail === "pass"
+                    ? "Pass"
+                    : "Fail"}{" "}
+                </span>{" "}
               </div>
-              <div>
-                <dt className="text-sm text-gray-500">Subject</dt>
-                <dd>
-                  <Link
-                    href={`/subjects/${lesson.subject_id}`}
-                    className="flex items-center gap-2 text-primary-600 hover:underline"
-                  >
-                    <span
-                      className="h-3 w-3 rounded-full"
-                      style={{ backgroundColor: lesson.subject_color }}
-                    />
-                    {lesson.subject_name}
-                  </Link>
-                </dd>
+            )}{" "}
+            {lesson.completion.notes && (
+              <div className="text-sm text-tertiary">
+                {" "}
+                <span className="text-gray-400 dark:text-slate-500">
+                  Notes:{" "}
+                </span>{" "}
+                {lesson.completion.notes}{" "}
               </div>
-              <div>
-                <dt className="text-sm text-gray-500">Curriculum</dt>
-                <dd>
-                  <Link
-                    href={`/curricula/${lesson.curriculum_id}`}
-                    className="text-primary-600 hover:underline"
-                  >
-                    {lesson.curriculum_name}
-                  </Link>
-                </dd>
-              </div>
-              {lesson.planned_date && (
-                <div>
-                  <dt className="text-sm text-gray-500">Planned Date</dt>
-                  <dd>{new Date(lesson.planned_date).toLocaleDateString()}</dd>
-                </div>
-              )}
-              {lesson.description && (
-                <div>
-                  <dt className="text-sm text-gray-500">Description</dt>
-                  <dd className="text-gray-700">{lesson.description}</dd>
-                </div>
-              )}
-            </dl>
-          </Card>
-
-          <Card title="Completion">
-            {lesson.completion ? (
-              <div className="space-y-2">
-                <p>
-                  <span className="text-sm text-gray-500">Grade: </span>
-                  <span className="text-xl font-bold">
-                    {lesson.completion.grade != null
-                      ? Number(lesson.completion.grade).toFixed(0)
-                      : "--"}
-                  </span>
-                </p>
-                {lesson.completion.notes && (
-                  <p>
-                    <span className="text-sm text-gray-500">Notes: </span>
-                    {lesson.completion.notes}
-                  </p>
-                )}
-                <p className="text-xs text-gray-400">
-                  Completed{" "}
-                  {new Date(lesson.completion.completed_at).toLocaleDateString()}
-                </p>
-              </div>
-            ) : (
-              <CompletionForm
-                lessonId={lesson.id}
-                childId={lesson.child_id}
-              />
-            )}
-          </Card>
-        </div>
-
-        {/* Right column: Resources */}
-        <LessonResourcesManager
-          lessonId={lesson.id}
-          resources={lesson.resources}
-          curriculumResources={lesson.curriculumResources}
-          libraryResources={libraryResources.map(
-            (r: {
-              id: string;
-              title: string;
-              type: string;
-              url: string | null;
-              description: string | null;
-            }) => ({
-              id: r.id,
-              title: r.title,
-              type: r.type,
-              url: r.url,
-              description: r.description,
-            })
-          )}
-        />
-      </div>
+            )}{" "}
+            <span className="ml-auto text-xs text-gray-400 dark:text-slate-500">
+              {" "}
+              {new Date(
+                lesson.completion.completed_at,
+              ).toLocaleDateString()}{" "}
+            </span>{" "}
+          </div>
+        ) : readOnlyKid ? (
+          <KidCompletionModal lessonId={lesson.id} childId={lesson.child_id} />
+        ) : (
+          <CompletionForm
+            lessonId={lesson.id}
+            childId={lesson.child_id}
+            gradeType={
+              (lesson.grade_type as "numeric" | "pass_fail") || "numeric"
+            }
+          />
+        )}{" "}
+      </div>{" "}
+      {/* Resources — full width */}{" "}
+      <LessonResourcesManager
+        lessonId={lesson.id}
+        resources={lesson.resources}
+        curriculumResources={lesson.curriculumResources}
+        readOnly={readOnlyKid}
+        libraryResources={libraryResources.map(
+          (r: {
+            id: string;
+            title: string;
+            type: string;
+            url: string | null;
+            description: string | null;
+          }) => ({
+            id: r.id,
+            title: r.title,
+            type: r.type,
+            url: r.url,
+            description: r.description,
+          }),
+        )}
+      />{" "}
     </div>
   );
 }

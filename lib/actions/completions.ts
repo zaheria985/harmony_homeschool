@@ -3,11 +3,42 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import pool from "@/lib/db";
+import { completionValuePayload } from "@/lib/utils/completion-values";
+
+const parsedGradeSchema = z
+  .string()
+  .regex(/^\d{1,3}(\.\d{1,2})?$/, {
+    message: "Grade must be a number with up to 2 decimals",
+  })
+  .transform((value) => Number(value))
+  .refine((value) => Number.isFinite(value), {
+    message: "Grade must be a valid number",
+  })
+  .refine((value) => value >= 0 && value <= 100, {
+    message: "Grade must be between 0 and 100",
+  });
+
+const optionalGradeSchema = z.preprocess((value) => {
+  if (value == null) return undefined;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed === "" ? undefined : trimmed;
+  }
+  return String(value);
+}, parsedGradeSchema.optional());
+
+const requiredGradeSchema = z.preprocess((value) => {
+  if (value == null) return value;
+  if (typeof value === "string") return value.trim();
+  return String(value);
+}, parsedGradeSchema);
 
 const completeSchema = z.object({
   lessonId: z.string().uuid(),
   childId: z.string().uuid(),
-  grade: z.number().min(0).max(100).optional(),
+  gradeType: z.enum(["numeric", "pass_fail"]).optional().default("numeric"),
+  grade: optionalGradeSchema,
+  passFail: z.enum(["pass", "fail"]).optional(),
   notes: z.string().optional(),
 });
 
@@ -15,56 +46,140 @@ export async function markLessonComplete(formData: FormData) {
   const data = completeSchema.safeParse({
     lessonId: formData.get("lessonId"),
     childId: formData.get("childId"),
-    grade: formData.get("grade") ? Number(formData.get("grade")) : undefined,
+    gradeType: formData.get("gradeType") || undefined,
+    grade: formData.get("grade"),
+    passFail: formData.get("passFail") || undefined,
     notes: formData.get("notes") || undefined,
   });
 
   if (!data.success) {
-    return { error: "Invalid input" };
+    return { error: data.error.issues[0]?.message || "Invalid input" };
   }
 
-  const { lessonId, childId, grade, notes } = data.data;
+  const { lessonId, childId, gradeType, grade, passFail, notes } = data.data;
 
-  // Get the parent user for completed_by_user_id
-  const userRes = await pool.query(
-    "SELECT id FROM users WHERE role = 'parent' LIMIT 1"
-  );
-  const userId = userRes.rows[0]?.id;
-  if (!userId) return { error: "No parent user found" };
+  const client = await pool.connect();
 
-  await pool.query(
-    `INSERT INTO lesson_completions (lesson_id, child_id, completed_by_user_id, grade, notes)
-     VALUES ($1, $2, $3, $4, $5)
-     ON CONFLICT (lesson_id, child_id) DO UPDATE SET grade = $4, notes = $5, completed_at = now()`,
-    [lessonId, childId, userId, grade ?? null, notes ?? null]
-  );
+  try {
+    await client.query("BEGIN");
 
-  await pool.query("UPDATE lessons SET status = 'completed' WHERE id = $1", [
-    lessonId,
-  ]);
+    // Get the parent user for completed_by_user_id
+    const userRes = await client.query(
+      "SELECT id FROM users WHERE role = 'parent' LIMIT 1"
+    );
+    const userId = userRes.rows[0]?.id;
+    if (!userId) {
+      await client.query("ROLLBACK");
+      return { error: "No parent user found" };
+    }
+
+    const payload = completionValuePayload({
+      gradeType,
+      grade,
+      passFail,
+      notes,
+    });
+
+    await client.query(
+      `INSERT INTO lesson_completions (lesson_id, child_id, completed_by_user_id, grade, pass_fail, notes)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (lesson_id, child_id) DO UPDATE
+         SET grade = $4, pass_fail = $5, notes = $6, completed_at = now()`,
+      [
+        lessonId,
+        childId,
+        userId,
+        payload.grade,
+        payload.passFail,
+        payload.notes,
+      ]
+    );
+
+    await client.query("UPDATE lessons SET status = 'completed' WHERE id = $1", [
+      lessonId,
+    ]);
+
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Failed to mark lesson complete", {
+      lessonId,
+      childId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { error: "Failed to mark lesson complete" };
+  } finally {
+    client.release();
+  }
 
   revalidatePath("/lessons");
   revalidatePath("/week");
   revalidatePath("/grades");
   revalidatePath("/dashboard");
+  revalidatePath("/subjects");
+  revalidatePath("/curricula");
+  revalidatePath("/calendar");
+  revalidatePath("/students");
+  revalidatePath("/reports");
+  return { success: true };
+}
+
+export async function markLessonIncomplete(lessonId: string, childId: string) {
+  const parsed = z
+    .object({ lessonId: z.string().uuid(), childId: z.string().uuid() })
+    .safeParse({ lessonId, childId });
+  if (!parsed.success) return { error: "Invalid input" };
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      "DELETE FROM lesson_completions WHERE lesson_id = $1 AND child_id = $2",
+      [parsed.data.lessonId, parsed.data.childId]
+    );
+    await client.query("UPDATE lessons SET status = 'planned' WHERE id = $1", [
+      parsed.data.lessonId,
+    ]);
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Failed to mark lesson incomplete", {
+      lessonId: parsed.data.lessonId,
+      childId: parsed.data.childId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { error: "Failed to mark lesson incomplete" };
+  } finally {
+    client.release();
+  }
+
+  revalidatePath("/lessons");
+  revalidatePath("/week");
+  revalidatePath("/grades");
+  revalidatePath("/dashboard");
+  revalidatePath("/subjects");
+  revalidatePath("/curricula");
+  revalidatePath("/calendar");
+  revalidatePath("/students");
+  revalidatePath("/reports");
   return { success: true };
 }
 
 const updateGradeSchema = z.object({
   completionId: z.string().uuid(),
-  grade: z.number().min(0).max(100),
+  grade: requiredGradeSchema,
   notes: z.string().optional(),
 });
 
 export async function updateGrade(formData: FormData) {
   const data = updateGradeSchema.safeParse({
     completionId: formData.get("completionId"),
-    grade: Number(formData.get("grade")),
+    grade: formData.get("grade"),
     notes: formData.get("notes") || undefined,
   });
 
   if (!data.success) {
-    return { error: "Invalid input" };
+    return { error: data.error.issues[0]?.message || "Invalid input" };
   }
 
   await pool.query(
@@ -75,5 +190,11 @@ export async function updateGrade(formData: FormData) {
   revalidatePath("/grades");
   revalidatePath("/week");
   revalidatePath("/dashboard");
+  revalidatePath("/lessons");
+  revalidatePath("/subjects");
+  revalidatePath("/curricula");
+  revalidatePath("/calendar");
+  revalidatePath("/students");
+  revalidatePath("/reports");
   return { success: true };
 }

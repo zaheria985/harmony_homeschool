@@ -64,7 +64,7 @@ export default function LessonFormModal({
       setPlannedDate(
         lesson.planned_date
           ? new Date(lesson.planned_date).toISOString().split("T")[0]
-          : ""
+          : "",
       );
       setCurriculumId(lesson.curriculum_id);
       // In edit mode, child/subject are pre-set and we load cascading data
@@ -111,7 +111,7 @@ export default function LessonFormModal({
         .then((r) => r.json())
         .then((data) => {
           const match = (data.curricula || []).find(
-            (c: Curriculum) => c.id === lesson.curriculum_id
+            (c: Curriculum) => c.id === lesson.curriculum_id,
           );
           if (match) {
             setSubjectId(s.id);
@@ -208,7 +208,12 @@ export default function LessonFormModal({
     // Optimistically add to list (won't have real ID, but close enough)
     setResources((prev) => [
       ...prev,
-      { id: crypto.randomUUID(), type: resourceType, url: resourceUrl, title: resourceTitle || null },
+      {
+        id: crypto.randomUUID(),
+        type: resourceType,
+        url: resourceUrl,
+        title: resourceTitle || null,
+      },
     ]);
     setResourceUrl("");
     setResourceTitle("");
@@ -223,11 +228,15 @@ export default function LessonFormModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={isEdit ? "Edit Lesson" : "New Lesson"}>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={isEdit ? "Edit Lesson" : "New Lesson"}
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Child selector */}
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+          <label className="mb-1 block text-sm font-medium text-secondary">
             Student
           </label>
           <select
@@ -248,7 +257,7 @@ export default function LessonFormModal({
 
         {/* Subject selector */}
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+          <label className="mb-1 block text-sm font-medium text-secondary">
             Subject
           </label>
           <select
@@ -269,7 +278,7 @@ export default function LessonFormModal({
 
         {/* Curriculum selector */}
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+          <label className="mb-1 block text-sm font-medium text-secondary">
             Curriculum
           </label>
           <select
@@ -290,7 +299,7 @@ export default function LessonFormModal({
 
         {/* Title */}
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+          <label className="mb-1 block text-sm font-medium text-secondary">
             Title
           </label>
           <input
@@ -305,7 +314,7 @@ export default function LessonFormModal({
 
         {/* Description */}
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+          <label className="mb-1 block text-sm font-medium text-secondary">
             Description
           </label>
           <textarea
@@ -319,7 +328,7 @@ export default function LessonFormModal({
 
         {/* Planned date */}
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+          <label className="mb-1 block text-sm font-medium text-secondary">
             Planned Date
           </label>
           <input
@@ -331,25 +340,27 @@ export default function LessonFormModal({
         </div>
 
         {/* Error */}
-        {error && (
-          <p className="text-sm text-red-600">{error}</p>
-        )}
+        {error && <p className="text-sm text-red-600">{error}</p>}
 
         {/* Actions */}
         <div className="flex justify-end gap-3 pt-2">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+            className="rounded-lg border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={submitting || !curriculumId}
-            className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+            className="rounded-lg bg-interactive px-4 py-2 text-sm font-medium text-white hover:bg-interactive-hover disabled:opacity-50"
           >
-            {submitting ? "Saving..." : isEdit ? "Update Lesson" : "Create Lesson"}
+            {submitting
+              ? "Saving..."
+              : isEdit
+                ? "Update Lesson"
+                : "Create Lesson"}
           </button>
         </div>
       </form>
@@ -358,11 +369,11 @@ export default function LessonFormModal({
       {isEdit && lesson && (
         <div className="mt-6 border-t pt-4">
           <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-700">Resources</h3>
+            <h3 className="text-sm font-semibold text-secondary">Resources</h3>
             <button
               type="button"
               onClick={() => setShowAddResource(!showAddResource)}
-              className="text-xs text-primary-600 hover:text-primary-700"
+              className="text-xs text-interactive hover:text-interactive-hover"
             >
               {showAddResource ? "Cancel" : "+ Add Resource"}
             </button>
@@ -371,12 +382,17 @@ export default function LessonFormModal({
           {resources.length > 0 && (
             <ul className="mb-3 space-y-2">
               {resources.map((r) => (
-                <li key={r.id} className="flex items-center justify-between rounded border px-3 py-2 text-sm">
+                <li
+                  key={r.id}
+                  className="flex items-center justify-between rounded border px-3 py-2 text-sm"
+                >
                   <div className="min-w-0 flex-1">
-                    <span className="mr-2 inline-block rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium uppercase text-gray-600">
+                    <span className="mr-2 inline-block rounded bg-surface-subtle px-1.5 py-0.5 text-xs font-medium uppercase text-tertiary">
                       {r.type}
                     </span>
-                    <span className="truncate text-gray-700">{r.title || r.url}</span>
+                    <span className="truncate text-secondary">
+                      {r.title || r.url}
+                    </span>
                   </div>
                   <button
                     type="button"
@@ -391,16 +407,16 @@ export default function LessonFormModal({
           )}
 
           {resources.length === 0 && !showAddResource && (
-            <p className="mb-3 text-xs text-gray-400">No resources attached.</p>
+            <p className="mb-3 text-xs text-muted">No resources attached.</p>
           )}
 
           {showAddResource && (
-            <div className="space-y-3 rounded-lg border bg-gray-50 p-3">
+            <div className="space-y-3 rounded-lg border bg-surface-muted p-3">
               <div className="flex gap-2">
                 <select
                   value={resourceType}
                   onChange={(e) => setResourceType(e.target.value)}
-                  className="rounded-lg border bg-white px-2 py-1.5 text-sm"
+                  className="rounded-lg border bg-surface px-2 py-1.5 text-sm"
                 >
                   <option value="url">URL</option>
                   <option value="youtube">YouTube</option>
@@ -423,12 +439,14 @@ export default function LessonFormModal({
                 className="w-full rounded-lg border px-3 py-1.5 text-sm"
                 placeholder="Title (optional)"
               />
-              {resourceError && <p className="text-xs text-red-600">{resourceError}</p>}
+              {resourceError && (
+                <p className="text-xs text-red-600">{resourceError}</p>
+              )}
               <button
                 type="button"
                 onClick={handleAddResource}
                 disabled={!resourceUrl}
-                className="rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+                className="rounded-lg bg-interactive px-3 py-1.5 text-xs font-medium text-white hover:bg-interactive-hover disabled:opacity-50"
               >
                 Add Resource
               </button>

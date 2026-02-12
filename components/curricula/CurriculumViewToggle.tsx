@@ -1,7 +1,5 @@
 "use client";
-
 import { ViewToggleNav } from "@/components/ui/ViewToggle";
-
 export function CurriculumViewToggle({
   curriculumId,
 }: {
@@ -11,7 +9,11 @@ export function CurriculumViewToggle({
     <ViewToggleNav
       options={[
         { key: "list", label: "List View", href: `/curricula/${curriculumId}` },
-        { key: "board", label: "Board View", href: `/curricula/${curriculumId}/board` },
+        {
+          key: "board",
+          label: "Board View",
+          href: `/curricula/${curriculumId}/board`,
+        },
       ]}
     />
   );

@@ -84,13 +84,13 @@ const typeConfig: Record<string, { icon: string; bg: string }> = {
 
 function extractYoutubeId(url: string): string | null {
   const match = url.match(
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
   );
   return match ? match[1] : null;
 }
 
 const statusColors: Record<string, string> = {
-  planned: "border-gray-200",
+  planned: "border-light",
   in_progress: "border-warning-400",
   completed: "border-success-400",
 };
@@ -118,7 +118,8 @@ function ResourceMiniCard({
 }) {
   const cfg = typeConfig[type] || typeConfig.url;
   const displayTitle = title || "Untitled";
-  const youtubeId = (type === "youtube" || type === "video") ? extractYoutubeId(url) : null;
+  const youtubeId =
+    type === "youtube" || type === "video" ? extractYoutubeId(url) : null;
 
   const thumbnail = youtubeId
     ? `https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`
@@ -129,7 +130,7 @@ function ResourceMiniCard({
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="group flex items-center gap-2 rounded-lg border border-gray-100 bg-white p-2 text-xs transition-colors hover:border-primary-200 hover:bg-primary-50/30"
+      className="group flex items-center gap-2 rounded-lg border border-gray-100 bg-surface p-2 text-xs transition-colors hover:border-primary-200 hover:bg-interactive-light/30"
       onClick={(e) => e.stopPropagation()}
     >
       {thumbnail ? (
@@ -146,7 +147,7 @@ function ResourceMiniCard({
           {cfg.icon}
         </span>
       )}
-      <span className="min-w-0 truncate text-gray-700 group-hover:text-primary-600">
+      <span className="min-w-0 truncate text-secondary group-hover:text-interactive">
         {displayTitle}
       </span>
     </a>
@@ -178,13 +179,15 @@ function CompletionCheckbox({
         checked={completed}
         disabled={isPending}
         onChange={() => onToggle(lessonId, child.id, !completed)}
-        className="rounded border-gray-300 text-success-600 focus:ring-success-500 disabled:opacity-50"
+        className="rounded border-border text-success-600 focus:ring-success-500 disabled:opacity-50"
       />
-      <span className={`text-xs ${completed ? "text-success-700" : "text-gray-500"}`}>
+      <span
+        className={`text-xs ${completed ? "text-success-700" : "text-muted"}`}
+      >
         {child.name}
       </span>
       {grade != null && (
-        <span className="text-xs font-semibold text-primary-600">
+        <span className="text-xs font-semibold text-interactive">
           {Number(grade).toFixed(0)}
         </span>
       )}
@@ -209,7 +212,7 @@ export default function CurriculumBoard({
   function handleCompletionToggle(
     lessonId: string,
     childId: string,
-    shouldComplete: boolean
+    shouldComplete: boolean,
   ) {
     startTransition(async () => {
       if (shouldComplete) {
@@ -227,12 +230,19 @@ export default function CurriculumBoard({
   // Group curriculum resources by type
   const resourcesByType = curriculumResources.reduce(
     (acc, r) => {
-      const group = r.type === "book" ? "Books" : r.type === "video" ? "Videos" : r.type === "supply" ? "Supplies" : "Other";
+      const group =
+        r.type === "book"
+          ? "Books"
+          : r.type === "video"
+            ? "Videos"
+            : r.type === "supply"
+              ? "Supplies"
+              : "Other";
       if (!acc[group]) acc[group] = [];
       acc[group].push(r);
       return acc;
     },
-    {} as Record<string, CurriculumResource[]>
+    {} as Record<string, CurriculumResource[]>,
   );
 
   const hasResources = curriculumResources.length > 0;
@@ -241,21 +251,24 @@ export default function CurriculumBoard({
     <div className="relative">
       {/* Saving indicator */}
       {isPending && (
-        <div className="absolute right-0 top-0 z-10 rounded-lg bg-primary-50 px-3 py-1 text-xs font-medium text-primary-600 animate-pulse">
+        <div className="absolute right-0 top-0 z-10 rounded-lg bg-interactive-light px-3 py-1 text-xs font-medium text-interactive animate-pulse">
           Saving...
         </div>
       )}
 
       {/* Horizontal scroll container */}
-      <div className="flex gap-4 overflow-x-auto pb-4" style={{ scrollSnapType: "x mandatory" }}>
+      <div
+        className="flex gap-4 overflow-x-auto pb-4"
+        style={{ scrollSnapType: "x mandatory" }}
+      >
         {/* Resources Column (fixed left) */}
         {hasResources && (
           <div
-            className="w-64 flex-shrink-0 rounded-xl border border-gray-200 bg-gray-50 shadow-sm"
+            className="w-64 flex-shrink-0 rounded-xl border border-light bg-surface-muted shadow-sm"
             style={{ scrollSnapAlign: "start" }}
           >
-            <div className="border-b bg-white px-4 py-3 rounded-t-xl">
-              <h3 className="text-sm font-semibold text-gray-900">
+            <div className="border-b bg-surface px-4 py-3 rounded-t-xl">
+              <h3 className="text-sm font-semibold text-primary">
                 Curriculum Resources
               </h3>
               <p className="text-xs text-gray-400">
@@ -277,7 +290,7 @@ export default function CurriculumBoard({
                           href={r.url || `/resources/${r.id}`}
                           target={r.url ? "_blank" : undefined}
                           rel={r.url ? "noopener noreferrer" : undefined}
-                          className="flex items-center gap-2 rounded-lg border border-gray-100 bg-white p-2 text-xs transition-colors hover:border-primary-200"
+                          className="flex items-center gap-2 rounded-lg border border-gray-100 bg-surface p-2 text-xs transition-colors hover:border-primary-200"
                         >
                           {r.thumbnail_url ? (
                             // eslint-disable-next-line @next/next/no-img-element
@@ -294,7 +307,7 @@ export default function CurriculumBoard({
                             </span>
                           )}
                           <div className="min-w-0 flex-1">
-                            <p className="truncate font-medium text-gray-700">
+                            <p className="truncate font-medium text-secondary">
                               {r.title}
                             </p>
                             {r.description && (
@@ -316,19 +329,19 @@ export default function CurriculumBoard({
         {/* Lesson Columns */}
         {lessons.map((lesson, idx) => {
           const completedChildIds = new Set(
-            lesson.completions.map((c) => c.child_id)
+            lesson.completions.map((c) => c.child_id),
           );
           const allCompleted =
             assignedChildren.length > 0 &&
             assignedChildren.every((c) => completedChildIds.has(c.id));
           const borderColor = allCompleted
             ? "border-success-400"
-            : statusColors[lesson.status] || "border-gray-200";
+            : statusColors[lesson.status] || "border-light";
 
           return (
             <div
               key={lesson.id}
-              className={`w-64 flex-shrink-0 rounded-xl border-2 bg-white shadow-sm transition-shadow hover:shadow-md ${borderColor}`}
+              className={`w-64 flex-shrink-0 rounded-xl border-2 bg-surface shadow-sm transition-shadow hover:shadow-md ${borderColor}`}
               style={{ scrollSnapAlign: "start" }}
             >
               {/* Header with color bar */}
@@ -344,15 +357,21 @@ export default function CurriculumBoard({
                     Lesson {idx + 1}
                   </span>
                   <Badge variant={statusBadge[lesson.status] || "default"}>
-                    {lesson.status === "in_progress" ? "In Progress" : lesson.status.charAt(0).toUpperCase() + lesson.status.slice(1)}
+                    {lesson.status === "in_progress"
+                      ? "In Progress"
+                      : lesson.status.charAt(0).toUpperCase() +
+                        lesson.status.slice(1)}
                   </Badge>
                 </div>
                 {lesson.planned_date && (
-                  <p className="mt-0.5 text-xs text-gray-500">
-                    {new Date(lesson.planned_date + "T00:00:00").toLocaleDateString(
-                      undefined,
-                      { weekday: "short", month: "short", day: "numeric" }
-                    )}
+                  <p className="mt-0.5 text-xs text-muted">
+                    {new Date(
+                      lesson.planned_date + "T00:00:00",
+                    ).toLocaleDateString(undefined, {
+                      weekday: "short",
+                      month: "short",
+                      day: "numeric",
+                    })}
                   </p>
                 )}
               </div>
@@ -360,9 +379,9 @@ export default function CurriculumBoard({
               {/* Title & description — clickable to lesson detail */}
               <Link
                 href={`/lessons/${lesson.id}`}
-                className="block px-4 py-3 transition-colors hover:bg-gray-50"
+                className="block px-4 py-3 transition-colors hover:bg-surface-muted"
               >
-                <h4 className="text-sm font-semibold text-gray-900 line-clamp-2">
+                <h4 className="text-sm font-semibold text-primary line-clamp-2">
                   {lesson.title}
                 </h4>
                 {lesson.description && (
@@ -406,7 +425,7 @@ export default function CurriculumBoard({
                   <div className="space-y-1">
                     {assignedChildren.map((child) => {
                       const completion = lesson.completions.find(
-                        (c) => c.child_id === child.id
+                        (c) => c.child_id === child.id,
                       );
                       return (
                         <CompletionCheckbox

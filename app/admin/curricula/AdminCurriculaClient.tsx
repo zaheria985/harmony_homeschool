@@ -4,8 +4,13 @@ import { useState, useEffect } from "react";
 import Card from "@/components/ui/Card";
 import Modal from "@/components/ui/Modal";
 import EmptyState from "@/components/ui/EmptyState";
-import { createCurriculum, updateCurriculum, deleteCurriculum } from "@/lib/actions/lessons";
+import {
+  createCurriculum,
+  updateCurriculum,
+  deleteCurriculum,
+} from "@/lib/actions/lessons";
 import { useRouter } from "next/navigation";
+import ScheduleSection from "@/components/curricula/ScheduleSection";
 
 type Curriculum = {
   id: string;
@@ -28,6 +33,14 @@ type Curriculum = {
 type Child = { id: string; name: string };
 type Subject = { id: string; name: string };
 
+type ScheduleAssignment = {
+  assignmentId: string;
+  childId: string;
+  childName: string;
+  configuredWeekdays: number[];
+  schoolWeekdays: number[];
+};
+
 export default function AdminCurriculaClient({
   curricula,
   children,
@@ -40,8 +53,12 @@ export default function AdminCurriculaClient({
   const [editing, setEditing] = useState<Curriculum | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [status, setStatus] = useState<"active" | "archived" | "draft">("active");
-  const [courseType, setCourseType] = useState<"curriculum" | "unit_study">("curriculum");
+  const [status, setStatus] = useState<"active" | "archived" | "draft">(
+    "active",
+  );
+  const [courseType, setCourseType] = useState<"curriculum" | "unit_study">(
+    "curriculum",
+  );
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [notes, setNotes] = useState("");
@@ -52,6 +69,16 @@ export default function AdminCurriculaClient({
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<Curriculum | null>(null);
+  const [openActionsId, setOpenActionsId] = useState<string | null>(null);
+  const [scheduleForCurriculum, setScheduleForCurriculum] = useState<
+    Curriculum | null
+  >(null);
+  const [scheduleAssignments, setScheduleAssignments] = useState<
+    ScheduleAssignment[]
+  >([]);
+  const [scheduleUnscheduledCount, setScheduleUnscheduledCount] = useState(0);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [scheduleError, setScheduleError] = useState("");
 
   // Load global subjects when modal opens
   useEffect(() => {
@@ -150,12 +177,37 @@ export default function AdminCurriculaClient({
     router.refresh();
   }
 
+  async function openSchedule(curriculum: Curriculum) {
+    setOpenActionsId(null);
+    setScheduleForCurriculum(curriculum);
+    setScheduleAssignments([]);
+    setScheduleUnscheduledCount(0);
+    setScheduleError("");
+    setScheduleLoading(true);
+
+    try {
+      const res = await fetch(`/api/admin/curricula/${curriculum.id}/schedule`);
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setScheduleError(data.error || "Failed to load schedule settings");
+        setScheduleLoading(false);
+        return;
+      }
+      setScheduleAssignments(data.assignments || []);
+      setScheduleUnscheduledCount(data.unscheduledCount || 0);
+    } catch {
+      setScheduleError("Failed to load schedule settings");
+    } finally {
+      setScheduleLoading(false);
+    }
+  }
+
   return (
     <>
       <div className="mb-4 flex justify-end">
         <button
           onClick={openCreate}
-          className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+          className="rounded-lg bg-interactive px-4 py-2 text-sm font-medium text-white hover:bg-interactive-hover"
         >
           + Add Course
         </button>
@@ -168,7 +220,7 @@ export default function AdminCurriculaClient({
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b text-gray-500">
+                <tr className="border-b text-muted">
                   <th className="pb-3 font-medium">Name</th>
                   <th className="pb-3 font-medium">Type</th>
                   <th className="pb-3 font-medium">Subject</th>
@@ -182,26 +234,62 @@ export default function AdminCurriculaClient({
                 {curricula.map((curriculum) => (
                   <tr key={curriculum.id} className="border-b last:border-0">
                     <td className="py-3 font-medium">{curriculum.name}</td>
-                    <td className="py-3 text-gray-600 capitalize">{curriculum.course_type.replace("_", " ")}</td>
-                    <td className="py-3 text-gray-600">{curriculum.subject_name}</td>
-                    <td className="py-3 text-gray-600">{curriculum.child_name || "Unassigned"}</td>
-                    <td className="py-3 text-gray-600">{curriculum.lesson_count}</td>
-                    <td className="max-w-xs truncate py-3 text-gray-500">
+                    <td className="py-3 text-tertiary capitalize">
+                      {curriculum.course_type.replace("_", " ")}
+                    </td>
+                    <td className="py-3 text-tertiary">
+                      {curriculum.subject_name}
+                    </td>
+                    <td className="py-3 text-tertiary">
+                      {curriculum.child_name || "Unassigned"}
+                    </td>
+                    <td className="py-3 text-tertiary">
+                      {curriculum.lesson_count}
+                    </td>
+                    <td className="max-w-xs truncate py-3 text-muted">
                       {curriculum.description || "—"}
                     </td>
                     <td className="py-3 text-right">
-                      <button
-                        onClick={() => openEdit(curriculum)}
-                        className="mr-2 rounded px-2 py-1 text-xs text-primary-600 hover:bg-primary-50"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => setConfirmDelete(curriculum)}
-                        className="rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50"
-                      >
-                        Delete
-                      </button>
+                      <div className="relative inline-block text-left">
+                        <button
+                          onClick={() =>
+                            setOpenActionsId((current) =>
+                              current === curriculum.id ? null : curriculum.id,
+                            )
+                          }
+                          className="rounded border border-light px-2 py-1 text-xs text-tertiary hover:bg-surface-muted"
+                        >
+                          Actions
+                        </button>
+                        {openActionsId === curriculum.id && (
+                          <div className="absolute right-0 z-10 mt-1 w-36 rounded-lg border border-light bg-surface p-1 shadow-lg">
+                            <button
+                              onClick={() => {
+                                setOpenActionsId(null);
+                                openEdit(curriculum);
+                              }}
+                              className="block w-full rounded px-2 py-1.5 text-left text-xs text-tertiary hover:bg-surface-muted"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => openSchedule(curriculum)}
+                              className="block w-full rounded px-2 py-1.5 text-left text-xs text-tertiary hover:bg-surface-muted"
+                            >
+                              Schedule
+                            </button>
+                            <button
+                              onClick={() => {
+                                setOpenActionsId(null);
+                                setConfirmDelete(curriculum);
+                              }}
+                              className="block w-full rounded px-2 py-1.5 text-left text-xs text-red-600 hover:bg-[var(--error-bg)]"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -219,7 +307,9 @@ export default function AdminCurriculaClient({
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Subject</label>
+            <label className="mb-1 block text-sm font-medium text-secondary">
+              Subject
+            </label>
             <select
               value={subjectId}
               onChange={(e) => setSubjectId(e.target.value)}
@@ -228,13 +318,17 @@ export default function AdminCurriculaClient({
             >
               <option value="">Select a subject...</option>
               {subjects.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Name</label>
+            <label className="mb-1 block text-sm font-medium text-secondary">
+              Name
+            </label>
             <input
               type="text"
               value={name}
@@ -247,7 +341,9 @@ export default function AdminCurriculaClient({
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Description</label>
+            <label className="mb-1 block text-sm font-medium text-secondary">
+              Description
+            </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -258,10 +354,14 @@ export default function AdminCurriculaClient({
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Course Type</label>
+            <label className="mb-1 block text-sm font-medium text-secondary">
+              Course Type
+            </label>
             <select
               value={courseType}
-              onChange={(e) => setCourseType(e.target.value as "curriculum" | "unit_study")}
+              onChange={(e) =>
+                setCourseType(e.target.value as "curriculum" | "unit_study")
+              }
               className="w-full rounded-lg border px-3 py-2 text-sm"
             >
               <option value="curriculum">Curriculum</option>
@@ -270,10 +370,14 @@ export default function AdminCurriculaClient({
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Status</label>
+            <label className="mb-1 block text-sm font-medium text-secondary">
+              Status
+            </label>
             <select
               value={status}
-              onChange={(e) => setStatus(e.target.value as "active" | "archived" | "draft")}
+              onChange={(e) =>
+                setStatus(e.target.value as "active" | "archived" | "draft")
+              }
               className="w-full rounded-lg border px-3 py-2 text-sm"
             >
               <option value="active">Active</option>
@@ -284,7 +388,9 @@ export default function AdminCurriculaClient({
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Start Date</label>
+              <label className="mb-1 block text-sm font-medium text-secondary">
+                Start Date
+              </label>
               <input
                 type="date"
                 value={startDate}
@@ -293,7 +399,9 @@ export default function AdminCurriculaClient({
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">End Date</label>
+              <label className="mb-1 block text-sm font-medium text-secondary">
+                End Date
+              </label>
               <input
                 type="date"
                 value={endDate}
@@ -304,7 +412,9 @@ export default function AdminCurriculaClient({
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Notes</label>
+            <label className="mb-1 block text-sm font-medium text-secondary">
+              Notes
+            </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -315,18 +425,18 @@ export default function AdminCurriculaClient({
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Cover Photo <span className="text-gray-400">(optional)</span>
+            <label className="mb-1 block text-sm font-medium text-secondary">
+              Cover Photo <span className="text-muted">(optional)</span>
             </label>
             {editing?.cover_image && !clearCoverImage && !coverImageFile && (
-              <div className="mb-2 flex items-center gap-2 rounded-lg border bg-gray-50 p-2">
+              <div className="mb-2 flex items-center gap-2 rounded-lg border bg-surface-muted p-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={editing.cover_image}
                   alt={editing.name}
                   className="h-10 w-10 rounded object-cover"
                 />
-                <span className="text-xs text-gray-500">Current cover image</span>
+                <span className="text-xs text-muted">Current cover image</span>
               </div>
             )}
             <input
@@ -339,7 +449,7 @@ export default function AdminCurriculaClient({
               className="w-full rounded-lg border px-3 py-2 text-sm"
             />
             {editing?.cover_image && (
-              <label className="mt-2 flex items-center gap-2 text-xs text-gray-600">
+              <label className="mt-2 flex items-center gap-2 text-xs text-tertiary">
                 <input
                   type="checkbox"
                   checked={clearCoverImage}
@@ -359,14 +469,14 @@ export default function AdminCurriculaClient({
             <button
               type="button"
               onClick={() => setModalOpen(false)}
-              className="rounded-lg border px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+              className="rounded-lg border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting || !subjectId}
-              className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+              className="rounded-lg bg-interactive px-4 py-2 text-sm font-medium text-white hover:bg-interactive-hover disabled:opacity-50"
             >
               {submitting ? "Saving..." : editing ? "Update" : "Create"}
             </button>
@@ -380,16 +490,18 @@ export default function AdminCurriculaClient({
         onClose={() => setConfirmDelete(null)}
         title="Delete Course"
       >
-        <p className="mb-2 text-sm text-gray-600">
-          Are you sure you want to delete <strong>{confirmDelete?.name}</strong> ({confirmDelete?.subject_name})?
+        <p className="mb-2 text-sm text-tertiary">
+          Are you sure you want to delete <strong>{confirmDelete?.name}</strong>{" "}
+          ({confirmDelete?.subject_name})?
         </p>
         <p className="mb-4 text-sm text-red-600">
-          This will permanently delete all {confirmDelete?.lesson_count} lessons within this course.
+          This will permanently delete all {confirmDelete?.lesson_count} lessons
+          within this course.
         </p>
         <div className="flex justify-end gap-3">
           <button
             onClick={() => setConfirmDelete(null)}
-            className="rounded-lg border px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+            className="rounded-lg border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted"
           >
             Cancel
           </button>
@@ -401,6 +513,28 @@ export default function AdminCurriculaClient({
             {submitting ? "Deleting..." : "Delete"}
           </button>
         </div>
+      </Modal>
+
+      <Modal
+        open={!!scheduleForCurriculum}
+        onClose={() => {
+          setScheduleForCurriculum(null);
+          setScheduleAssignments([]);
+          setScheduleError("");
+        }}
+        title={`Schedule: ${scheduleForCurriculum?.name || "Course"}`}
+      >
+        {scheduleLoading ? (
+          <p className="text-sm text-muted">Loading schedule settings...</p>
+        ) : scheduleError ? (
+          <p className="text-sm text-red-600">{scheduleError}</p>
+        ) : scheduleForCurriculum ? (
+          <ScheduleSection
+            curriculumId={scheduleForCurriculum.id}
+            assignments={scheduleAssignments}
+            unscheduledCount={scheduleUnscheduledCount}
+          />
+        ) : null}
       </Modal>
     </>
   );

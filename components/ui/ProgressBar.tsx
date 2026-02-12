@@ -12,22 +12,23 @@ export default function ProgressBar({
   const pct = max > 0 ? Math.round((value / max) * 100) : 0;
   const bgColor =
     color === "success"
-      ? "bg-success-500"
+      ? "bg-[var(--success-solid)]"
       : color === "warning"
-        ? "bg-warning-500"
+        ? "bg-[var(--warning-solid)]"
         : "bg-primary-500";
-
   return (
     <div className="flex items-center gap-3">
-      <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-gray-100">
+      {" "}
+      <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-surface-subtle">
+        {" "}
         <div
           className={`h-full rounded-full transition-all ${bgColor}`}
           style={{ width: `${pct}%` }}
-        />
-      </div>
+        />{" "}
+      </div>{" "}
       {showLabel && (
-        <span className="text-sm font-medium text-gray-600">{pct}%</span>
-      )}
+        <span className="text-sm font-medium text-tertiary">{pct}%</span>
+      )}{" "}
     </div>
   );
 }

@@ -17,7 +17,7 @@ export default async function DailyViewPage({
   const children = await getChildren();
   const childId = searchParams.child || children[0]?.id;
   if (!childId) {
-    return <p className="text-gray-500">No children found.</p>;
+    return <p className="text-muted">No children found.</p>;
   }
 
   const { weekStart, date } = params;
@@ -46,23 +46,29 @@ export default async function DailyViewPage({
 
   return (
     <div>
-      <h2 className="mb-4 text-lg font-semibold text-gray-900">
+      <h2 className="mb-4 text-lg font-semibold text-primary">
         {formatWeekday(date)}, {formatShortDate(date)}
       </h2>
       {subjects.length === 0 ? (
-        <p className="py-8 text-center text-gray-400">No lessons scheduled for this day.</p>
+        <p className="py-8 text-center text-muted">
+          No lessons scheduled for this day.
+        </p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {subjects.map(([subjectId, group]) => {
-            const completed = group.lessons.filter((l) => l.status === "completed").length;
+            const completed = group.lessons.filter(
+              (l) => l.status === "completed",
+            ).length;
             const total = group.lessons.length;
             const allDone = completed === total && total > 0;
             return (
               <Link
                 key={subjectId}
                 href={`/week/${weekStart}/${date}/${subjectId}${qs}`}
-                className={`rounded-xl border p-4 transition-colors hover:border-primary-300 hover:shadow-sm ${
-                  allDone ? "border-success-200 bg-success-50/30" : "border-gray-200 bg-white"
+                className={`rounded-xl border p-4 transition-colors hover:border-interactive-border hover:shadow-sm ${
+                  allDone
+                    ? "border-success-200 bg-[var(--success-bg)]/30"
+                    : "border-light bg-surface"
                 }`}
               >
                 <div className="mb-3 flex items-center gap-2">
@@ -70,14 +76,21 @@ export default async function DailyViewPage({
                     className="h-3 w-3 rounded-full"
                     style={{ backgroundColor: group.subjectColor || "#6366f1" }}
                   />
-                  <span className="font-semibold text-gray-900">{group.subjectName}</span>
+                  <span className="font-semibold text-primary">
+                    {group.subjectName}
+                  </span>
                 </div>
                 <div className="mb-3 space-y-1.5">
                   {group.lessons.map((lesson) => (
-                    <div key={lesson.id} className="flex items-center gap-2 text-sm">
+                    <div
+                      key={lesson.id}
+                      className="flex items-center gap-2 text-sm"
+                    >
                       <span
                         className={`${
-                          lesson.status === "completed" ? "text-gray-400 line-through" : "text-gray-700"
+                          lesson.status === "completed"
+                            ? "text-muted line-through"
+                            : "text-secondary"
                         }`}
                       >
                         {lesson.title}
@@ -91,7 +104,7 @@ export default async function DailyViewPage({
                     </div>
                   ))}
                 </div>
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-muted">
                   {completed}/{total} complete
                 </div>
                 <div className="mt-1">

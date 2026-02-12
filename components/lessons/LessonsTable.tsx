@@ -83,7 +83,7 @@ export default function LessonsTable({
       map.set(l.subject_id, toSafeText(l.subject_name));
     }
     return Array.from(map, ([id, name]) => ({ id, name })).sort((a, b) =>
-      a.name.localeCompare(b.name)
+      a.name.localeCompare(b.name),
     );
   }, [lessons]);
 
@@ -97,13 +97,13 @@ export default function LessonsTable({
       map.set(l.curriculum_id, toSafeText(l.curriculum_name));
     }
     return Array.from(map, ([id, name]) => ({ id, name })).sort((a, b) =>
-      a.name.localeCompare(b.name)
+      a.name.localeCompare(b.name),
     );
   }, [lessons, subjectFilter]);
 
   // Reset curriculum filter when subject changes and it's no longer valid
   const effectiveCurriculumFilter = curricula.some(
-    (c) => c.id === curriculumFilter
+    (c) => c.id === curriculumFilter,
   )
     ? curriculumFilter
     : "";
@@ -120,16 +120,14 @@ export default function LessonsTable({
   // Filter + sort
   const filtered = useMemo(() => {
     let result = lessons;
-    if (childFilter)
-      result = result.filter((l) => l.child_id === childFilter);
+    if (childFilter) result = result.filter((l) => l.child_id === childFilter);
     if (subjectFilter)
       result = result.filter((l) => l.subject_id === subjectFilter);
     if (effectiveCurriculumFilter)
       result = result.filter(
-        (l) => l.curriculum_id === effectiveCurriculumFilter
+        (l) => l.curriculum_id === effectiveCurriculumFilter,
       );
-    if (statusFilter)
-      result = result.filter((l) => l.status === statusFilter);
+    if (statusFilter) result = result.filter((l) => l.status === statusFilter);
 
     result = [...result].sort((a, b) => {
       let cmp = 0;
@@ -150,7 +148,15 @@ export default function LessonsTable({
     });
 
     return result;
-  }, [lessons, childFilter, subjectFilter, effectiveCurriculumFilter, statusFilter, sortField, sortDir]);
+  }, [
+    lessons,
+    childFilter,
+    subjectFilter,
+    effectiveCurriculumFilter,
+    statusFilter,
+    sortField,
+    sortDir,
+  ]);
 
   function toggleSort(field: SortField) {
     if (sortField === field) {
@@ -174,7 +180,7 @@ export default function LessonsTable({
           <select
             value={childFilter}
             onChange={(e) => setChildFilter(e.target.value)}
-            className="rounded-lg border bg-white px-3 py-2 text-sm"
+            className="rounded-lg border bg-surface px-3 py-2 text-sm"
           >
             <option value="">All Students</option>
             {children.map((c) => (
@@ -191,7 +197,7 @@ export default function LessonsTable({
             setSubjectFilter(e.target.value);
             setCurriculumFilter("");
           }}
-          className="rounded-lg border bg-white px-3 py-2 text-sm"
+          className="rounded-lg border bg-surface px-3 py-2 text-sm"
         >
           <option value="">All Subjects</option>
           {subjects.map((s) => (
@@ -204,7 +210,7 @@ export default function LessonsTable({
         <select
           value={effectiveCurriculumFilter}
           onChange={(e) => setCurriculumFilter(e.target.value)}
-          className="rounded-lg border bg-white px-3 py-2 text-sm"
+          className="rounded-lg border bg-surface px-3 py-2 text-sm"
         >
           <option value="">All Curricula</option>
           {curricula.map((c) => (
@@ -217,7 +223,7 @@ export default function LessonsTable({
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-lg border bg-white px-3 py-2 text-sm"
+          className="rounded-lg border bg-surface px-3 py-2 text-sm"
         >
           <option value="">All Statuses</option>
           <option value="planned">Planned</option>
@@ -225,47 +231,47 @@ export default function LessonsTable({
           <option value="completed">Completed</option>
         </select>
 
-        <span className="text-sm text-gray-500">
+        <span className="text-sm text-muted">
           {filtered.length} lesson{filtered.length !== 1 ? "s" : ""}
         </span>
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-lg border bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-lg border bg-surface shadow-sm">
         <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+          <thead className="bg-surface-muted">
             <tr>
               <th
                 onClick={() => toggleSort("title")}
-                className="cursor-pointer px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:text-gray-700"
+                className="cursor-pointer px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted hover:text-secondary"
               >
                 Title{sortIndicator("title")}
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">
                 Student
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">
                 Subject
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">
                 Curriculum
               </th>
               <th
                 onClick={() => toggleSort("status")}
-                className="cursor-pointer px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:text-gray-700"
+                className="cursor-pointer px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted hover:text-secondary"
               >
                 Status{sortIndicator("status")}
               </th>
               <th
                 onClick={() => toggleSort("planned_date")}
-                className="cursor-pointer px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:text-gray-700"
+                className="cursor-pointer px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted hover:text-secondary"
               >
                 Due Date{sortIndicator("planned_date")}
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">
                 Grade
               </th>
-              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted">
                 Actions
               </th>
             </tr>
@@ -278,7 +284,7 @@ export default function LessonsTable({
                 <tr
                   key={lesson.id}
                   onClick={() => router.push(`/lessons/${lesson.id}`)}
-                  className="group cursor-pointer hover:bg-gray-50"
+                  className="group cursor-pointer hover:bg-surface-muted"
                 >
                   <td className="px-4 py-3 text-sm">
                     <div className="flex items-start gap-2">
@@ -288,29 +294,29 @@ export default function LessonsTable({
                             e.stopPropagation();
                             toggleExpanded(lesson.id);
                           }}
-                          className="mt-0.5 flex-shrink-0 text-xs text-gray-400 hover:text-gray-600"
+                          className="mt-0.5 flex-shrink-0 text-xs text-muted hover:text-tertiary"
                         >
                           {isExpanded ? "▾" : "▸"}
                         </button>
                       )}
                       <div className="min-w-0">
-                        <span className="font-medium text-gray-900">
+                        <span className="font-medium text-primary">
                           {toSafeText(lesson.title) || "Untitled lesson"}
                         </span>
                         {isExpanded && lesson.description && (
-                          <p className="mt-1 text-xs text-gray-500 whitespace-pre-wrap line-clamp-4">
+                          <p className="mt-1 text-xs text-muted whitespace-pre-wrap line-clamp-4">
                             {lesson.description}
                           </p>
                         )}
                         {isExpanded && lesson.completion_notes && (
-                          <p className="mt-1 text-xs italic text-gray-400">
+                          <p className="mt-1 text-xs italic text-muted">
                             Note: {lesson.completion_notes}
                           </p>
                         )}
                       </div>
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-tertiary">
                     {toSafeText(lesson.child_name) || "Unknown student"}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm">
@@ -318,7 +324,7 @@ export default function LessonsTable({
                       {toSafeText(lesson.subject_name) || "Unknown subject"}
                     </Badge>
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-tertiary">
                     {toSafeText(lesson.curriculum_name) || "Unknown curriculum"}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm">
@@ -326,12 +332,12 @@ export default function LessonsTable({
                       {statusLabel[lesson.status] || lesson.status}
                     </Badge>
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-tertiary">
                     {lesson.planned_date
                       ? new Date(lesson.planned_date).toLocaleDateString()
                       : "\u2014"}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-primary-600">
+                  <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-interactive">
                     {lesson.grade != null
                       ? Number(lesson.grade).toFixed(0)
                       : "\u2014"}
@@ -342,7 +348,7 @@ export default function LessonsTable({
                         e.stopPropagation();
                         setEditLesson(lesson);
                       }}
-                      className="rounded px-2 py-1 text-xs font-medium text-primary-600 hover:bg-primary-50"
+                      className="rounded px-2 py-1 text-xs font-medium text-interactive hover:bg-interactive-light"
                     >
                       Edit
                     </button>
@@ -354,7 +360,7 @@ export default function LessonsTable({
               <tr>
                 <td
                   colSpan={8}
-                  className="px-4 py-8 text-center text-sm text-gray-400"
+                  className="px-4 py-8 text-center text-sm text-muted"
                 >
                   No lessons match the selected filters.
                 </td>

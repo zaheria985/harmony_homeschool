@@ -22,11 +22,17 @@ ENV HOSTNAME=0.0.0.0
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-COPY --from=build /app/public ./public
+COPY --from=build --chown=nextjs:nodejs /app/public ./public
 COPY --from=build --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=build --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Include seed script + deps for re-seeding via docker exec
+COPY --from=build --chown=nextjs:nodejs /app/db ./db
+COPY --from=build --chown=nextjs:nodejs /app/node_modules/bcryptjs ./node_modules/bcryptjs
+COPY --from=build --chown=nextjs:nodejs /app/node_modules/tsx ./node_modules/tsx
+COPY --from=build --chown=nextjs:nodejs /app/node_modules/esbuild ./node_modules/esbuild
+RUN mkdir -p /app/public/uploads && chown -R nextjs:nodejs /app/public/uploads
 
 USER nextjs
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "node db/migrate.js && node server.js"]

@@ -1,6 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: "class",
   content: [
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -8,6 +9,19 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        surface: {
+          DEFAULT: "var(--surface)",
+          muted: "var(--surface-muted)",
+          subtle: "var(--surface-subtle)",
+          slate: "var(--surface-slate)",
+        },
+        interactive: {
+          DEFAULT: "var(--interactive)",
+          hover: "var(--interactive-hover)",
+          light: "var(--interactive-light)",
+          medium: "var(--interactive-medium)",
+          border: "var(--interactive-border)",
+        },
         primary: {
           50: "#eef2ff",
           100: "#e0e7ff",
@@ -34,6 +48,23 @@ const config: Config = {
           600: "#d97706",
           700: "#b45309",
         },
+      },
+      textColor: {
+        primary: "var(--text-primary)",
+        secondary: "var(--text-secondary)",
+        tertiary: "var(--text-tertiary)",
+        muted: "var(--text-muted)",
+        interactive: "var(--interactive)",
+        "interactive-hover": "var(--interactive-hover)",
+      },
+      borderColor: {
+        border: "var(--border)",
+        light: "var(--border-light)",
+        slate: "var(--border-slate)",
+        "interactive-border": "var(--interactive-border)",
+      },
+      ringColor: {
+        focus: "var(--input-focus-ring)",
       },
     },
   },

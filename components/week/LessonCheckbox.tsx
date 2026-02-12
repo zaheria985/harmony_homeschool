@@ -1,8 +1,9 @@
 "use client";
-
 import { useTransition } from "react";
-import { markLessonComplete } from "@/lib/actions/completions";
-
+import {
+  markLessonComplete,
+  markLessonIncomplete,
+} from "@/lib/actions/completions";
 export default function LessonCheckbox({
   lessonId,
   childId,
@@ -13,38 +14,31 @@ export default function LessonCheckbox({
   isCompleted: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
-
-  if (isCompleted) {
-    return (
-      <span className="flex h-5 w-5 items-center justify-center rounded border border-success-300 bg-success-100 text-success-700">
-        &#10003;
-      </span>
-    );
-  }
-
   function handleClick() {
     startTransition(async () => {
-      const formData = new FormData();
-      formData.set("lessonId", lessonId);
-      formData.set("childId", childId);
-      await markLessonComplete(formData);
+      if (isCompleted) {
+        await markLessonIncomplete(lessonId, childId);
+      } else {
+        const formData = new FormData();
+        formData.set("lessonId", lessonId);
+        formData.set("childId", childId);
+        await markLessonComplete(formData);
+      }
     });
   }
-
   return (
     <button
       onClick={handleClick}
       disabled={isPending}
-      className={`flex h-5 w-5 items-center justify-center rounded border transition-colors ${
-        isPending
-          ? "border-gray-300 bg-gray-100"
-          : "border-gray-300 hover:border-primary-400 hover:bg-primary-50"
-      }`}
+      className={`flex h-5 w-5 items-center justify-center rounded border transition-colors ${isPending ? "border-border bg-surface-subtle" : "border-border hover:border-primary-400 hover:bg-interactive-light dark:hover:bg-primary-900/20"}`}
       title="Mark complete"
     >
+      {" "}
       {isPending && (
-        <span className="h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-primary-500" />
-      )}
+        <span className="h-3 w-3 animate-spin rounded-full border-2 border-border border-t-primary-500" />
+      )}{" "}
+      {!isPending && isCompleted && <span>&#10003;</span>}{" "}
+      {!isPending && !isCompleted && null}{" "}
     </button>
   );
 }

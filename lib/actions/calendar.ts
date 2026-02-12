@@ -4,12 +4,124 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import pool from "@/lib/db";
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 function revalidateCalendar() {
   revalidatePath("/admin/calendar");
   revalidatePath("/admin");
   revalidatePath("/week");
   revalidatePath("/calendar");
   revalidatePath("/dashboard");
+}
+
+function parseDateKey(dateKey: string): Date {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+function formatDateKey(date: Date): string {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function addDays(date: Date, days: number): Date {
+  return new Date(date.getTime() + days * DAY_MS);
+}
+
+function isSchoolDate(
+  date: Date,
+  weekdays: Set<number>,
+  overrides: Map<string, "exclude" | "include">
+): boolean {
+  const key = formatDateKey(date);
+  const override = overrides.get(key);
+  if (override === "include") return true;
+  if (override === "exclude") return false;
+  return weekdays.has(date.getUTCDay());
+}
+
+function nextSchoolDate(
+  start: Date,
+  weekdays: Set<number>,
+  overrides: Map<string, "exclude" | "include">
+): Date {
+  let cursor = start;
+  for (let i = 0; i < 3700; i += 1) {
+    if (isSchoolDate(cursor, weekdays, overrides)) return cursor;
+    cursor = addDays(cursor, 1);
+  }
+  return start;
+}
+
+async function reflowPlannedLessonsForYear(
+  schoolYearId: string,
+  weekdays: number[]
+) {
+  const overridesRes = await pool.query(
+    `SELECT date::text, type FROM date_overrides WHERE school_year_id = $1`,
+    [schoolYearId]
+  );
+
+  const lessonsRes = await pool.query(
+    `SELECT l.id, l.planned_date::text AS planned_date, l.order_index
+     FROM lessons l
+     JOIN curriculum_assignments ca ON ca.curriculum_id = l.curriculum_id
+     WHERE ca.school_year_id = $1
+       AND l.planned_date IS NOT NULL
+     ORDER BY l.planned_date ASC, l.order_index ASC, l.id ASC`,
+    [schoolYearId]
+  );
+
+  if (lessonsRes.rows.length === 0) {
+    return { updated: 0 };
+  }
+
+  const weekdaySet = new Set<number>(weekdays);
+  const overrides = new Map<string, "exclude" | "include">();
+  for (const row of overridesRes.rows as { date: string; type: "exclude" | "include" }[]) {
+    overrides.set(row.date, row.type);
+  }
+
+  const orderedDates: string[] = [];
+  let previousDate = "";
+  for (const row of lessonsRes.rows as { planned_date: string }[]) {
+    if (row.planned_date !== previousDate) {
+      orderedDates.push(row.planned_date);
+      previousDate = row.planned_date;
+    }
+  }
+
+  const remap = new Map<string, string>();
+  let cursor = parseDateKey(orderedDates[0]);
+
+  for (const dateKey of orderedDates) {
+    const originalDate = parseDateKey(dateKey);
+    if (originalDate.getTime() > cursor.getTime()) {
+      cursor = originalDate;
+    }
+    const nextDate = nextSchoolDate(cursor, weekdaySet, overrides);
+    remap.set(dateKey, formatDateKey(nextDate));
+    cursor = addDays(nextDate, 1);
+  }
+
+  let updatedCount = 0;
+  for (const [fromDate, toDate] of remap.entries()) {
+    if (fromDate === toDate) continue;
+    const res = await pool.query(
+      `UPDATE lessons l
+       SET planned_date = $1::date
+       FROM curriculum_assignments ca
+       WHERE ca.curriculum_id = l.curriculum_id
+         AND ca.school_year_id = $2
+         AND l.planned_date = $3::date`,
+      [toDate, schoolYearId, fromDate]
+    );
+    updatedCount += res.rowCount || 0;
+  }
+
+  return { updated: updatedCount };
 }
 
 // ============================================================================
@@ -98,7 +210,10 @@ export async function updateSchoolYear(formData: FormData) {
 
 export async function setSchoolDays(schoolYearId: string, weekdays: number[]) {
   const parsedId = z.string().uuid().safeParse(schoolYearId);
-  const parsedDays = z.array(z.number().int().min(0).max(6)).safeParse(weekdays);
+  const parsedDays = z
+    .array(z.number().int().min(0).max(6))
+    .min(1, "Select at least one school day")
+    .safeParse(weekdays);
   if (!parsedId.success || !parsedDays.success) return { error: "Invalid input" };
 
   // Replace all school days for this year
@@ -109,6 +224,8 @@ export async function setSchoolDays(schoolYearId: string, weekdays: number[]) {
       [parsedId.data, weekday]
     );
   }
+
+  await reflowPlannedLessonsForYear(parsedId.data, parsedDays.data);
 
   revalidateCalendar();
   return { success: true };
@@ -141,7 +258,13 @@ export async function addDateOverride(formData: FormData) {
        ON CONFLICT (school_year_id, date) DO UPDATE SET type = $3, reason = $4`,
       [data.data.school_year_id, data.data.date, data.data.type, data.data.reason || null]
     );
-  } catch {
+  } catch (err) {
+    console.error("Failed to add date override", {
+      schoolYearId: data.data.school_year_id,
+      date: data.data.date,
+      type: data.data.type,
+      error: err instanceof Error ? err.message : String(err),
+    });
     return { error: "Failed to add date override" };
   }
 

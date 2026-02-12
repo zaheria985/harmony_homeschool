@@ -7,8 +7,9 @@ export default function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-gray-400">
-      <span className="text-4xl">{icon}</span>
-      <p className="mt-2 text-sm">{message}</p>
+      {" "}
+      <span className="text-4xl">{icon}</span>{" "}
+      <p className="mt-2 text-sm">{message}</p>{" "}
     </div>
   );
 }

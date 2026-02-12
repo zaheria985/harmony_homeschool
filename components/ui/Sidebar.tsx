@@ -1,90 +1,182 @@
 "use client";
-
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { signOut } from "next-auth/react";
-
-const navItems = [
+import { useSession } from "next-auth/react";
+const mainNavItems = [
   { href: "/dashboard", label: "Dashboard", icon: "📊" },
-  { href: "/students", label: "Students", icon: "👨‍🎓" },
   { href: "/subjects", label: "Subjects", icon: "🎨" },
   { href: "/curricula", label: "Courses", icon: "📖" },
   { href: "/week", label: "Planner", icon: "📚" },
-  { href: "/grades", label: "Grades", icon: "📝" },
+  { href: "/prep", label: "Weekly Prep", icon: "🧺" },
   { href: "/resources", label: "Resources", icon: "📦" },
+  { href: "/booklists", label: "Booklists", icon: "📚" },
+  { href: "/tags", label: "Tags", icon: "🏷️" },
   { href: "/calendar", label: "Calendar", icon: "📅" },
-  { href: "/completed", label: "Completed", icon: "✅" },
-  { href: "/reports", label: "Reports", icon: "📈" },
-  { href: "/admin", label: "Admin", icon: "⚙️" },
+  { href: "/reports", label: "Progress Reports", icon: "📈" },
 ];
-
+const adminNavItem = { href: "/admin", label: "Admin", icon: "⚙️" };
 export default function Sidebar() {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
-
+  const { data: session } = useSession();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [desktopCollapsed, setDesktopCollapsed] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  useEffect(() => {
+    const root = document.documentElement;
+    const prefersDark = window.matchMedia(
+      "(prefers-color-scheme: dark)",
+    ).matches;
+    const storedTheme = localStorage.getItem("theme");
+    const storedSidebar = localStorage.getItem("sidebar-collapsed");
+    const nextTheme =
+      storedTheme === "dark" || (!storedTheme && prefersDark)
+        ? "dark"
+        : "light";
+    setTheme(nextTheme);
+    setDesktopCollapsed(storedSidebar === "true");
+    root.classList.toggle("dark", nextTheme === "dark");
+  }, []);
+  function toggleTheme() {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    document.documentElement.classList.toggle("dark", nextTheme === "dark");
+    localStorage.setItem("theme", nextTheme);
+  }
+  function toggleDesktopSidebar() {
+    setDesktopCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("sidebar-collapsed", String(next));
+      return next;
+    });
+  }
+  const role =
+    (session?.user as { role?: string } | undefined)?.role || "parent";
+  const visibleItems =
+    role === "kid"
+      ? mainNavItems.filter((item) =>
+          ["/dashboard", "/calendar", "/booklists"].includes(item.href),
+        )
+      : mainNavItems;
   return (
     <>
-      {/* Mobile toggle */}
+      {" "}
       <button
-        onClick={() => setCollapsed(!collapsed)}
-        className="fixed top-4 left-4 z-50 rounded-lg bg-primary-600 p-2 text-white shadow-lg md:hidden"
+        onClick={() => setMobileOpen(!mobileOpen)}
+        aria-label={
+          mobileOpen ? "Close navigation menu" : "Open navigation menu"
+        }
+        className="fixed left-4 top-4 z-50 rounded-lg bg-[var(--brand)] p-2 text-[var(--brand-contrast)] shadow-lg md:hidden"
       >
-        {collapsed ? "✕" : "☰"}
-      </button>
-
-      {/* Overlay for mobile */}
-      {collapsed && (
+        {" "}
+        {mobileOpen ? "✕" : "☰"}{" "}
+      </button>{" "}
+      {mobileOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/50 md:hidden"
-          onClick={() => setCollapsed(false)}
+          className="fixed inset-0 z-30 bg-[var(--overlay)] md:hidden"
+          onClick={() => setMobileOpen(false)}
         />
-      )}
-
-      {/* Sidebar */}
+      )}{" "}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-white shadow-lg transition-transform md:static md:translate-x-0 ${
-          collapsed ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-        }`}
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-[var(--border)] bg-[var(--sidebar-bg)] shadow-lg transition-all md:static md:translate-x-0 ${mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"} ${desktopCollapsed ? "md:w-20" : "md:w-64"}`}
       >
-        <div className="flex h-16 items-center gap-2 border-b px-6">
-          <span className="text-2xl font-bold text-primary-600">Harmony</span>
-        </div>
-
+        {" "}
+        <div
+          className={`flex h-16 items-center border-b border-[var(--border)] ${desktopCollapsed ? "justify-center px-2" : "justify-between px-4"}`}
+        >
+          {" "}
+          {desktopCollapsed ? (
+            <span className="text-2xl font-bold text-[var(--brand)]">H</span>
+          ) : (
+            <span className="text-2xl font-bold text-[var(--brand)]">
+              Harmony
+            </span>
+          )}{" "}
+          <button
+            onClick={toggleTheme}
+            className="rounded-full border border-[var(--border)] p-1.5 text-sm transition-colors hover:bg-[var(--sidebar-hover)]"
+            title={
+              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+            }
+            aria-label={
+              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+            }
+          >
+            {" "}
+            <span
+              className={theme === "dark" ? "text-amber-300" : "text-slate-500"}
+            >
+              {" "}
+              {theme === "dark" ? "💡" : "🕯️"}{" "}
+            </span>{" "}
+          </button>{" "}
+        </div>{" "}
         <nav className="flex-1 space-y-1 px-3 py-4">
-          {navItems.map((item) => {
+          {" "}
+          {visibleItems.map((item) => {
             const active =
               pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                onClick={() => setCollapsed(false)}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                  active
-                    ? "bg-primary-50 text-primary-700"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                }`}
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${desktopCollapsed ? "justify-center" : "gap-3"} ${active ? "bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]" : "text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--app-text)]"}`}
+                title={desktopCollapsed ? item.label : undefined}
               >
-                <span className="text-lg">{item.icon}</span>
-                {item.label}
+                {" "}
+                <span className="text-lg">{item.icon}</span>{" "}
+                {!desktopCollapsed && item.label}{" "}
               </Link>
             );
-          })}
-        </nav>
-
-        <div className="border-t p-4">
+          })}{" "}
+          {role !== "kid" && (
+            <>
+              {" "}
+              <div className="my-2 border-t border-[var(--border)]" />{" "}
+              <Link
+                href={adminNavItem.href}
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${desktopCollapsed ? "justify-center" : "gap-3"} ${pathname === adminNavItem.href || pathname.startsWith(adminNavItem.href + "/") ? "bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]" : "text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--app-text)]"}`}
+                title={desktopCollapsed ? adminNavItem.label : undefined}
+              >
+                {" "}
+                <span className="text-lg">{adminNavItem.icon}</span>{" "}
+                {!desktopCollapsed && adminNavItem.label}{" "}
+              </Link>{" "}
+            </>
+          )}{" "}
+        </nav>{" "}
+        <div className="border-t border-[var(--border)] p-4">
+          {" "}
+          <button
+            onClick={toggleDesktopSidebar}
+            aria-label={
+              desktopCollapsed ? "Expand sidebar" : "Collapse sidebar"
+            }
+            className="mb-2 hidden w-full items-center justify-center rounded-lg px-3 py-2 text-sm text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--app-text)] md:flex"
+          >
+            {" "}
+            {desktopCollapsed ? "⇥ Expand" : "⇤ Collapse"}{" "}
+          </button>{" "}
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
-            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+            aria-label="Sign out"
+            className={`flex w-full items-center rounded-lg px-3 py-2 text-sm text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--app-text)] ${desktopCollapsed ? "justify-center" : "gap-2"}`}
+            title={desktopCollapsed ? "Sign Out" : undefined}
           >
-            Sign Out
-          </button>
-          <p className="mt-2 px-3 text-xs text-gray-400">
-            Harmony Homeschool v0.1
-          </p>
-        </div>
-      </aside>
+            {" "}
+            {!desktopCollapsed ? "Sign Out" : "↩"}{" "}
+          </button>{" "}
+          <p
+            className={`mt-2 px-3 text-xs text-[var(--muted-text)] ${desktopCollapsed ? "text-center" : ""}`}
+          >
+            {" "}
+            Harmony Homeschool v0.1{" "}
+          </p>{" "}
+        </div>{" "}
+      </aside>{" "}
     </>
   );
 }

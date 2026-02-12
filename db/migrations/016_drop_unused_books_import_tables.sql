@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS import_items;
+DROP TABLE IF EXISTS import_batches;
+DROP TABLE IF EXISTS books;

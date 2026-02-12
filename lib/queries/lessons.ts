@@ -72,22 +72,28 @@ export async function getAllLessons(filters?: { status?: string; childId?: strin
   return res.rows;
 }
 
-export async function getLessonDetails(id: string) {
+export async function getLessonDetails(id: string, childId?: string) {
+  const childJoin = childId ? "JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id" : "LEFT JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id";
+  const childWhere = childId ? "AND ca.child_id = $2" : "";
+  const params: string[] = [id];
+  if (childId) params.push(childId);
+
   const res = await pool.query(
     `SELECT
        l.id, l.title, l.description, l.status, l.planned_date, l.order_index,
-       cu.name AS curriculum_name, cu.id AS curriculum_id,
+       cu.name AS curriculum_name, cu.id AS curriculum_id, cu.grade_type,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        ca.child_id,
        c.name AS child_name
-     FROM lessons l
-     JOIN curricula cu ON cu.id = l.curriculum_id
-     JOIN subjects s ON s.id = cu.subject_id
-     LEFT JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id
-     LEFT JOIN children c ON c.id = ca.child_id
-     WHERE l.id = $1
-     LIMIT 1`,
-    [id]
+      FROM lessons l
+      JOIN curricula cu ON cu.id = l.curriculum_id
+      JOIN subjects s ON s.id = cu.subject_id
+      ${childJoin}
+      LEFT JOIN children c ON c.id = ca.child_id
+      WHERE l.id = $1
+      ${childWhere}
+      LIMIT 1`,
+    params
   );
   if (!res.rows[0]) return null;
 
@@ -105,26 +111,20 @@ export async function getLessonDetails(id: string) {
     [id]
   );
 
-  // Curriculum-level resources (from other lessons in same curriculum, not this lesson)
+  // Curriculum-level shared resources (attached to the curriculum itself)
   const curriculumResources = await pool.query(
-    `SELECT DISTINCT ON (r.id)
+    `SELECT
        r.id, r.title, r.type, r.url, r.thumbnail_url, r.description,
-       l2.title AS from_lesson_title, l2.id AS from_lesson_id
-     FROM resources r
-     JOIN lesson_resources lr ON lr.resource_id = r.id
-     JOIN lessons l2 ON l2.id = lr.lesson_id
-     WHERE l2.curriculum_id = $1
-       AND l2.id != $2
-       AND r.id NOT IN (
-         SELECT resource_id FROM lesson_resources
-         WHERE lesson_id = $2 AND resource_id IS NOT NULL
-       )
-     ORDER BY r.id, r.title`,
-    [res.rows[0].curriculum_id, id]
+       cr.notes AS attachment_notes
+     FROM curriculum_resources cr
+     JOIN resources r ON r.id = cr.resource_id
+     WHERE cr.curriculum_id = $1
+     ORDER BY r.type, r.title`,
+    [res.rows[0].curriculum_id]
   );
 
   const completion = await pool.query(
-    `SELECT lc.id, lc.completed_at, lc.grade, lc.notes, lc.child_id
+    `SELECT lc.id, lc.completed_at, lc.grade, lc.pass_fail, lc.notes, lc.child_id
      FROM lesson_completions lc WHERE lc.lesson_id = $1`,
     [id]
   );

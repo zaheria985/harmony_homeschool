@@ -12,12 +12,17 @@ type Resource = {
   id: string;
   title: string;
   type: string;
+  author?: string | null;
   url: string | null;
   thumbnail_url: string | null;
   description: string | null;
   created_at: string;
   usage_count: number;
+  tags?: string[];
+  is_global?: boolean;
 };
+
+type Booklist = { id: string; name: string };
 
 const RESOURCE_TYPES = ["book", "video", "pdf", "link", "supply"] as const;
 
@@ -39,11 +44,19 @@ const typeBadgeVariant: Record<string, string> = {
 
 export default function ResourcesClient({
   resources,
+  initialTypeFilter = "",
+  initialSearch = "",
+  initialTagFilter = "",
 }: {
   resources: Resource[];
+  booklists?: Booklist[];
+  initialTypeFilter?: string;
+  initialSearch?: string;
+  initialTagFilter?: string;
 }) {
-  const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
+  const [search, setSearch] = useState(initialSearch);
+  const [typeFilter, setTypeFilter] = useState(initialTypeFilter);
+  const [tagFilter, setTagFilter] = useState(initialTagFilter);
   const [view, setView] = useState("table");
   const [showCreate, setShowCreate] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -51,10 +64,12 @@ export default function ResourcesClient({
 
   const filtered = resources.filter((r) => {
     if (typeFilter && r.type !== typeFilter) return false;
+    if (tagFilter && !(r.tags || []).includes(tagFilter)) return false;
     if (
       search &&
       !r.title.toLowerCase().includes(search.toLowerCase()) &&
-      !(r.description || "").toLowerCase().includes(search.toLowerCase())
+      !(r.description || "").toLowerCase().includes(search.toLowerCase()) &&
+      !(r.author || "").toLowerCase().includes(search.toLowerCase())
     )
       return false;
     return true;
@@ -64,7 +79,7 @@ export default function ResourcesClient({
     setError("");
     startTransition(async () => {
       const result = await createGlobalResource(formData);
-      if (result.error) {
+      if ("error" in result && result.error) {
         setError(result.error);
       } else {
         setShowCreate(false);
@@ -81,12 +96,12 @@ export default function ResourcesClient({
           placeholder="Search resources..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          className="rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"
         />
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
-          className="rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          className="rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"
         >
           <option value="">All types</option>
           {RESOURCE_TYPES.map((t) => (
@@ -95,6 +110,14 @@ export default function ResourcesClient({
             </option>
           ))}
         </select>
+
+        <input
+          type="text"
+          placeholder="Tag"
+          value={tagFilter}
+          onChange={(e) => setTagFilter(e.target.value)}
+          className="rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"
+        />
 
         <div className="ml-auto flex items-center gap-2">
           <ViewToggle
@@ -108,7 +131,7 @@ export default function ResourcesClient({
           />
           <button
             onClick={() => setShowCreate(true)}
-            className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+            className="rounded-lg bg-interactive px-4 py-2 text-sm font-medium text-white hover:bg-interactive-hover"
           >
             + New Resource
           </button>
@@ -119,9 +142,9 @@ export default function ResourcesClient({
       {filtered.length === 0 ? (
         <EmptyState message="No resources found" icon="📦" />
       ) : view === "table" ? (
-        <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-xl border border-light bg-surface shadow-sm">
           <table className="w-full text-left text-sm">
-            <thead className="border-b bg-gray-50 text-xs uppercase text-gray-500">
+            <thead className="border-b bg-surface-muted text-xs uppercase text-muted">
               <tr>
                 <th className="px-4 py-3">Title</th>
                 <th className="px-4 py-3">Type</th>
@@ -131,11 +154,11 @@ export default function ResourcesClient({
             </thead>
             <tbody className="divide-y">
               {filtered.map((r) => (
-                <tr key={r.id} className="hover:bg-gray-50">
+                <tr key={r.id} className="hover:bg-surface-muted">
                   <td className="px-4 py-3">
                     <Link
                       href={`/resources/${r.id}`}
-                      className="font-medium text-primary-600 hover:underline"
+                      className="font-medium text-interactive hover:underline"
                     >
                       {r.title}
                     </Link>
@@ -150,7 +173,7 @@ export default function ResourcesClient({
                       {typeIcons[r.type]} {r.type}
                     </Badge>
                   </td>
-                  <td className="px-4 py-3 text-gray-600">
+                  <td className="px-4 py-3 text-tertiary">
                     {r.usage_count} {r.usage_count === 1 ? "lesson" : "lessons"}
                   </td>
                   <td className="px-4 py-3 text-gray-400">
@@ -162,29 +185,44 @@ export default function ResourcesClient({
           </table>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {filtered.map((r) => (
             <Link
               key={r.id}
               href={`/resources/${r.id}`}
-              className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+              className="flex h-full flex-col rounded-xl border border-light bg-surface shadow-sm transition-shadow hover:shadow-md"
             >
-              <div className="mb-2 flex items-center gap-2">
-                <span className="text-xl">{typeIcons[r.type]}</span>
-                <Badge variant={typeBadgeVariant[r.type] as "default"}>
-                  {r.type}
-                </Badge>
-              </div>
-              <h3 className="font-medium text-gray-900">{r.title}</h3>
-              {r.description && (
-                <p className="mt-1 text-xs text-gray-400 line-clamp-2">
-                  {r.description}
-                </p>
+              {r.thumbnail_url ? (
+                <div className="overflow-hidden rounded-t-xl border-b border-light">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={r.thumbnail_url}
+                    alt={r.title}
+                    className="aspect-[3/4] w-full bg-transparent object-contain p-2"
+                  />
+                </div>
+              ) : (
+                <div className="flex aspect-[3/4] w-full items-center justify-center rounded-t-xl border-b border-light text-4xl">
+                  {typeIcons[r.type]}
+                </div>
               )}
-              <p className="mt-2 text-xs text-gray-500">
-                Used in {r.usage_count}{" "}
-                {r.usage_count === 1 ? "lesson" : "lessons"}
-              </p>
+              <div className="flex flex-1 flex-col p-4">
+                <div className="mb-2">
+                  <Badge variant={typeBadgeVariant[r.type] as "default"}>
+                    {r.type}
+                  </Badge>
+                </div>
+                <h3 className="font-medium text-primary">{r.title}</h3>
+                {r.description && (
+                  <p className="mt-1 text-xs text-gray-400 line-clamp-2">
+                    {r.description}
+                  </p>
+                )}
+                <p className="mt-2 text-xs text-muted">
+                  Used in {r.usage_count}{" "}
+                  {r.usage_count === 1 ? "lesson" : "lessons"}
+                </p>
+              </div>
             </Link>
           ))}
         </div>
@@ -197,27 +235,25 @@ export default function ResourcesClient({
         title="New Resource"
       >
         <form action={handleCreate} className="space-y-4">
-          {error && (
-            <p className="text-sm text-red-600">{error}</p>
-          )}
+          {error && <p className="text-sm text-red-600">{error}</p>}
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+            <label className="mb-1 block text-sm font-medium text-secondary">
               Title
             </label>
             <input
               name="title"
               required
-              className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+            <label className="mb-1 block text-sm font-medium text-secondary">
               Type
             </label>
             <select
               name="type"
               required
-              className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"
             >
               {RESOURCE_TYPES.map((t) => (
                 <option key={t} value={t}>
@@ -227,38 +263,38 @@ export default function ResourcesClient({
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+            <label className="mb-1 block text-sm font-medium text-secondary">
               URL
             </label>
             <input
               name="url"
               type="url"
               placeholder="https://..."
-              className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+            <label className="mb-1 block text-sm font-medium text-secondary">
               Description
             </label>
             <textarea
               name="description"
               rows={2}
-              className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"
             />
           </div>
           <div className="flex justify-end gap-2">
             <button
               type="button"
               onClick={() => setShowCreate(false)}
-              className="rounded-lg border px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+              className="rounded-lg border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isPending}
-              className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+              className="rounded-lg bg-interactive px-4 py-2 text-sm font-medium text-white hover:bg-interactive-hover disabled:opacity-50"
             >
               {isPending ? "Creating..." : "Create Resource"}
             </button>

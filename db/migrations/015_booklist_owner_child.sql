@@ -1,0 +1,2 @@
+ALTER TABLE booklists
+  ADD COLUMN IF NOT EXISTS owner_child_id UUID REFERENCES children(id) ON DELETE SET NULL;

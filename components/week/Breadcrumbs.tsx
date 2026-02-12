@@ -4,11 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { formatWeekLabel, formatWeekday } from "@/lib/utils/dates";
 
-export default function Breadcrumbs({
-  subjectName,
-}: {
-  subjectName?: string;
-}) {
+export default function Breadcrumbs({ subjectName }: { subjectName?: string }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const childParam = searchParams.get("child");
@@ -23,8 +19,8 @@ export default function Breadcrumbs({
   if (!weekStart) return null;
 
   return (
-    <nav className="flex items-center gap-1.5 text-sm text-gray-500">
-      <Link href={`/week/${weekStart}${qs}`} className="hover:text-primary-600">
+    <nav className="flex items-center gap-1.5 text-sm text-muted">
+      <Link href={`/week/${weekStart}${qs}`} className="hover:text-interactive">
         {formatWeekLabel(weekStart)}
       </Link>
       {date && (
@@ -32,7 +28,7 @@ export default function Breadcrumbs({
           <span>/</span>
           <Link
             href={`/week/${weekStart}/${date}${qs}`}
-            className="hover:text-primary-600"
+            className="hover:text-interactive"
           >
             {formatWeekday(date)}
           </Link>
@@ -41,7 +37,7 @@ export default function Breadcrumbs({
       {subjectName && (
         <>
           <span>/</span>
-          <span className="font-medium text-gray-900">{subjectName}</span>
+          <span className="font-medium text-primary">{subjectName}</span>
         </>
       )}
     </nav>

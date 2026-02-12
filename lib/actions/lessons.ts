@@ -4,6 +4,13 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import pool from "@/lib/db";
 import { saveUploadedImage } from "@/lib/server/uploads";
+import {
+  addDays,
+  formatDateKey,
+  nextValidSchoolDate,
+  parseDateKey,
+  isSchoolDate,
+} from "@/lib/utils/school-dates";
 
 /** Revalidate all routes that display lesson/curriculum/subject data */
 function revalidateAll() {
@@ -29,10 +36,19 @@ export async function updateLessonStatus(id: string, status: string) {
     return { error: "Invalid status" };
   }
 
-  await pool.query("UPDATE lessons SET status = $1 WHERE id = $2", [
-    parsed.data,
-    id,
-  ]);
+  try {
+    await pool.query("UPDATE lessons SET status = $1 WHERE id = $2", [
+      parsed.data,
+      id,
+    ]);
+  } catch (err) {
+    console.error("Failed to update lesson status", {
+      lessonId: id,
+      status: parsed.data,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { error: "Failed to update lesson status" };
+  }
 
   revalidateAll();
   return { success: true };
@@ -49,10 +65,19 @@ export async function rescheduleLesson(lessonId: string, newDate: string) {
     return { error: "Invalid input" };
   }
 
-  await pool.query(
-    "UPDATE lessons SET planned_date = $1 WHERE id = $2",
-    [parsed.data.newDate, parsed.data.lessonId]
-  );
+  try {
+    await pool.query(
+      "UPDATE lessons SET planned_date = $1 WHERE id = $2",
+      [parsed.data.newDate, parsed.data.lessonId]
+    );
+  } catch (err) {
+    console.error("Failed to reschedule lesson", {
+      lessonId: parsed.data.lessonId,
+      newDate: parsed.data.newDate,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { error: "Failed to reschedule lesson" };
+  }
 
   revalidateAll();
   return { success: true };
@@ -62,28 +87,132 @@ export async function rescheduleLesson(lessonId: string, newDate: string) {
  * Move overdue incomplete lessons to today (or next school day).
  * Called lazily on page load. Idempotent.
  */
-export async function bumpOverdueLessons(childId: string, today: string) {
+export async function bumpOverdueLessons(childId: string, today: string, includeToday = false) {
   const parsed = z.string().uuid().safeParse(childId);
   if (!parsed.success) return { error: "Invalid childId" };
 
-  const res = await pool.query(
-    `UPDATE lessons SET planned_date = $1
-     WHERE id IN (
-       SELECT l.id FROM lessons l
-       JOIN curricula cu ON cu.id = l.curriculum_id
-       JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id
-       WHERE ca.child_id = $2
-         AND l.planned_date < $1::date
-         AND l.status != 'completed'
-     )`,
-    [today, childId]
+  const assignmentsRes = await pool.query(
+    `SELECT
+       ca.id,
+       ca.curriculum_id,
+       ca.school_year_id,
+       COALESCE(
+         NULLIF((
+           SELECT ARRAY_AGG(cad.weekday ORDER BY cad.weekday)
+           FROM curriculum_assignment_days cad
+           WHERE cad.assignment_id = ca.id
+         ), '{}'),
+         (
+           SELECT ARRAY_AGG(sd.weekday ORDER BY sd.weekday)
+           FROM school_days sd
+           WHERE sd.school_year_id = ca.school_year_id
+         )
+       ) AS weekdays
+     FROM curriculum_assignments ca
+     WHERE ca.child_id = $1`,
+    [childId]
   );
 
-  if (res.rowCount && res.rowCount > 0) {
+  const thresholdOp = includeToday ? "<=" : "<";
+  let bumped = 0;
+
+  // Process each curriculum assignment independently so rescheduling preserves
+  // the assignment's weekday/override constraints.
+  for (const assignment of assignmentsRes.rows as {
+    id: string;
+    curriculum_id: string;
+    school_year_id: string;
+    weekdays: number[] | null;
+  }[]) {
+    const weekdays = assignment.weekdays || [];
+    if (weekdays.length === 0) continue;
+
+    const lessonsRes = await pool.query(
+      `SELECT l.id, l.planned_date::text AS planned_date, l.order_index
+       FROM lessons l
+       WHERE l.curriculum_id = $1
+         AND l.status != 'completed'
+         AND l.planned_date IS NOT NULL
+       ORDER BY l.planned_date ASC, l.order_index ASC, l.id ASC`,
+      [assignment.curriculum_id]
+    );
+
+    if (lessonsRes.rows.length === 0) continue;
+
+    // We only reschedule the first overdue lesson and everything after it,
+    // preserving order while moving the sequence forward to valid school days.
+    const firstAffectedIndex = (lessonsRes.rows as { planned_date: string }[]).findIndex((lesson) =>
+      includeToday ? lesson.planned_date <= today : lesson.planned_date < today
+    );
+
+    if (firstAffectedIndex < 0) continue;
+
+    const overridesRes = await pool.query(
+      `SELECT date::text, type
+       FROM date_overrides
+       WHERE school_year_id = $1`,
+      [assignment.school_year_id]
+    );
+    const overrides = new Map<string, "exclude" | "include">();
+    for (const row of overridesRes.rows as { date: string; type: "exclude" | "include" }[]) {
+      overrides.set(row.date, row.type);
+    }
+
+    const weekdaySet = new Set<number>(weekdays);
+    let cursor = parseDateKey(includeToday ? formatDateKey(addDays(parseDateKey(today), 1)) : today);
+    const affected = lessonsRes.rows.slice(firstAffectedIndex) as Array<{
+      id: string;
+      planned_date: string;
+      order_index: number;
+    }>;
+    const updates: Array<{ id: string; plannedDate: string }> = [];
+
+    for (const lesson of affected) {
+      const nextDate = nextValidSchoolDate(cursor, weekdaySet, overrides);
+      const nextDateKey = formatDateKey(nextDate);
+      cursor = addDays(nextDate, 1);
+
+      if (lesson.planned_date === nextDateKey) continue;
+      updates.push({ id: lesson.id, plannedDate: nextDateKey });
+    }
+
+    if (updates.length > 0) {
+      const ids = updates.map((update) => update.id);
+      const dates = updates.map((update) => update.plannedDate);
+      const updateRes = await pool.query(
+        `UPDATE lessons AS l
+         SET planned_date = u.planned_date::date
+         FROM (
+           SELECT UNNEST($1::uuid[]) AS id, UNNEST($2::text[]) AS planned_date
+         ) AS u
+         WHERE l.id = u.id
+           AND l.planned_date IS DISTINCT FROM u.planned_date::date`,
+        [ids, dates]
+      );
+      bumped += updateRes.rowCount || 0;
+    }
+  }
+
+  if (bumped > 0) {
     revalidateAll();
   }
 
-  return { success: true, bumped: res.rowCount ?? 0 };
+  return { success: true, bumped };
+}
+
+export async function bumpOverdueLessonsForAll(today: string, includeToday = true) {
+  const dateOk = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).safeParse(today);
+  if (!dateOk.success) return { error: "Invalid date" };
+
+  const childrenRes = await pool.query("SELECT id FROM children");
+  let bumped = 0;
+
+  for (const row of childrenRes.rows as { id: string }[]) {
+    const result = await bumpOverdueLessons(row.id, today, includeToday);
+    if ("bumped" in result && typeof result.bumped === "number") bumped += result.bumped;
+  }
+
+  return { success: true, bumped };
 }
 
 export async function updateLessonTitle(id: string, title: string) {
@@ -105,11 +234,26 @@ export async function bulkUpdateLessonDate(lessonIds: string[], newDate: string)
   const parsedIds = z.array(z.string().uuid()).min(1).safeParse(lessonIds);
   if (!parsedDate.success || !parsedIds.success) return { error: "Invalid input" };
 
-  for (const id of parsedIds.data) {
-    await pool.query("UPDATE lessons SET planned_date = $1 WHERE id = $2", [
-      parsedDate.data,
-      id,
-    ]);
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      `UPDATE lessons
+       SET planned_date = $2
+       WHERE id = ANY($1::uuid[])`,
+      [parsedIds.data, parsedDate.data]
+    );
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Failed bulk lesson date update", {
+      lessonCount: parsedIds.data.length,
+      newDate: parsedDate.data,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { error: "Failed to update lesson dates" };
+  } finally {
+    client.release();
   }
 
   revalidateAll();
@@ -121,11 +265,26 @@ export async function bulkUpdateLessonStatus(lessonIds: string[], status: string
   const parsedIds = z.array(z.string().uuid()).min(1).safeParse(lessonIds);
   if (!parsedStatus.success || !parsedIds.success) return { error: "Invalid input" };
 
-  for (const id of parsedIds.data) {
-    await pool.query("UPDATE lessons SET status = $1 WHERE id = $2", [
-      parsedStatus.data,
-      id,
-    ]);
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      `UPDATE lessons
+       SET status = $2
+       WHERE id = ANY($1::uuid[])`,
+      [parsedIds.data, parsedStatus.data]
+    );
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Failed bulk lesson status update", {
+      lessonCount: parsedIds.data.length,
+      status: parsedStatus.data,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { error: "Failed to update lesson statuses" };
+  } finally {
+    client.release();
   }
 
   revalidateAll();
@@ -137,6 +296,22 @@ const createLessonSchema = z.object({
   curriculum_id: z.string().uuid(),
   planned_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
   description: z.string().optional(),
+});
+
+const bulkLessonItemSchema = z.object({
+  title: z.string().trim().min(1, "Title is required"),
+  curriculum_id: z.string().uuid(),
+  planned_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  completed_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  pass_fail: z.enum(["pass", "fail"]).optional(),
+  description: z.string().optional(),
+  status: statusSchema.optional().default("planned"),
+});
+
+const bulkCreateLessonsSchema = z.array(bulkLessonItemSchema).min(1).max(500);
+const bulkCreateOptionsSchema = z.object({
+  childIds: z.array(z.string().uuid()).optional().default([]),
+  schoolYearId: z.string().uuid().optional(),
 });
 
 export async function createLesson(formData: FormData) {
@@ -161,6 +336,124 @@ export async function createLesson(formData: FormData) {
 
   revalidateAll();
   return { success: true, id: res.rows[0].id };
+}
+
+export async function bulkCreateLessons(
+  lessons: Array<{
+    title: string;
+    curriculum_id: string;
+    planned_date?: string;
+    completed_date?: string;
+    pass_fail?: "pass" | "fail";
+    description?: string;
+    status?: "planned" | "in_progress" | "completed";
+  }>,
+  options?: { childIds?: string[]; schoolYearId?: string }
+) {
+  const data = bulkCreateLessonsSchema.safeParse(lessons);
+  const opts = bulkCreateOptionsSchema.safeParse(options || {});
+  if (!data.success) {
+    return { error: data.error.errors[0]?.message || "Invalid input" };
+  }
+  if (!opts.success) {
+    return { error: opts.error.errors[0]?.message || "Invalid import options" };
+  }
+
+  const selectedChildIds = opts.data.childIds;
+  const schoolYearId = opts.data.schoolYearId;
+  const hasCompleted = data.data.some((lesson) => lesson.status === "completed");
+  if (hasCompleted && !schoolYearId) {
+    return { error: "School year is required when importing completed lessons" };
+  }
+
+  const client = await pool.connect();
+  let created = 0;
+
+  try {
+    await client.query("BEGIN ISOLATION LEVEL SERIALIZABLE");
+
+    let parentUserId: string | null = null;
+    if (hasCompleted) {
+      const userRes = await client.query("SELECT id FROM users WHERE role = 'parent' LIMIT 1");
+      parentUserId = userRes.rows[0]?.id || null;
+      if (!parentUserId) {
+        throw new Error("No parent user found for completion records");
+      }
+    }
+
+    if (schoolYearId && selectedChildIds.length > 0) {
+      for (const childId of selectedChildIds) {
+        await client.query(
+          `INSERT INTO curriculum_assignments (curriculum_id, child_id, school_year_id)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (curriculum_id, child_id, school_year_id) DO NOTHING`,
+          [data.data[0].curriculum_id, childId, schoolYearId]
+        );
+      }
+    }
+
+    let schoolYearEnd: string | null = null;
+    if (schoolYearId) {
+      const yearRes = await client.query(
+        `SELECT end_date::text AS end_date FROM school_years WHERE id = $1`,
+        [schoolYearId]
+      );
+      schoolYearEnd = yearRes.rows[0]?.end_date || null;
+    }
+
+    for (const lesson of data.data) {
+      const createdLesson = await client.query(
+        `INSERT INTO lessons (title, curriculum_id, planned_date, description, status)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id`,
+        [
+          lesson.title,
+          lesson.curriculum_id,
+          lesson.planned_date || null,
+          lesson.description || null,
+          lesson.status || "planned",
+        ]
+      );
+
+      if (lesson.status === "completed" && parentUserId && selectedChildIds.length > 0) {
+        const completedAt = lesson.completed_date || schoolYearEnd || lesson.planned_date || undefined;
+        for (const childId of selectedChildIds) {
+          await client.query(
+            `INSERT INTO lesson_completions (lesson_id, child_id, completed_by_user_id, completed_at, pass_fail)
+             VALUES ($1, $2, $3, COALESCE($4::date::timestamptz, now()), $5)
+             ON CONFLICT (lesson_id, child_id) DO UPDATE
+               SET completed_at = COALESCE($4::date::timestamptz, lesson_completions.completed_at),
+                   pass_fail = $5`,
+            [
+              createdLesson.rows[0].id,
+              childId,
+              parentUserId,
+              completedAt || null,
+              lesson.pass_fail || "pass",
+            ]
+          );
+        }
+      }
+
+      created++;
+    }
+
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Failed to create lessons in bulk", {
+      error: err instanceof Error ? err.message : String(err),
+      lessonCount: data.data.length,
+      selectedChildCount: selectedChildIds.length,
+      schoolYearId: schoolYearId || null,
+    });
+    return { error: "Failed to create lessons" };
+  } finally {
+    client.release();
+  }
+
+  revalidateAll();
+  return { success: true, created };
 }
 
 const updateLessonSchema = z.object({
@@ -245,6 +538,7 @@ const createCurriculumSchema = z.object({
   subject_id: z.string().uuid(),
   description: z.string().optional(),
   course_type: z.enum(["curriculum", "unit_study"]).optional(),
+  grade_type: z.enum(["numeric", "pass_fail"]).optional(),
   status: z.enum(["active", "archived", "draft"]).optional(),
   start_date: optionalDateSchema,
   end_date: optionalDateSchema,
@@ -259,6 +553,7 @@ export async function createCurriculum(formData: FormData) {
     subject_id: formData.get("subject_id"),
     description: formData.get("description") || undefined,
     course_type: formData.get("course_type") || undefined,
+    grade_type: formData.get("grade_type") || undefined,
     status: formData.get("status") || undefined,
     start_date: formData.get("start_date") || undefined,
     end_date: formData.get("end_date") || undefined,
@@ -276,6 +571,7 @@ export async function createCurriculum(formData: FormData) {
     subject_id,
     description,
     course_type,
+    grade_type,
     status,
     start_date,
     end_date,
@@ -292,14 +588,15 @@ export async function createCurriculum(formData: FormData) {
   if (savedCover && "error" in savedCover) return savedCover;
 
   const res = await pool.query(
-    `INSERT INTO curricula (name, subject_id, description, cover_image, course_type, status, start_date, end_date, notes)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+    `INSERT INTO curricula (name, subject_id, description, cover_image, course_type, grade_type, status, start_date, end_date, notes)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
     [
       name,
       subject_id,
       description || null,
       savedCover?.path || null,
       course_type || "curriculum",
+      grade_type || "numeric",
       status || "active",
       start_date || null,
       end_date || null,
@@ -405,7 +702,7 @@ export async function updateSubject(formData: FormData) {
   );
 
   revalidateAll();
-  return { success: true };
+  return { success: true, thumbnail_url: nextThumbnailUrl };
 }
 
 export async function deleteSubject(subjectId: string) {
@@ -424,6 +721,7 @@ const updateCurriculumSchema = z.object({
   description: z.string().optional(),
   subject_id: z.string().uuid().optional(),
   course_type: z.enum(["curriculum", "unit_study"]).optional(),
+  grade_type: z.enum(["numeric", "pass_fail"]).optional(),
   status: z.enum(["active", "archived", "draft"]).optional(),
   start_date: optionalDateSchema,
   end_date: optionalDateSchema,
@@ -438,6 +736,7 @@ export async function updateCurriculum(formData: FormData) {
     description: formData.get("description") || undefined,
     subject_id: formData.get("subject_id") || undefined,
     course_type: formData.get("course_type") || undefined,
+    grade_type: formData.get("grade_type") || undefined,
     status: formData.get("status") || undefined,
     start_date: formData.get("start_date") || undefined,
     end_date: formData.get("end_date") || undefined,
@@ -449,10 +748,10 @@ export async function updateCurriculum(formData: FormData) {
     return { error: data.error.errors[0]?.message || "Invalid input" };
   }
 
-  const { id, name, description, subject_id, course_type, status, start_date, end_date, notes, cover_image } = data.data;
+  const { id, name, description, subject_id, course_type, grade_type, status, start_date, end_date, notes, cover_image } = data.data;
 
   const existingRes = await pool.query(
-    `SELECT cover_image, course_type, status, start_date::text, end_date::text, notes
+    `SELECT cover_image, course_type, grade_type, status, start_date::text, end_date::text, notes
      FROM curricula WHERE id = $1`,
     [id]
   );
@@ -462,6 +761,7 @@ export async function updateCurriculum(formData: FormData) {
   const existing = existingRes.rows[0] as {
     cover_image: string | null;
     course_type: "curriculum" | "unit_study" | null;
+    grade_type: "numeric" | "pass_fail" | null;
     status: "active" | "archived" | "draft" | null;
     start_date: string | null;
     end_date: string | null;
@@ -480,6 +780,7 @@ export async function updateCurriculum(formData: FormData) {
     ? null
     : savedCover?.path || cover_image || existing.cover_image || null;
   const nextCourseType = course_type || existing.course_type || "curriculum";
+  const nextGradeType = grade_type || existing.grade_type || "numeric";
   const nextStatus = status || existing.status || "active";
   const nextStartDate = start_date || existing.start_date || null;
   const nextEndDate = end_date || existing.end_date || null;
@@ -487,16 +788,17 @@ export async function updateCurriculum(formData: FormData) {
 
   if (subject_id) {
     await pool.query(
-      `UPDATE curricula
-       SET name = $1, description = $2, subject_id = $3, cover_image = $4,
-           course_type = $5, status = $6, start_date = $7, end_date = $8, notes = $9
-       WHERE id = $10`,
+        `UPDATE curricula
+        SET name = $1, description = $2, subject_id = $3, cover_image = $4,
+            course_type = $5, grade_type = $6, status = $7, start_date = $8, end_date = $9, notes = $10
+       WHERE id = $11`,
       [
         name,
         description || null,
         subject_id,
         nextCoverImage,
         nextCourseType,
+        nextGradeType,
         nextStatus,
         nextStartDate,
         nextEndDate,
@@ -506,15 +808,16 @@ export async function updateCurriculum(formData: FormData) {
     );
   } else {
     await pool.query(
-      `UPDATE curricula
+        `UPDATE curricula
        SET name = $1, description = $2, cover_image = $3,
-           course_type = $4, status = $5, start_date = $6, end_date = $7, notes = $8
-       WHERE id = $9`,
+            course_type = $4, grade_type = $5, status = $6, start_date = $7, end_date = $8, notes = $9
+       WHERE id = $10`,
       [
         name,
         description || null,
         nextCoverImage,
         nextCourseType,
+        nextGradeType,
         nextStatus,
         nextStartDate,
         nextEndDate,

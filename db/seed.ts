@@ -1,4 +1,5 @@
 import { Pool } from "pg";
+import { hashSync } from "bcryptjs";
 
 const pool = new Pool({
   connectionString:
@@ -21,16 +22,15 @@ async function seed() {
     await client.query("DELETE FROM school_days");
     await client.query("DELETE FROM date_overrides");
     await client.query("DELETE FROM school_years");
-    await client.query("DELETE FROM books");
-    await client.query("DELETE FROM import_items");
-    await client.query("DELETE FROM import_batches");
+    await client.query("DELETE FROM parent_children");
     await client.query("DELETE FROM children");
     await client.query("DELETE FROM users");
 
-    // 1. Parent user
+    // 1. Parent user (password: harmony123)
+    const passwordHash = hashSync("harmony123", 10);
     const userRes = await client.query(
-      `INSERT INTO users (email, password_hash, role) VALUES ($1, $2, 'parent') RETURNING id`,
-      ["parent@harmony.local", "not-a-real-hash"]
+      `INSERT INTO users (email, password_hash, name, role) VALUES ($1, $2, $3, 'parent') RETURNING id`,
+      ["parent@harmony.local", passwordHash, "Parent"]
     );
     const userId = userRes.rows[0].id;
 
@@ -58,6 +58,13 @@ async function seed() {
         [name]
       );
       childIds.push(res.rows[0].id);
+    }
+
+    for (const childId of childIds) {
+      await client.query(
+        `INSERT INTO parent_children (parent_id, child_id) VALUES ($1, $2)`,
+        [userId, childId]
+      );
     }
 
     // 5. Global subjects (shared across all children)
@@ -108,8 +115,17 @@ async function seed() {
 
         for (let ci = 0; ci < 2; ci++) {
           const curRes = await client.query(
-            `INSERT INTO curricula (subject_id, name, description, order_index) VALUES ($1, $2, $3, $4) RETURNING id`,
-            [subjectId, curriculaNames[ci], `${curriculaNames[ci]} curriculum`, ci]
+            `INSERT INTO curricula (subject_id, name, description, order_index, status, start_date, end_date)
+             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+            [
+              subjectId,
+              curriculaNames[ci],
+              `${curriculaNames[ci]} curriculum`,
+              ci,
+              "active",
+              "2025-08-18",
+              "2026-05-29",
+            ]
           );
           const curriculumId = curRes.rows[0].id;
 

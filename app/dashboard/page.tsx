@@ -1,81 +1,308 @@
 export const dynamic = "force-dynamic";
-
 import Link from "next/link";
 import PageHeader from "@/components/ui/PageHeader";
 import StatCard from "@/components/ui/StatCard";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
-import { getDashboardStats, getUpcomingDueLessons } from "@/lib/queries/dashboard";
-
+import {
+  getDashboardStats,
+  getUpcomingDueLessons,
+} from "@/lib/queries/dashboard";
+import { getExternalEventOccurrencesForRange } from "@/lib/queries/external-events";
+import { getAllChildren } from "@/lib/queries/students";
+import { getCurrentUser } from "@/lib/session";
+import LessonCompleteCheckbox from "@/components/lessons/LessonCompleteCheckbox";
+type UpcomingItem = Record<string, string | number | null>;
+type GroupedDay = { dayKey: string; dayLabel: string };
+type ExternalEventItem = {
+  event_id: string;
+  date: string;
+  title: string;
+  color: string;
+  children: { id: string; name: string }[];
+};
+function dayKeyFromDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 export default async function DashboardPage() {
-  const stats = await getDashboardStats();
-  const upcoming = await getUpcomingDueLessons(3);
+  const user = await getCurrentUser();
+  const scopedChildId =
+    user.role === "kid" ? user.childId || undefined : undefined;
+  const parentId = user.role === "parent" ? user.id : undefined;
+  const [stats, upcoming, children] = await Promise.all([
+    getDashboardStats(parentId),
+    getUpcomingDueLessons(3, scopedChildId, parentId),
+    getAllChildren(parentId),
+  ]);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const nextThreeDays: GroupedDay[] = Array.from({ length: 3 }, (_, offset) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() + offset);
+    const dayKey = dayKeyFromDate(date);
+    return {
+      dayKey,
+      dayLabel: date.toLocaleDateString(undefined, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      }),
+    };
+  });
+  const childrenById = new Map<string, string>();
+  for (const child of children as Array<{ id: string; name: string }>) {
+    childrenById.set(child.id, child.name);
+  }
+  const rangeStart = dayKeyFromDate(today);
+  const rangeEnd = nextThreeDays[nextThreeDays.length - 1]?.dayKey || rangeStart;
+  const externalEvents = (await getExternalEventOccurrencesForRange(
+    rangeStart,
+    rangeEnd,
+    scopedChildId,
+    parentId,
+  )) as ExternalEventItem[];
 
+  const grouped = new Map<
+    string,
+    Map<string, Map<string, Map<string, UpcomingItem[]>>>
+  >();
+  const eventsGrouped = new Map<string, Map<string, ExternalEventItem[]>>();
+  for (const item of upcoming) {
+    const childId = String(item.child_id || "");
+    const dayKey = String(item.planned_date || "");
+    const subjectName = String(item.subject_name || "Uncategorized");
+    const courseName = String(item.curriculum_name || "Course");
+    if (!childId || !dayKey) continue;
+    if (!grouped.has(childId)) grouped.set(childId, new Map());
+    const dayMap = grouped.get(childId)!;
+    if (!dayMap.has(dayKey)) dayMap.set(dayKey, new Map());
+    const subjectMap = dayMap.get(dayKey)!;
+    if (!subjectMap.has(subjectName)) subjectMap.set(subjectName, new Map());
+    const courseMap = subjectMap.get(subjectName)!;
+    if (!courseMap.has(courseName)) courseMap.set(courseName, []);
+    courseMap.get(courseName)!.push(item);
+  }
+  for (const event of externalEvents) {
+    const dayKey = event.date;
+    const targetChildIds =
+      scopedChildId && scopedChildId.length > 0
+        ? [scopedChildId]
+        : (event.children || []).map((child) => child.id);
+    for (const childId of targetChildIds) {
+      if (!eventsGrouped.has(childId)) eventsGrouped.set(childId, new Map());
+      const childDayMap = eventsGrouped.get(childId)!;
+      if (!childDayMap.has(dayKey)) childDayMap.set(dayKey, []);
+      childDayMap.get(dayKey)!.push(event);
+    }
+  }
+  const childrenList = Array.from(childrenById.entries())
+    .map(([id, name]) => ({ id, name }))
+    .filter((child) => !scopedChildId || child.id === scopedChildId)
+    .sort((a, b) => a.name.localeCompare(b.name));
   const yearCompletionRate =
     stats.active_year_total_lessons > 0
       ? Math.round(
-          (stats.active_year_completed_lessons / stats.active_year_total_lessons) * 100
+          (stats.active_year_completed_lessons /
+            stats.active_year_total_lessons) *
+            100,
         )
       : 0;
-
   return (
     <div>
-      <PageHeader title="Dashboard" />
-
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-2">
-        <StatCard label="Total Students" value={stats.total_students} color="primary" />
-        <StatCard
-          label="Year Completion Rate"
-          value={`${yearCompletionRate}%`}
-          sublabel={`${stats.active_year_completed_lessons} of ${stats.active_year_total_lessons}`}
-          color="success"
-        />
-      </div>
-
+      {" "}
+      <PageHeader title="Dashboard" />{" "}
+      {user.role !== "kid" && (
+        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-2">
+          {" "}
+          <StatCard
+            label="Total Students"
+            value={stats.total_students}
+            color="primary"
+          />{" "}
+          <StatCard
+            label="Year Completion Rate"
+            value={`${yearCompletionRate}%`}
+            sublabel={`${stats.active_year_completed_lessons} of ${stats.active_year_total_lessons}`}
+            color="success"
+          />{" "}
+        </div>
+      )}{" "}
       <Card title="Due in the Next 3 Days">
-        {upcoming.length === 0 ? (
-          <p className="py-8 text-center text-gray-400">Nothing due in the next 3 days</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-gray-500">
-                  <th className="pb-3 font-medium">Due</th>
-                  <th className="pb-3 font-medium">Student</th>
-                  <th className="pb-3 font-medium">Lesson</th>
-                  <th className="pb-3 font-medium">Subject</th>
-                  <th className="pb-3 font-medium">Course</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {upcoming.map((item: Record<string, string | number | null>) => (
-                  <tr key={String(item.id)} className="hover:bg-gray-50">
-                    <td className="py-3">
-                      {item.planned_date
-                        ? new Date(String(item.planned_date) + "T00:00:00").toLocaleDateString()
-                        : "-"}
-                    </td>
-                    <td className="py-3 font-medium">{String(item.child_name)}</td>
-                    <td className="py-3">
-                      <Link href={`/lessons/${item.id}`} className="text-primary-600 hover:underline">
-                        {String(item.title)}
-                      </Link>
-                    </td>
-                    <td className="py-3">
-                      <Link href={`/subjects/${item.subject_id}`}>
-                        <Badge variant="primary">{String(item.subject_name)}</Badge>
-                      </Link>
-                    </td>
-                    <td className="py-3 text-gray-500">
-                      {String(item.curriculum_name)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+        {" "}
+        <div className="space-y-5">
+          {" "}
+          {childrenList.map((child) => {
+            const childMap = grouped.get(child.id) || new Map();
+            const childEvents = eventsGrouped.get(child.id) || new Map();
+            const hasAnythingDue = nextThreeDays.some(
+              (day) =>
+                (childMap.get(day.dayKey)?.size || 0) > 0 ||
+                (childEvents.get(day.dayKey)?.length || 0) > 0,
+            );
+            return (
+              <section
+                key={child.id}
+                className="rounded-xl border border-light bg-surface-muted p-4"
+              >
+                {" "}
+                <div className="mb-3 border-b border-light pb-2">
+                  {" "}
+                  {user.role === "kid" ? (
+                    <span className="text-sm font-semibold text-interactive">
+                      {child.name}
+                    </span>
+                  ) : (
+                    <Link
+                      href={`/students/${child.id}`}
+                      className="text-sm font-semibold text-interactive hover:underline"
+                    >
+                      {" "}
+                      {child.name}{" "}
+                    </Link>
+                  )}{" "}
+                </div>{" "}
+                {!hasAnythingDue ? (
+                  <p className="rounded-lg border border-dashed border-light bg-surface p-3 text-sm text-muted">
+                    {" "}
+                    Nothing due{" "}
+                  </p>
+                ) : (
+                  <div className="grid gap-4 lg:grid-cols-3">
+                    {" "}
+                    {nextThreeDays.map((day) => {
+                      const subjectMap =
+                        (childMap.get(day.dayKey) as
+                          | Map<string, Map<string, UpcomingItem[]>>
+                          | undefined) ||
+                        new Map<string, Map<string, UpcomingItem[]>>();
+                      const dayEvents = childEvents.get(day.dayKey) || [];
+                      if (subjectMap.size === 0 && dayEvents.length === 0)
+                        return null;
+                      return (
+                        <div
+                          key={`${child.id}-${day.dayKey}`}
+                          className="rounded-xl border border-light bg-surface p-3"
+                        >
+                          {" "}
+                          <h3 className="mb-2 text-sm font-semibold text-secondary">
+                            {" "}
+                            {day.dayLabel}{" "}
+                          </h3>{" "}
+                          <div className="space-y-3">
+                            {dayEvents.length > 0 && (
+                              <div className="space-y-1">
+                                {dayEvents.map((event: ExternalEventItem) => (
+                                  <div
+                                    key={`${child.id}-${event.event_id}-${event.date}`}
+                                    className="rounded border border-dashed border-light bg-surface-muted px-2 py-1"
+                                  >
+                                    <div className="flex items-center gap-1.5">
+                                      <span
+                                        className="h-2 w-2 rounded-full"
+                                        style={{ backgroundColor: event.color }}
+                                      />
+                                      <span className="text-[11px] font-medium text-secondary">
+                                        🏫 {event.title}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {" "}
+                            {Array.from(subjectMap.entries()).map(
+                              ([subjectName, courseMap]: [
+                                string,
+                                Map<string, UpcomingItem[]>,
+                              ]) => {
+                                const subjectColor = String(
+                                  courseMap.values().next().value?.[0]
+                                    ?.subject_color || "#94a3b8",
+                                );
+                                return (
+                                  <div
+                                    key={`${child.id}-${day.dayKey}-${subjectName}`}
+                                  >
+                                    {" "}
+                                    <div className="mb-1 flex items-center gap-1.5">
+                                      {" "}
+                                      <span
+                                        className="h-2.5 w-2.5 rounded-full"
+                                        style={{
+                                          backgroundColor: subjectColor,
+                                        }}
+                                      />{" "}
+                                      <span className="text-xs font-semibold text-secondary">
+                                        {" "}
+                                        {subjectName}{" "}
+                                      </span>{" "}
+                                    </div>{" "}
+                                    <div className="ml-4 space-y-2">
+                                      {" "}
+                                      {Array.from(courseMap.entries()).map(
+                                        ([courseName, items]: [
+                                          string,
+                                          UpcomingItem[],
+                                        ]) => (
+                                          <div
+                                            key={`${child.id}-${day.dayKey}-${subjectName}-${courseName}`}
+                                          >
+                                            {" "}
+                                            <p className="text-[11px] text-muted">
+                                              {courseName}
+                                            </p>{" "}
+                                            <ul className="mt-1 space-y-1">
+                                              {" "}
+                                              {items.map(
+                                                (item: UpcomingItem) => (
+                                                  <li key={String(item.id)}>
+                                                    {" "}
+                                                    <div className="flex items-center gap-2">
+                                                      {" "}
+                                                      <LessonCompleteCheckbox
+                                                        lessonId={String(
+                                                          item.id,
+                                                        )}
+                                                        childId={String(
+                                                          item.child_id,
+                                                        )}
+                                                      />{" "}
+                                                      <Link
+                                                        href={`/lessons/${item.id}`}
+                                                        className="text-xs font-medium text-interactive hover:underline"
+                                                      >
+                                                        {" "}
+                                                        {String(
+                                                          item.title,
+                                                        )}{" "}
+                                                      </Link>{" "}
+                                                    </div>{" "}
+                                                  </li>
+                                                ),
+                                              )}{" "}
+                                            </ul>{" "}
+                                          </div>
+                                        ),
+                                      )}{" "}
+                                    </div>{" "}
+                                  </div>
+                                );
+                              },
+                            )}{" "}
+                          </div>{" "}
+                        </div>
+                      );
+                    })}{" "}
+                  </div>
+                )}{" "}
+              </section>
+            );
+          })}{" "}
+        </div>{" "}
+      </Card>{" "}
     </div>
   );
 }
