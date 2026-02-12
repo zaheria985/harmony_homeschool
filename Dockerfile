@@ -37,4 +37,4 @@ RUN mkdir -p /app/public/uploads && chown -R nextjs:nodejs /app/public/uploads
 USER nextjs
 EXPOSE 3000
 
-CMD ["sh", "-c", "node db/migrate.js && node server.js"]
+CMD ["sh", "-c", "node db/bootstrap.js && node db/migrate.js && node server.js"]

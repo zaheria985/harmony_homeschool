@@ -47,8 +47,6 @@ services:
       POSTGRES_DB: harmony
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ./db/seed-default-user.sql:/docker-entrypoint-initdb.d/02-seed-default-user.sql:ro
 
   app:
     image: ${APP_IMAGE:-ghcr.io/zaheria985/harmony_homeschool:latest}
@@ -58,6 +56,8 @@ services:
       DATABASE_URL: postgresql://harmony:${POSTGRES_PASSWORD}@db:5432/harmony
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       NEXTAUTH_URL: ${NEXTAUTH_URL}
+      BOOTSTRAP_SCHEMA: ${BOOTSTRAP_SCHEMA:-1}
+      SEED_DEFAULT_USER: ${SEED_DEFAULT_USER:-1}
     ports:
       - "3000:3000"
     volumes:
@@ -119,6 +119,14 @@ Advanced/production-oriented compose (healthchecks, seed mount, uploads volume, 
 docker compose -f docker-compose.full.yml pull
 docker compose -f docker-compose.full.yml up -d
 ```
+
+### Unraid Note
+
+If you're using Unraid Compose Manager and pasting YAML into the UI: do not mount `./db/*.sql` files.
+This project’s Docker image bootstraps the database automatically on first startup:
+- applies `db/schema.sql` if the DB is empty (controlled by `BOOTSTRAP_SCHEMA`)
+- applies migrations from `db/migrations`
+- optionally seeds the default login (`SEED_DEFAULT_USER=1`)
 
 ## Docker Image Publishing
 

@@ -7,6 +7,14 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- CORE
 -- ============================================================================
 
+CREATE TABLE children (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name        TEXT NOT NULL,
+    emoji       TEXT,
+    banner_url  TEXT,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE users (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email       TEXT UNIQUE NOT NULL,
@@ -15,14 +23,6 @@ CREATE TABLE users (
     child_id    UUID REFERENCES children(id) ON DELETE SET NULL,
     role        TEXT NOT NULL DEFAULT 'parent'
                     CHECK (role IN ('parent', 'kid')),
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE children (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name        TEXT NOT NULL,
-    emoji       TEXT,
-    banner_url  TEXT,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

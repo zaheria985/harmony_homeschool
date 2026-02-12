@@ -8,6 +8,9 @@ services:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?Set NEXTAUTH_SECRET in .env}
       NEXTAUTH_URL: ${NEXTAUTH_URL:?Set NEXTAUTH_URL in .env}
+      # For app-only mode, you probably want to manage schema/seed externally.
+      BOOTSTRAP_SCHEMA: ${BOOTSTRAP_SCHEMA:-0}
+      SEED_DEFAULT_USER: ${SEED_DEFAULT_USER:-0}
       LLM_PROVIDER: ${LLM_PROVIDER:-openai}
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}

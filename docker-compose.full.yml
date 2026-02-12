@@ -10,8 +10,6 @@ services:
       POSTGRES_DB: harmony
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ./db/seed-default-user.sql:/docker-entrypoint-initdb.d/02-seed-default-user.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U harmony"]
       interval: 5s
@@ -33,6 +31,7 @@ services:
       LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
       FILERUN_BASE_URL: ${FILERUN_BASE_URL:-}
       UPLOADS_DIR: /app/public/uploads
+      SEED_DEFAULT_USER: ${SEED_DEFAULT_USER:-1}
     volumes:
       - uploads:/app/public/uploads
     ports:
