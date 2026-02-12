@@ -10,3 +10,11 @@ next-env.d.ts
 
 # uploaded assets
 public/uploads/
+
+# local agent/project workflow docs (keep local, do not publish)
+AGENTS.md
+CLAUDE.md
+BD.md
+DEPLOYMENT.md
+.cursorrules
+ARCHITECTURE_DETAILED.md
