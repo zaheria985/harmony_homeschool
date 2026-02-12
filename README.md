@@ -2,7 +2,130 @@
 
 A Next.js app for planning homeschool lessons, tracking completion, and reviewing progress.
 
-## Quick Start
+## Docker Quick Start (Recommended)
+
+1. Clone and enter the repo:
+
+```bash
+git clone https://github.com/zaheria985/harmony_homeschool.git
+cd harmony_homeschool
+```
+
+2. Create your env file:
+
+```bash
+cp .env.example .env
+```
+
+3. Set at least:
+- `POSTGRES_PASSWORD`
+- `NEXTAUTH_SECRET`
+- `NEXTAUTH_URL` (for local Docker use `http://localhost:3000`)
+
+4. Start the default stack (app + PostgreSQL):
+
+```bash
+docker compose up --build -d
+```
+
+5. Open `http://localhost:3000`
+
+Default seeded account: `parent@harmony.local` / `harmony123`.
+
+## Docker Compose Options
+
+### Option A: App + Database in one stack (default `docker-compose.yml`)
+
+```yaml
+version: "3.8"
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: harmony
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: harmony
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./db/seed-default-user.sql:/docker-entrypoint-initdb.d/02-seed-default-user.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U harmony"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://harmony:${POSTGRES_PASSWORD}@db:5432/harmony
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?Set NEXTAUTH_SECRET in .env}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:?Set NEXTAUTH_URL in .env}
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
+      FILERUN_BASE_URL: ${FILERUN_BASE_URL:-}
+      UPLOADS_DIR: /app/public/uploads
+    volumes:
+      - uploads:/app/public/uploads
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:
+  uploads:
+```
+
+Run it:
+
+```bash
+docker compose up --build -d
+```
+
+### Option B: App-only stack (use your own external PostgreSQL)
+
+Use `docker-compose.app.yml`:
+
+```yaml
+version: "3.8"
+
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?Set NEXTAUTH_SECRET in .env}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:?Set NEXTAUTH_URL in .env}
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
+      FILERUN_BASE_URL: ${FILERUN_BASE_URL:-}
+      UPLOADS_DIR: /app/public/uploads
+    volumes:
+      - uploads:/app/public/uploads
+    ports:
+      - "3000:3000"
+
+volumes:
+  uploads:
+```
+
+Run it:
+
+```bash
+docker compose -f docker-compose.app.yml up --build -d
+```
+
+For this mode, set `DATABASE_URL` in `.env` to your external PostgreSQL connection string.
+
+## Local Dev (Without Docker)
 
 1. Install dependencies:
 
@@ -40,8 +163,6 @@ npm run dev
 ```
 
 Visit `http://localhost:3000`.
-
-Default seeded account: `parent@harmony.local` / `harmony123`.
 
 ## Key Scripts
 
