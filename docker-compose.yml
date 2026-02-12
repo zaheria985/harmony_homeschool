@@ -26,6 +26,12 @@ services:
       NEXTAUTH_URL: ${NEXTAUTH_URL}
       # Set to 0 to skip adding the default demo account on first boot.
       SEED_DEFAULT_USER: ${SEED_DEFAULT_USER:-1}
+      # Vikunja integration (optional)
+      VIKUNJA_URL: ${VIKUNJA_URL:-}
+      VIKUNJA_API_TOKEN: ${VIKUNJA_API_TOKEN:-}
+      VIKUNJA_PROJECT_ID: ${VIKUNJA_PROJECT_ID:-}
+      VIKUNJA_WEBHOOK_SECRET: ${VIKUNJA_WEBHOOK_SECRET:-}
+      ICAL_TOKEN: ${ICAL_TOKEN:-}
     ports:
       - "3000:3000"
     volumes:

@@ -12,6 +12,7 @@ import { getExternalEventOccurrencesForRange } from "@/lib/queries/external-even
 import { getAllChildren } from "@/lib/queries/students";
 import { getCurrentUser } from "@/lib/session";
 import LessonCompleteCheckbox from "@/components/lessons/LessonCompleteCheckbox";
+import VikunjaSyncButton from "@/components/dashboard/VikunjaSyncButton";
 type UpcomingItem = Record<string, string | number | null>;
 type GroupedDay = { dayKey: string; dayLabel: string };
 type ExternalEventItem = {
@@ -113,7 +114,10 @@ export default async function DashboardPage() {
   return (
     <div>
       {" "}
-      <PageHeader title="Dashboard" />{" "}
+      <div className="flex items-center justify-between">
+        <PageHeader title="Dashboard" />
+        {process.env.VIKUNJA_URL && <VikunjaSyncButton />}
+      </div>{" "}
       {user.role !== "kid" && (
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-2">
           {" "}
