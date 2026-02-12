@@ -18,3 +18,18 @@ BD.md
 DEPLOYMENT.md
 .cursorrules
 ARCHITECTURE_DETAILED.md
+
+# Beads task tracking (local workflow state)
+.beads/
+
+# Claude Code local settings (may contain tokens/permissions)
+.claude/
+
+# IDE and editor configs
+.vscode/
+.idea/
+.cursor/
+
+# OS files
+.DS_Store
+Thumbs.db
