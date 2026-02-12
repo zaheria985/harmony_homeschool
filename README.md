@@ -38,49 +38,31 @@ Default seeded account: `parent@harmony.local` / `harmony123`.
 ### Option A: App + Database in one stack (default `docker-compose.yml`)
 
 ```yaml
-version: "3.8"
-
 services:
   db:
     image: postgres:16-alpine
-    restart: unless-stopped
     environment:
       POSTGRES_USER: harmony
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: harmony
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ./db/seed-default-user.sql:/docker-entrypoint-initdb.d/02-seed-default-user.sql:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U harmony"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
 
   app:
     image: ${APP_IMAGE:-ghcr.io/zaheria985/harmony_homeschool:latest}
-    restart: unless-stopped
     depends_on:
-      db:
-        condition: service_healthy
+      - db
     environment:
       DATABASE_URL: postgresql://harmony:${POSTGRES_PASSWORD}@db:5432/harmony
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?Set NEXTAUTH_SECRET in .env}
-      NEXTAUTH_URL: ${NEXTAUTH_URL:?Set NEXTAUTH_URL in .env}
-      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
-      LLM_API_KEY: ${LLM_API_KEY:-}
-      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
-      FILERUN_BASE_URL: ${FILERUN_BASE_URL:-}
-      UPLOADS_DIR: /app/public/uploads
-    volumes:
-      - uploads:/app/public/uploads
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      NEXTAUTH_URL: ${NEXTAUTH_URL}
     ports:
       - "3000:3000"
 
 volumes:
   pgdata:
-  uploads:
 ```
 
 Run it:
@@ -127,6 +109,13 @@ docker compose -f docker-compose.app.yml up -d
 ```
 
 For this mode, set `DATABASE_URL` in `.env` to your external PostgreSQL connection string.
+
+Advanced/production-oriented compose (healthchecks, seed mount, uploads volume, extra envs) is available in `docker-compose.full.yml` and can be run with:
+
+```bash
+docker compose -f docker-compose.full.yml pull
+docker compose -f docker-compose.full.yml up -d
+```
 
 ## Docker Image Publishing
 
