@@ -1,17 +1,25 @@
 services:
   db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: harmony
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: harmony
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U harmony -d harmony"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
   app:
     image: ${APP_IMAGE:-ghcr.io/zaheria985/harmony_homeschool:latest}
+    restart: unless-stopped
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
       DATABASE_URL: postgresql://harmony:${POSTGRES_PASSWORD}@db:5432/harmony
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
