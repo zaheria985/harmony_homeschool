@@ -1,6 +1,8 @@
 # Harmony Homeschool
 
-A Next.js app for planning homeschool lessons, tracking completion, and reviewing progress.
+A self-hosted web app for planning homeschool lessons, tracking completion, and reviewing progress.
+
+> This project was built with the assistance of AI (Claude by Anthropic and OpenAI Codex).
 
 ## Docker Quick Start (Recommended)
 
@@ -31,7 +33,9 @@ docker compose up -d
 
 5. Open `http://localhost:3000`
 
-Default seeded account: `parent@harmony.local` / `harmony123`.
+**Default login:**
+- Email: `parent@harmony.local`
+- Password: `harmony123`
 
 ## Docker Compose Options
 
@@ -120,13 +124,53 @@ docker compose -f docker-compose.full.yml pull
 docker compose -f docker-compose.full.yml up -d
 ```
 
-### Unraid Note
+### Option C: Unraid (Compose Manager)
 
-If you're using Unraid Compose Manager and pasting YAML into the UI: do not mount `./db/*.sql` files.
-This project’s Docker image bootstraps the database automatically on first startup:
-- applies `db/schema.sql` if the DB is empty (controlled by `BOOTSTRAP_SCHEMA`)
-- applies migrations from `db/migrations`
-- optionally seeds the default login (`SEED_DEFAULT_USER=1`)
+If you're using Unraid's Docker Compose Manager, paste this YAML directly into the stack editor.
+**Do not** mount `./db/*.sql` files — the image bootstraps the database automatically on first boot.
+
+```yaml
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: harmony
+      POSTGRES_PASSWORD: harmony
+      POSTGRES_DB: harmony
+    volumes:
+      - /mnt/user/appdata/harmony/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U harmony -d harmony"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    image: ghcr.io/zaheria985/harmony_homeschool:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://harmony:harmony@db:5432/harmony
+      NEXTAUTH_SECRET: change-me-to-a-random-string
+      NEXTAUTH_URL: http://YOUR_UNRAID_IP:3432
+      BOOTSTRAP_SCHEMA: "1"
+      SEED_DEFAULT_USER: "1"
+    ports:
+      - "3432:3000"
+    volumes:
+      - /mnt/user/appdata/harmony/app:/app/public/uploads
+```
+
+Replace `YOUR_UNRAID_IP` with your server's IP address (e.g. `192.168.1.100`).
+
+**How it works:** On first startup the app container automatically:
+- Waits for Postgres to be ready
+- Applies the full schema if the database is empty
+- Runs any pending migrations
+- Seeds a default login account (disable with `SEED_DEFAULT_USER: "0"`)
 
 ## Docker Image Publishing
 
