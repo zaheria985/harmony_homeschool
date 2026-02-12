@@ -60,9 +60,12 @@ services:
       NEXTAUTH_URL: ${NEXTAUTH_URL}
     ports:
       - "3000:3000"
+    volumes:
+      - uploads:/app/public/uploads
 
 volumes:
   pgdata:
+  uploads:
 ```
 
 Run it:
