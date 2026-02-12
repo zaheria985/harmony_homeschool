@@ -9,7 +9,9 @@ FROM node:20-slim AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npm run build
+# Some repos may not have a committed public/ directory; Next.js still expects it.
+# Ensure it exists so multi-stage COPY from /app/public doesn't fail in CI.
+RUN mkdir -p public && npm run build
 
 # ---- Runtime ----
 FROM node:20-slim AS runtime
