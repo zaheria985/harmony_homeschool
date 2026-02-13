@@ -23,12 +23,12 @@ export default function ChildSelector({
       className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-medium text-secondary shadow-sm hover:border-gray-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus dark:hover:border-slate-500"
     >
       {" "}
+      <option value="all">All Kids</option>
       {children.map((child) => (
         <option key={child.id} value={child.id}>
-          {" "}
-          {child.name}{" "}
+          {child.name}
         </option>
-      ))}{" "}
+      ))}
     </select>
   );
 }

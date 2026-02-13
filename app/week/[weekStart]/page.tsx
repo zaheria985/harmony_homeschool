@@ -1,4 +1,4 @@
-import { getWeekLessons, getChildren } from "@/lib/queries/week";
+import { getWeekLessons, getAllWeekLessons, getChildren } from "@/lib/queries/week";
 import {
   getFullWeekDates,
   getFullWeekEnd,
@@ -25,14 +25,19 @@ export default async function WeeklyBoardPage({
   const children = await getChildren(
     user.role === "parent" ? user.id : undefined,
   );
-  const childId = searchParams.child || children[0]?.id;
-  if (!childId) {
+  const childParam = searchParams.child || children[0]?.id;
+  const isAllKids = childParam === "all";
+  if (!childParam) {
     return <p className="text-muted">No children found. Add a child first.</p>;
   }
 
-  // Auto-bump overdue lessons
+  // Auto-bump overdue lessons (for each child when viewing all)
   const today = toDateStr(new Date());
-  await bumpOverdueLessons(childId, today);
+  if (isAllKids) {
+    await Promise.all(children.map((c) => bumpOverdueLessons(c.id, today)));
+  } else {
+    await bumpOverdueLessons(childParam, today);
+  }
 
   const initialWeekStart = params.weekStart;
   const weekStarts = Array.from({ length: 6 }, (_, index) => {
@@ -49,13 +54,15 @@ export default async function WeeklyBoardPage({
   const [lessonsByWeek, externalEvents] = await Promise.all([
     Promise.all(
       weekStarts.map((weekStart) =>
-        getWeekLessons(childId, weekStart, getFullWeekEnd(weekStart)),
+        isAllKids
+          ? getAllWeekLessons(weekStart, getFullWeekEnd(weekStart))
+          : getWeekLessons(childParam, weekStart, getFullWeekEnd(weekStart)),
       ),
     ),
     getExternalEventOccurrencesForRange(
       firstWeekStart,
       lastWeekEnd,
-      childId,
+      isAllKids ? undefined : childParam,
       parentId,
     ),
   ]);
@@ -93,14 +100,18 @@ export default async function WeeklyBoardPage({
         dateMap = new Map();
         byDate.set(dateStr, dateMap);
       }
-      let subjectGroup = dateMap.get(lesson.subject_name);
+      // When viewing all kids, group by "ChildName - Subject" so lessons don't merge
+      const groupKey = isAllKids && lesson.child_name
+        ? `${lesson.child_name} - ${lesson.subject_name}`
+        : lesson.subject_name;
+      let subjectGroup = dateMap.get(groupKey);
       if (!subjectGroup) {
         subjectGroup = {
-          subjectName: lesson.subject_name,
+          subjectName: groupKey,
           subjectColor: lesson.subject_color,
           lessons: [],
         };
-        dateMap.set(lesson.subject_name, subjectGroup);
+        dateMap.set(groupKey, subjectGroup);
       }
       subjectGroup.lessons.push(lesson);
     }

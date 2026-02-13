@@ -10,6 +10,7 @@ export interface WeekLesson {
   subject_name: string;
   subject_color: string | null;
   grade: number | null;
+  child_name?: string;
 }
 
 /**
@@ -40,6 +41,34 @@ export async function getWeekLessons(
        AND l.planned_date <= $3::date
      ORDER BY l.planned_date, s.name, l.order_index`,
     [childId, weekStart, weekEnd]
+  );
+  return res.rows;
+}
+
+/**
+ * All lessons for ALL children within a date range.
+ */
+export async function getAllWeekLessons(
+  weekStart: string,
+  weekEnd: string
+): Promise<WeekLesson[]> {
+  const res = await pool.query(
+    `SELECT
+       l.id, l.title, l.status, l.planned_date::text,
+       cu.name AS curriculum_name,
+       s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
+       c.name AS child_name,
+       lc.grade
+     FROM lessons l
+     JOIN curricula cu ON cu.id = l.curriculum_id
+     JOIN subjects s ON s.id = cu.subject_id
+     JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id
+     JOIN children c ON c.id = ca.child_id
+     LEFT JOIN lesson_completions lc ON lc.lesson_id = l.id AND lc.child_id = ca.child_id
+     WHERE l.planned_date >= $1::date
+       AND l.planned_date <= $2::date
+     ORDER BY l.planned_date, c.name, s.name, l.order_index`,
+    [weekStart, weekEnd]
   );
   return res.rows;
 }
