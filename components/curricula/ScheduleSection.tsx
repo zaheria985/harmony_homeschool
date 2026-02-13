@@ -1,7 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { autoScheduleLessons, setAssignmentDays } from "@/lib/actions/schedule";
+import { autoScheduleLessons, clearSchedule, rescheduleAllLessons, setAssignmentDays } from "@/lib/actions/schedule";
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 type AssignmentSchedule = {
   assignmentId: string;
@@ -86,6 +86,45 @@ export default function ScheduleSection({
       router.refresh();
     });
   }
+  function handleClearSchedule(assignment: AssignmentSchedule) {
+    if (!confirm("Clear all scheduled dates for non-completed lessons in this course?")) return;
+    startTransition(async () => {
+      const result = await clearSchedule(curriculumId);
+      if ("error" in result) {
+        setMessageByAssignment((prev) => ({
+          ...prev,
+          [assignment.assignmentId]: result.error || "Failed to clear schedule.",
+        }));
+        return;
+      }
+      setMessageByAssignment((prev) => ({
+        ...prev,
+        [assignment.assignmentId]: `Cleared ${result.cleared} lesson date(s).`,
+      }));
+      router.refresh();
+    });
+  }
+  function handleRescheduleAll(assignment: AssignmentSchedule) {
+    if (!confirm("This will clear all dates and re-schedule every non-completed lesson from the beginning. Continue?")) return;
+    startTransition(async () => {
+      const result = await rescheduleAllLessons(curriculumId, assignment.childId);
+      if ("error" in result) {
+        setMessageByAssignment((prev) => ({
+          ...prev,
+          [assignment.assignmentId]: result.error || "Failed to reschedule.",
+        }));
+        return;
+      }
+      const tail = result.remaining > 0
+        ? ` ${result.remaining} lesson(s) remained unscheduled.`
+        : "";
+      setMessageByAssignment((prev) => ({
+        ...prev,
+        [assignment.assignmentId]: `Re-scheduled ${result.scheduled} lesson(s) from the beginning.${tail}`,
+      }));
+      router.refresh();
+    });
+  }
   if (assignments.length === 0) {
     return (
       <p className="text-sm text-muted">
@@ -127,16 +166,31 @@ export default function ScheduleSection({
                     : "None"}{" "}
                 </p>{" "}
               </div>{" "}
-              <button
-                onClick={() => handleAutoSchedule(assignment)}
-                disabled={isPending || unscheduledCount === 0}
-                className="rounded bg-interactive px-3 py-1.5 text-xs font-medium text-white hover:bg-interactive-hover disabled:opacity-50"
-              >
-                {" "}
-                {isPending
-                  ? "Scheduling..."
-                  : `Auto-schedule ${unscheduledCount} unscheduled lesson${unscheduledCount === 1 ? "" : "s"}`}{" "}
-              </button>{" "}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => handleAutoSchedule(assignment)}
+                  disabled={isPending || unscheduledCount === 0}
+                  className="rounded bg-interactive px-3 py-1.5 text-xs font-medium text-white hover:bg-interactive-hover disabled:opacity-50"
+                >
+                  {isPending
+                    ? "Working..."
+                    : `Auto-schedule ${unscheduledCount} unscheduled`}
+                </button>
+                <button
+                  onClick={() => handleRescheduleAll(assignment)}
+                  disabled={isPending}
+                  className="rounded border border-interactive-border px-3 py-1.5 text-xs font-medium text-interactive-hover hover:bg-interactive-light disabled:opacity-50"
+                >
+                  Reschedule All
+                </button>
+                <button
+                  onClick={() => handleClearSchedule(assignment)}
+                  disabled={isPending}
+                  className="rounded border border-[var(--error-border)] px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-[var(--error-bg)] disabled:opacity-50"
+                >
+                  Clear Dates
+                </button>
+              </div>{" "}
             </div>{" "}
             <div className="flex flex-wrap gap-2">
               {" "}

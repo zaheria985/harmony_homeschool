@@ -74,6 +74,44 @@ export async function setAssignmentDays(assignmentId: string, weekdays: number[]
   return { success: true };
 }
 
+export async function clearSchedule(curriculumId: string) {
+  const parsed = z.string().uuid().safeParse(curriculumId);
+  if (!parsed.success) return { error: "Invalid curriculum ID" };
+
+  const result = await pool.query(
+    `UPDATE lessons
+     SET planned_date = NULL
+     WHERE curriculum_id = $1
+       AND status != 'completed'
+     RETURNING id`,
+    [parsed.data]
+  );
+
+  revalidatePath("/curricula");
+  revalidatePath(`/curricula/${parsed.data}`);
+  revalidatePath("/week");
+  revalidatePath("/calendar");
+
+  return { success: true, cleared: result.rowCount };
+}
+
+export async function rescheduleAllLessons(curriculumId: string, childId: string) {
+  const parsed = autoScheduleSchema.safeParse({ curriculumId, childId });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message || "Invalid input" };
+
+  // Clear all non-completed lesson dates first
+  await pool.query(
+    `UPDATE lessons
+     SET planned_date = NULL
+     WHERE curriculum_id = $1
+       AND status != 'completed'`,
+    [parsed.data.curriculumId]
+  );
+
+  // Then run the normal auto-schedule which picks up all unscheduled lessons
+  return autoScheduleLessons(parsed.data.curriculumId, parsed.data.childId);
+}
+
 export async function autoScheduleLessons(curriculumId: string, childId: string) {
   const parsed = autoScheduleSchema.safeParse({ curriculumId, childId });
   if (!parsed.success) {
