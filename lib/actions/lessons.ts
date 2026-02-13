@@ -66,10 +66,35 @@ export async function rescheduleLesson(lessonId: string, newDate: string) {
   }
 
   try {
+    // Get the lesson's current date, curriculum, and order_index
+    const lessonRes = await pool.query(
+      `SELECT planned_date::text, curriculum_id, order_index FROM lessons WHERE id = $1`,
+      [parsed.data.lessonId]
+    );
+    const lesson = lessonRes.rows[0];
+    if (!lesson) return { error: "Lesson not found" };
+
+    const oldDate = lesson.planned_date;
+
+    // Move the dragged lesson
     await pool.query(
       "UPDATE lessons SET planned_date = $1 WHERE id = $2",
       [parsed.data.newDate, parsed.data.lessonId]
     );
+
+    // Cascade: shift all subsequent lessons in the same curriculum by the same delta
+    if (oldDate) {
+      await pool.query(
+        `UPDATE lessons
+         SET planned_date = planned_date + ($1::date - $2::date)
+         WHERE curriculum_id = $3
+           AND id != $4
+           AND order_index > $5
+           AND planned_date IS NOT NULL
+           AND status != 'completed'`,
+        [parsed.data.newDate, oldDate, lesson.curriculum_id, parsed.data.lessonId, lesson.order_index]
+      );
+    }
   } catch (err) {
     console.error("Failed to reschedule lesson", {
       lessonId: parsed.data.lessonId,
