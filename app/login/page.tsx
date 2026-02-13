@@ -109,9 +109,11 @@ function LoginForm() {
               {loading ? "Signing in..." : "Sign In"}{" "}
             </button>{" "}
           </form>{" "}
-          <p className="mt-4 text-center text-xs text-gray-400 dark:text-slate-500">
-            {" "}
-            Default: parent@harmony.local / harmony123{" "}
+          <p className="mt-4 text-center text-sm text-muted">
+            Don&apos;t have an account?{" "}
+            <a href="/signup" className="text-[var(--brand)] hover:underline">
+              Create one
+            </a>
           </p>{" "}
         </div>{" "}
       </div>{" "}

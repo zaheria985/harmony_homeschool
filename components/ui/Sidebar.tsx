@@ -17,6 +17,7 @@ const mainNavItems = [
   { href: "/reports", label: "Progress Reports", icon: "📈" },
 ];
 const adminNavItem = { href: "/admin", label: "Admin", icon: "⚙️" };
+const settingsNavItem = { href: "/settings/users", label: "Users", icon: "👥" };
 export default function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
@@ -144,6 +145,16 @@ export default function Sidebar() {
                 {" "}
                 <span className="text-lg">{adminNavItem.icon}</span>{" "}
                 {!desktopCollapsed && adminNavItem.label}{" "}
+              </Link>{" "}
+              <Link
+                href={settingsNavItem.href}
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${desktopCollapsed ? "justify-center" : "gap-3"} ${pathname === settingsNavItem.href || pathname.startsWith(settingsNavItem.href + "/") ? "bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]" : "text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--app-text)]"}`}
+                title={desktopCollapsed ? settingsNavItem.label : undefined}
+              >
+                {" "}
+                <span className="text-lg">{settingsNavItem.icon}</span>{" "}
+                {!desktopCollapsed && settingsNavItem.label}{" "}
               </Link>{" "}
             </>
           )}{" "}
