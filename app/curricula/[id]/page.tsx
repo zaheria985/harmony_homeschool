@@ -35,14 +35,13 @@ export default async function CurriculumDetailPage({
     <div>
       {" "}
       {curriculum.cover_image && (
-        <div className="mb-6 aspect-[4/5] max-w-sm overflow-hidden rounded-xl border border-light p-3">
-          {" "}
-          {/* eslint-disable-next-line @next/next/no-img-element */}{" "}
+        <div className="mb-6 max-w-sm overflow-hidden rounded-xl">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={curriculum.cover_image}
             alt={curriculum.name}
-            className="h-full w-full rounded object-contain"
-          />{" "}
+            className="w-full rounded-xl object-cover"
+          />
         </div>
       )}{" "}
       <PageHeader title={curriculum.name}>
