@@ -501,6 +501,19 @@ export async function deleteLesson(lessonId: string) {
   return { success: true };
 }
 
+export async function bulkDeleteLessons(lessonIds: string[]) {
+  const parsed = z.array(z.string().uuid()).min(1).max(500).safeParse(lessonIds);
+  if (!parsed.success) return { error: "Invalid lesson IDs" };
+
+  await pool.query(
+    `DELETE FROM lessons WHERE id = ANY($1::uuid[])`,
+    [parsed.data]
+  );
+
+  revalidateAll();
+  return { success: true, deleted: parsed.data.length };
+}
+
 const createSubjectSchema = z.object({
   name: z.string().min(1, "Name is required"),
   color: z.string().optional(),

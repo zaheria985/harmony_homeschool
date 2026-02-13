@@ -20,6 +20,7 @@ import {
   createLesson,
   bulkUpdateLessonDate,
   bulkUpdateLessonStatus,
+  bulkDeleteLessons,
 } from "@/lib/actions/lessons";
 import { attachResourceToLessons } from "@/lib/actions/resources";
 
@@ -308,6 +309,7 @@ export default function EditableLessonsTable({
   const [showAttachModal, setShowAttachModal] = useState(false);
   const [showBulkDateModal, setShowBulkDateModal] = useState(false);
   const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [showPasteModal, setShowPasteModal] = useState(false);
   const [pasteTargetCurriculum, setPasteTargetCurriculum] = useState("");
   const [resourceSearch, setResourceSearch] = useState("");
@@ -465,6 +467,18 @@ export default function EditableLessonsTable({
       else setToast(`Updated ${selectedIds.length} status(es)`);
       setShowBulkStatusModal(false);
       setBulkStatus("planned");
+      setRowSelection({});
+    });
+  }
+
+  function handleBulkDelete() {
+    if (selectedIds.length === 0) return;
+    setLessons((prev) => prev.filter((l) => !selectedIds.includes(l.id)));
+    startTransition(async () => {
+      const result = await bulkDeleteLessons(selectedIds);
+      if (result.error) setToast("Failed to delete lessons");
+      else setToast(`Deleted ${selectedIds.length} lesson(s)`);
+      setShowBulkDeleteConfirm(false);
       setRowSelection({});
     });
   }
@@ -732,6 +746,12 @@ export default function EditableLessonsTable({
             >
               Attach Resources
             </button>
+            <button
+              onClick={() => setShowBulkDeleteConfirm(true)}
+              className="rounded-lg border border-[var(--error-border)] px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-[var(--error-bg)]"
+            >
+              Delete
+            </button>
           </div>
         )}
       </div>
@@ -968,6 +988,38 @@ export default function EditableLessonsTable({
               {isPending ? "Updating..." : "Apply"}
             </button>
           </div>
+        </div>
+      </Modal>
+
+      {/* ================================================================ */}
+      {/* Bulk Delete Confirmation */}
+      {/* ================================================================ */}
+      <Modal
+        open={showBulkDeleteConfirm}
+        onClose={() => setShowBulkDeleteConfirm(false)}
+        title={`Delete ${selectedIds.length} Lesson(s)`}
+      >
+        <p className="mb-2 text-sm text-tertiary">
+          Are you sure you want to delete <strong>{selectedIds.length}</strong>{" "}
+          lesson{selectedIds.length === 1 ? "" : "s"}?
+        </p>
+        <p className="mb-4 text-sm text-red-600">
+          This will permanently delete the lessons and any associated completions.
+        </p>
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={() => setShowBulkDeleteConfirm(false)}
+            className="rounded-lg border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleBulkDelete}
+            disabled={isPending}
+            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+          >
+            {isPending ? "Deleting..." : "Delete"}
+          </button>
         </div>
       </Modal>
 
