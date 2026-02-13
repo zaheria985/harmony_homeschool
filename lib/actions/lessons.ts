@@ -401,10 +401,11 @@ export async function bulkCreateLessons(
       schoolYearEnd = yearRes.rows[0]?.end_date || null;
     }
 
-    for (const lesson of data.data) {
+    for (let i = 0; i < data.data.length; i++) {
+      const lesson = data.data[i];
       const createdLesson = await client.query(
-        `INSERT INTO lessons (title, curriculum_id, planned_date, description, status)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO lessons (title, curriculum_id, planned_date, description, status, order_index)
+         VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING id`,
         [
           lesson.title,
@@ -412,6 +413,7 @@ export async function bulkCreateLessons(
           lesson.planned_date || null,
           lesson.description || null,
           lesson.status || "planned",
+          i,
         ]
       );
 
