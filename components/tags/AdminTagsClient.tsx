@@ -1,6 +1,6 @@
 "use client";
 import { useState, useTransition } from "react";
-import { deleteTag, mergeTags, renameTag } from "@/lib/actions/tags";
+import { createTag, deleteTag, mergeTags, renameTag } from "@/lib/actions/tags";
 import { useRouter } from "next/navigation";
 type TagItem = { id: string; name: string; resource_count: number };
 export default function AdminTagsClient({ tags }: { tags: TagItem[] }) {
@@ -8,6 +8,7 @@ export default function AdminTagsClient({ tags }: { tags: TagItem[] }) {
   const [search, setSearch] = useState("");
   const [renameValue, setRenameValue] = useState<Record<string, string>>({});
   const [mergeTarget, setMergeTarget] = useState<Record<string, string>>({});
+  const [newTagName, setNewTagName] = useState("");
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
   const filtered = tags.filter(
@@ -16,12 +17,43 @@ export default function AdminTagsClient({ tags }: { tags: TagItem[] }) {
   return (
     <div className="space-y-4">
       {" "}
-      <input
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Filter tags..."
-        className="w-full max-w-md rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary placeholder:text-muted dark:placeholder:text-slate-400"
-      />{" "}
+      <div className="flex flex-wrap gap-2">
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Filter tags..."
+          className="max-w-md rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary placeholder:text-muted dark:placeholder:text-slate-400"
+        />
+        <form
+          className="flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!newTagName.trim()) return;
+            startTransition(async () => {
+              const res = await createTag(newTagName.trim());
+              if ("error" in res) setError(res.error || "Failed to create tag");
+              else {
+                setNewTagName("");
+                router.refresh();
+              }
+            });
+          }}
+        >
+          <input
+            value={newTagName}
+            onChange={(e) => setNewTagName(e.target.value)}
+            placeholder="New tag name..."
+            className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary placeholder:text-muted dark:placeholder:text-slate-400"
+          />
+          <button
+            type="submit"
+            disabled={isPending || !newTagName.trim()}
+            className="rounded-lg bg-interactive px-4 py-2 text-sm font-medium text-white hover:bg-interactive-hover disabled:opacity-50"
+          >
+            + New Tag
+          </button>
+        </form>
+      </div>{" "}
       {error && <p className="text-sm text-red-600">{error}</p>}{" "}
       <div className="rounded-xl border border-light bg-surface p-4 shadow-sm">
         {" "}

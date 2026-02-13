@@ -22,6 +22,29 @@ function revalidateTags() {
   revalidatePath("/admin/tags");
 }
 
+const createSchema = z.object({ name: z.string().trim().min(1) });
+
+export async function createTag(name: string) {
+  const parsed = createSchema.safeParse({ name });
+  if (!parsed.success) return { error: "Tag name is required" };
+
+  try {
+    await pool.query(
+      `INSERT INTO tags (name) VALUES ($1) ON CONFLICT (name) DO NOTHING`,
+      [parsed.data.name.toLowerCase()]
+    );
+  } catch (err) {
+    console.error("Failed to create tag", {
+      name: parsed.data.name,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { error: "Failed to create tag" };
+  }
+
+  revalidateTags();
+  return { success: true };
+}
+
 export async function renameTag(tagId: string, newName: string) {
   const parsed = renameSchema.safeParse({ tagId, newName });
   if (!parsed.success) return { error: "Invalid input" };

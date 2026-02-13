@@ -274,14 +274,31 @@ export default function AdminChildrenClient({
                 (optional)
               </span>{" "}
             </label>{" "}
-            <input
-              type="text"
-              value={emoji}
-              onChange={(e) => setEmoji(e.target.value)}
-              className="w-20 rounded-lg border border-border bg-surface px-3 py-2 text-center text-lg text-primary"
-              placeholder="🎓"
-              maxLength={2}
-            />{" "}
+            {emoji ? (
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">{emoji}</span>
+                <button
+                  type="button"
+                  onClick={() => setEmoji("")}
+                  className="rounded border border-border px-2 py-1 text-xs text-tertiary hover:bg-surface-muted"
+                >
+                  Clear
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-10 gap-1 rounded-lg border border-border bg-surface p-2">
+                {["🎓","📚","✏️","🌟","⭐","💫","🦊","🐱","🐶","🐰","🦁","🐻","🐼","🦄","🐝","🦋","🌈","🌻","🎨","🎵","🏀","⚽","🎯","🚀","💡","🔬","🌍","❤️","💜","🩵"].map((e) => (
+                  <button
+                    key={e}
+                    type="button"
+                    onClick={() => setEmoji(e)}
+                    className="rounded p-1 text-lg hover:bg-surface-muted"
+                  >
+                    {e}
+                  </button>
+                ))}
+              </div>
+            )}{" "}
           </div>{" "}
           <div>
             {" "}

@@ -12,13 +12,13 @@ export async function getAllCurricula() {
        COUNT(DISTINCT CASE WHEN l.status = 'completed' THEN l.id END)::int AS completed_count
      FROM curricula cu
      JOIN subjects s ON s.id = cu.subject_id
-     JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id
-     JOIN children c ON c.id = ca.child_id
+     LEFT JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id
+     LEFT JOIN children c ON c.id = ca.child_id
      LEFT JOIN lessons l ON l.curriculum_id = cu.id
       GROUP BY cu.id, cu.name, cu.description, cu.order_index, cu.cover_image,
                cu.course_type, cu.grade_type, cu.status, cu.start_date, cu.end_date,
                s.id, s.name, s.color, ca.child_id, c.name
-     ORDER BY c.name, s.name, cu.order_index, cu.name`
+     ORDER BY c.name NULLS FIRST, s.name, cu.order_index, cu.name`
   );
   return res.rows;
 }

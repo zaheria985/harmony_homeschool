@@ -59,6 +59,7 @@ export default function ResourcesClient({
   const [tagFilter, setTagFilter] = useState(initialTagFilter);
   const [view, setView] = useState("table");
   const [showCreate, setShowCreate] = useState(false);
+  const [createType, setCreateType] = useState("book");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
 
@@ -253,6 +254,8 @@ export default function ResourcesClient({
             <select
               name="type"
               required
+              value={createType}
+              onChange={(e) => setCreateType(e.target.value)}
               className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"
             >
               {RESOURCE_TYPES.map((t) => (
@@ -262,6 +265,19 @@ export default function ResourcesClient({
               ))}
             </select>
           </div>
+          {createType === "book" && (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-secondary">
+                Author
+              </label>
+              <input
+                name="author"
+                type="text"
+                placeholder="Author name"
+                className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"
+              />
+            </div>
+          )}
           <div>
             <label className="mb-1 block text-sm font-medium text-secondary">
               URL
@@ -273,6 +289,19 @@ export default function ResourcesClient({
               className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"
             />
           </div>
+          {createType === "book" && (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-secondary">
+                Thumbnail
+              </label>
+              <input
+                name="thumbnail_file"
+                type="file"
+                accept="image/*"
+                className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"
+              />
+            </div>
+          )}
           <div>
             <label className="mb-1 block text-sm font-medium text-secondary">
               Description

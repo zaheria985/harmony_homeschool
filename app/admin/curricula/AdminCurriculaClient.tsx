@@ -8,6 +8,7 @@ import {
   createCurriculum,
   updateCurriculum,
   deleteCurriculum,
+  assignCurriculum,
 } from "@/lib/actions/lessons";
 import { useRouter } from "next/navigation";
 import ScheduleSection from "@/components/curricula/ScheduleSection";
@@ -69,7 +70,10 @@ export default function AdminCurriculaClient({
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<Curriculum | null>(null);
-  const [openActionsId, setOpenActionsId] = useState<string | null>(null);
+  const [assignForCurriculum, setAssignForCurriculum] = useState<Curriculum | null>(null);
+  const [assignChildId, setAssignChildId] = useState("");
+  const [assignSchoolYearId, setAssignSchoolYearId] = useState("");
+  const [schoolYears, setSchoolYears] = useState<{ id: string; name: string }[]>([]);
   const [scheduleForCurriculum, setScheduleForCurriculum] = useState<
     Curriculum | null
   >(null);
@@ -177,8 +181,41 @@ export default function AdminCurriculaClient({
     router.refresh();
   }
 
+  async function openAssign(curriculum: Curriculum) {
+    setAssignForCurriculum(curriculum);
+    setAssignChildId("");
+    setAssignSchoolYearId("");
+    setError("");
+    try {
+      const res = await fetch("/api/school-years");
+      const data = await res.json();
+      setSchoolYears(data.schoolYears || []);
+    } catch {
+      setError("Failed to load school years");
+    }
+  }
+
+  async function handleAssign(e: React.FormEvent) {
+    e.preventDefault();
+    if (!assignForCurriculum) return;
+    setError("");
+    setSubmitting(true);
+    const formData = new FormData();
+    formData.set("curriculum_id", assignForCurriculum.id);
+    formData.set("child_id", assignChildId);
+    formData.set("school_year_id", assignSchoolYearId);
+    const result = await assignCurriculum(formData);
+    if ("error" in result) {
+      setError(result.error || "Failed to assign");
+      setSubmitting(false);
+      return;
+    }
+    setSubmitting(false);
+    setAssignForCurriculum(null);
+    router.refresh();
+  }
+
   async function openSchedule(curriculum: Curriculum) {
-    setOpenActionsId(null);
     setScheduleForCurriculum(curriculum);
     setScheduleAssignments([]);
     setScheduleUnscheduledCount(0);
@@ -250,45 +287,39 @@ export default function AdminCurriculaClient({
                       {curriculum.description || "—"}
                     </td>
                     <td className="py-3 text-right">
-                      <div className="relative inline-block text-left">
+                      <div className="flex items-center justify-end gap-1">
                         <button
-                          onClick={() =>
-                            setOpenActionsId((current) =>
-                              current === curriculum.id ? null : curriculum.id,
-                            )
-                          }
-                          className="rounded border border-light px-2 py-1 text-xs text-tertiary hover:bg-surface-muted"
+                          onClick={() => openEdit(curriculum)}
+                          aria-label={`Edit ${curriculum.name}`}
+                          title="Edit"
+                          className="rounded px-2 py-1 text-xs text-tertiary hover:bg-surface-muted"
                         >
-                          Actions
+                          ✎
                         </button>
-                        {openActionsId === curriculum.id && (
-                          <div className="absolute right-0 z-10 mt-1 w-36 rounded-lg border border-light bg-surface p-1 shadow-lg">
-                            <button
-                              onClick={() => {
-                                setOpenActionsId(null);
-                                openEdit(curriculum);
-                              }}
-                              className="block w-full rounded px-2 py-1.5 text-left text-xs text-tertiary hover:bg-surface-muted"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => openSchedule(curriculum)}
-                              className="block w-full rounded px-2 py-1.5 text-left text-xs text-tertiary hover:bg-surface-muted"
-                            >
-                              Schedule
-                            </button>
-                            <button
-                              onClick={() => {
-                                setOpenActionsId(null);
-                                setConfirmDelete(curriculum);
-                              }}
-                              className="block w-full rounded px-2 py-1.5 text-left text-xs text-red-600 hover:bg-[var(--error-bg)]"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        )}
+                        <button
+                          onClick={() => openSchedule(curriculum)}
+                          aria-label={`Schedule ${curriculum.name}`}
+                          title="Schedule"
+                          className="rounded px-2 py-1 text-xs text-tertiary hover:bg-surface-muted"
+                        >
+                          📅
+                        </button>
+                        <button
+                          onClick={() => openAssign(curriculum)}
+                          aria-label={`Assign ${curriculum.name}`}
+                          title="Assign"
+                          className="rounded px-2 py-1 text-xs text-tertiary hover:bg-surface-muted"
+                        >
+                          👤
+                        </button>
+                        <button
+                          onClick={() => setConfirmDelete(curriculum)}
+                          aria-label={`Delete ${curriculum.name}`}
+                          title="Delete"
+                          className="rounded px-2 py-1 text-xs text-red-600 hover:bg-[var(--error-bg)]"
+                        >
+                          🗑
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -513,6 +544,61 @@ export default function AdminCurriculaClient({
             {submitting ? "Deleting..." : "Delete"}
           </button>
         </div>
+      </Modal>
+
+      {/* Assign Modal */}
+      <Modal
+        open={!!assignForCurriculum}
+        onClose={() => setAssignForCurriculum(null)}
+        title={`Assign: ${assignForCurriculum?.name || "Course"}`}
+      >
+        <form onSubmit={handleAssign} className="space-y-4">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-secondary">Student</label>
+            <select
+              value={assignChildId}
+              onChange={(e) => setAssignChildId(e.target.value)}
+              className="w-full rounded-lg border px-3 py-2 text-sm"
+              required
+            >
+              <option value="">Select a student...</option>
+              {children.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-secondary">School Year</label>
+            <select
+              value={assignSchoolYearId}
+              onChange={(e) => setAssignSchoolYearId(e.target.value)}
+              className="w-full rounded-lg border px-3 py-2 text-sm"
+              required
+            >
+              <option value="">Select a school year...</option>
+              {schoolYears.map((sy) => (
+                <option key={sy.id} value={sy.id}>{sy.name}</option>
+              ))}
+            </select>
+          </div>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setAssignForCurriculum(null)}
+              className="rounded-lg border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting || !assignChildId || !assignSchoolYearId}
+              className="rounded-lg bg-interactive px-4 py-2 text-sm font-medium text-white hover:bg-interactive-hover disabled:opacity-50"
+            >
+              {submitting ? "Assigning..." : "Assign"}
+            </button>
+          </div>
+        </form>
       </Modal>
 
       <Modal

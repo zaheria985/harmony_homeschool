@@ -64,6 +64,15 @@ export default function BooklistsClient({
   const isKid = userRole === "kid";
   const personalBooklist =
     booklists.find((list) => list.owner_child_id === userChildId) || null;
+  const unassignedBooks = useMemo(() => {
+    const assignedIds = new Set<string>();
+    for (const list of booklists) {
+      for (const book of list.books) {
+        assignedIds.add(book.id);
+      }
+    }
+    return books.filter((b) => !assignedIds.has(b.id));
+  }, [booklists, books]);
   const allTags = useMemo(() => {
     const tags = new Set<string>();
     for (const book of books) {
@@ -100,7 +109,7 @@ export default function BooklistsClient({
     setBookTitle("");
     setBookAuthor("");
     setBookDescription("");
-    setBooklistTargets(booklists.map((list) => list.id));
+    setBooklistTargets([]);
     setError("");
     setShowAddBookModal(true);
   }
@@ -218,10 +227,7 @@ export default function BooklistsClient({
       setError("Book title is required.");
       return;
     }
-    if (booklistTargets.length === 0) {
-      setError("Select at least one booklist.");
-      return;
-    }
+    // Booklist selection is now optional - books can be unassigned
     setError("");
     startTransition(async () => {
       const formData = new FormData();
@@ -404,6 +410,23 @@ export default function BooklistsClient({
           </div>{" "}
         </div>
       )}{" "}
+      {unassignedBooks.length > 0 && (
+        <div className="mt-6">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-secondary">
+            Unassigned Books
+          </h2>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-6">
+            {unassignedBooks.map((book) => (
+              <BookCard
+                key={book.id}
+                book={book}
+                draggable
+                onDragStart={(bookId) => setDraggingBookId(bookId)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
       <Modal
         open={showModal}
         onClose={() => setShowModal(false)}
@@ -630,7 +653,7 @@ export default function BooklistsClient({
           <div>
             {" "}
             <label className="mb-1 block text-sm font-medium text-secondary">
-              Add to booklists
+              Add to booklists <span className="text-muted">(optional)</span>
             </label>{" "}
             <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-light p-2">
               {" "}
