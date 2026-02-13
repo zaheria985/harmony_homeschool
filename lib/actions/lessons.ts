@@ -66,7 +66,7 @@ export async function rescheduleLesson(lessonId: string, newDate: string) {
   }
 
   try {
-    // Get the lesson's current date, curriculum, and order_index
+    // Get the lesson's curriculum and order_index
     const lessonRes = await pool.query(
       `SELECT planned_date::text, curriculum_id, order_index FROM lessons WHERE id = $1`,
       [parsed.data.lessonId]
@@ -74,26 +74,104 @@ export async function rescheduleLesson(lessonId: string, newDate: string) {
     const lesson = lessonRes.rows[0];
     if (!lesson) return { error: "Lesson not found" };
 
-    const oldDate = lesson.planned_date;
-
     // Move the dragged lesson
     await pool.query(
       "UPDATE lessons SET planned_date = $1 WHERE id = $2",
       [parsed.data.newDate, parsed.data.lessonId]
     );
 
-    // Cascade: shift all subsequent lessons in the same curriculum by the same delta
-    if (oldDate) {
-      await pool.query(
-        `UPDATE lessons
-         SET planned_date = planned_date + ($1::date - $2::date)
-         WHERE curriculum_id = $3
-           AND id != $4
-           AND order_index > $5
-           AND planned_date IS NOT NULL
-           AND status != 'completed'`,
-        [parsed.data.newDate, oldDate, lesson.curriculum_id, parsed.data.lessonId, lesson.order_index]
+    // Get subsequent lessons that need cascading
+    const subsequentRes = await pool.query(
+      `SELECT id
+       FROM lessons
+       WHERE curriculum_id = $1
+         AND id != $2
+         AND order_index > $3
+         AND planned_date IS NOT NULL
+         AND status != 'completed'
+       ORDER BY order_index ASC, id ASC`,
+      [lesson.curriculum_id, parsed.data.lessonId, lesson.order_index]
+    );
+
+    if (subsequentRes.rows.length > 0) {
+      // Look up the course's custom weekdays (or fall back to school days)
+      const assignmentRes = await pool.query(
+        `SELECT ca.id, ca.school_year_id
+         FROM curriculum_assignments ca
+         JOIN school_years sy ON sy.id = ca.school_year_id
+         WHERE ca.curriculum_id = $1
+         ORDER BY sy.end_date DESC
+         LIMIT 1`,
+        [lesson.curriculum_id]
       );
+
+      let weekdaySet: Set<number>;
+      let overrides = new Map<string, "exclude" | "include">();
+      let usesCustomWeekdays = false;
+
+      if (assignmentRes.rows[0]) {
+        const assignment = assignmentRes.rows[0];
+
+        const customDaysRes = await pool.query(
+          `SELECT weekday FROM curriculum_assignment_days WHERE assignment_id = $1`,
+          [assignment.id]
+        );
+
+        usesCustomWeekdays = customDaysRes.rows.length > 0;
+
+        if (usesCustomWeekdays) {
+          weekdaySet = new Set(customDaysRes.rows.map((r: { weekday: number }) => r.weekday));
+        } else {
+          const schoolDaysRes = await pool.query(
+            `SELECT weekday FROM school_days WHERE school_year_id = $1`,
+            [assignment.school_year_id]
+          );
+          weekdaySet = new Set(schoolDaysRes.rows.map((r: { weekday: number }) => r.weekday));
+        }
+
+        if (!usesCustomWeekdays) {
+          const overridesRes = await pool.query(
+            `SELECT date::text, type FROM date_overrides WHERE school_year_id = $1`,
+            [assignment.school_year_id]
+          );
+          for (const row of overridesRes.rows as { date: string; type: "exclude" | "include" }[]) {
+            overrides.set(row.date, row.type);
+          }
+        }
+      } else {
+        // No assignment found — default to weekdays Mon-Fri
+        weekdaySet = new Set([1, 2, 3, 4, 5]);
+      }
+
+      // Re-slot subsequent lessons onto valid days starting after the moved lesson
+      const { parseDateKey, addDays, formatDateKey, isSchoolDate } = await import("@/lib/utils/school-dates");
+      let cursor = addDays(parseDateKey(parsed.data.newDate), 1);
+
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        for (const row of subsequentRes.rows as { id: string }[]) {
+          // Find next valid day
+          for (let i = 0; i < 3660; i++) {
+            const isValid = usesCustomWeekdays
+              ? weekdaySet.has(cursor.getUTCDay())
+              : isSchoolDate(cursor, weekdaySet, overrides);
+            if (isValid) break;
+            cursor = addDays(cursor, 1);
+          }
+          await client.query(
+            `UPDATE lessons SET planned_date = $1::date WHERE id = $2`,
+            [formatDateKey(cursor), row.id]
+          );
+          cursor = addDays(cursor, 1);
+        }
+        await client.query("COMMIT");
+      } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+      } finally {
+        client.release();
+      }
     }
   } catch (err) {
     console.error("Failed to reschedule lesson", {
