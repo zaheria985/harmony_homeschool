@@ -11,25 +11,15 @@ import {
 } from "@/lib/actions/lessons";
 import { useRouter } from "next/navigation";
 const COLOR_OPTIONS = [
-  { value: "indigo-500", label: "Indigo" },
-  { value: "emerald-500", label: "Emerald" },
-  { value: "amber-500", label: "Amber" },
-  { value: "rose-500", label: "Rose" },
-  { value: "sky-500", label: "Sky" },
-  { value: "purple-500", label: "Purple" },
-  { value: "orange-500", label: "Orange" },
-  { value: "teal-500", label: "Teal" },
+  { value: "#6366f1", label: "Indigo" },
+  { value: "#10b981", label: "Emerald" },
+  { value: "#f59e0b", label: "Amber" },
+  { value: "#f43f5e", label: "Rose" },
+  { value: "#0ea5e9", label: "Sky" },
+  { value: "#a855f7", label: "Purple" },
+  { value: "#f97316", label: "Orange" },
+  { value: "#14b8a6", label: "Teal" },
 ];
-const COLOR_HEX: Record<string, string> = {
-  "indigo-500": "#6366f1",
-  "emerald-500": "#10b981",
-  "amber-500": "#f59e0b",
-  "rose-500": "#f43f5e",
-  "sky-500": "#0ea5e9",
-  "purple-500": "#a855f7",
-  "orange-500": "#f97316",
-  "teal-500": "#14b8a6",
-};
 type Subject = {
   id: string;
   name: string;
@@ -71,7 +61,7 @@ export default function AdminSubjectsClient({
   function openCreate() {
     setEditing(null);
     setName("");
-    setColor("indigo-500");
+    setColor("#6366f1");
     setThumbnailFile(null);
     setClearThumbnail(false);
     setError("");
@@ -80,7 +70,7 @@ export default function AdminSubjectsClient({
   function openEdit(subject: Subject) {
     setEditing(subject);
     setName(subject.name);
-    setColor(subject.color || "indigo-500");
+    setColor(subject.color || "#6366f1");
     setThumbnailFile(null);
     setClearThumbnail(false);
     setError("");
@@ -192,8 +182,7 @@ export default function AdminSubjectsClient({
               <div
                 className="h-2 rounded-t-xl"
                 style={{
-                  backgroundColor:
-                    COLOR_HEX[subject.color || "indigo-500"] || "#6366f1",
+                  backgroundColor: subject.color || "#6366f1",
                 }}
               />{" "}
               {subject.thumbnail_url && (
@@ -267,7 +256,8 @@ export default function AdminSubjectsClient({
                     <td className="py-3">
                       {" "}
                       <span
-                        className={`inline-block h-4 w-4 rounded-full bg-${subject.color || "gray-400"}`}
+                        className="inline-block h-4 w-4 rounded-full"
+                        style={{ backgroundColor: subject.color || "#6366f1" }}
                       />{" "}
                     </td>{" "}
                     <td className="py-3 font-medium text-primary">
@@ -341,13 +331,13 @@ export default function AdminSubjectsClient({
                   key={c.value}
                   type="button"
                   onClick={() => setColor(c.value)}
-                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs ${color === c.value ? "border-primary-500 bg-interactive-light font-medium/20 dark:text-primary-200" : "border-light hover:bg-surface-muted dark:hover:bg-slate-800"}`}
+                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs ${color === c.value ? "border-primary-500 bg-interactive-light font-medium dark:text-primary-200" : "border-light hover:bg-surface-muted dark:hover:bg-slate-800"}`}
                 >
-                  {" "}
                   <span
-                    className={`inline-block h-3 w-3 rounded-full bg-${c.value}`}
-                  />{" "}
-                  {c.label}{" "}
+                    className="inline-block h-3 w-3 rounded-full"
+                    style={{ backgroundColor: c.value }}
+                  />
+                  {c.label}
                 </button>
               ))}{" "}
             </div>{" "}
