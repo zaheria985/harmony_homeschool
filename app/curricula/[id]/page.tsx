@@ -130,7 +130,7 @@ export default async function CurriculumDetailPage({
       <Card title="Lessons">
         {" "}
         {curriculum.lessons.length === 0 ? (
-          <p className="py-4 text-center text-gray-400">No lessons yet</p>
+          <p className="py-4 text-center text-muted">No lessons yet</p>
         ) : (
           <div className="space-y-3">
             {" "}
@@ -152,7 +152,7 @@ export default async function CurriculumDetailPage({
                       </p>
                     )}{" "}
                     {l.planned_date && (
-                      <p className="mt-0.5 text-xs text-gray-400">
+                      <p className="mt-0.5 text-xs text-muted">
                         {" "}
                         {new Date(
                           String(l.planned_date),

@@ -87,7 +87,7 @@ export default function NewSubjectButton() {
                   key={c}
                   type="button"
                   onClick={() => setColor(c)}
-                  className={`h-7 w-7 rounded-full border-2 ${color === c ? "border-gray-900 dark:border-slate" : "border-transparent"}`}
+                  className={`h-7 w-7 rounded-full border-2 ${color === c ? "border-primary" : "border-transparent"}`}
                   style={{ backgroundColor: c }}
                 />
               ))}{" "}
@@ -101,7 +101,7 @@ export default function NewSubjectButton() {
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="rounded-lg border border-border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted dark:hover:bg-slate-800"
+              className="rounded-lg border border-border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted hover:bg-surface-subtle"
             >
               {" "}
               Cancel{" "}

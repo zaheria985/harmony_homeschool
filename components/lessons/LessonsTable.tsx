@@ -238,7 +238,7 @@ export default function LessonsTable({
 
       {/* Table */}
       <div className="overflow-x-auto rounded-lg border bg-surface shadow-sm">
-        <table className="min-w-full divide-y divide-gray-200">
+        <table className="min-w-full divide-y divide-border">
           <thead className="bg-surface-muted">
             <tr>
               <th
@@ -276,7 +276,7 @@ export default function LessonsTable({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
+          <tbody className="divide-y divide-border">
             {filtered.map((lesson) => {
               const isExpanded = expandedRows.has(lesson.id);
               const hasDetails = lesson.description || lesson.completion_notes;

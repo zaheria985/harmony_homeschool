@@ -183,7 +183,7 @@ export default function CalendarConfigClient({
       {schoolYears.length === 0 ? (
         <Card>
           {" "}
-          <p className="text-center text-sm text-muted dark:text-slate-400">
+          <p className="text-center text-sm text-muted">
             {" "}
             No school years configured. Create one to get started.{" "}
           </p>{" "}
@@ -205,13 +205,13 @@ export default function CalendarConfigClient({
       <Card>
         {" "}
         <h3 className="mb-3 text-lg font-semibold">Schedule Exceptions</h3>{" "}
-        <p className="mb-4 text-sm text-muted dark:text-slate-400">
+        <p className="mb-4 text-sm text-muted">
           {" "}
           Curricula with custom schedules that differ from school default
           days.{" "}
         </p>{" "}
         {scheduleExceptions.length === 0 ? (
-          <p className="text-sm text-muted dark:text-slate-400">
+          <p className="text-sm text-muted">
             {" "}
             No schedule exceptions. All assignments follow school calendar
             defaults.{" "}
@@ -223,7 +223,7 @@ export default function CalendarConfigClient({
               {" "}
               <thead>
                 {" "}
-                <tr className="border-b border-light text-muted dark:text-slate-400">
+                <tr className="border-b border-light text-muted">
                   {" "}
                   <th className="pb-2 font-medium">Curriculum</th>{" "}
                   <th className="pb-2 font-medium">Student</th>{" "}
@@ -249,7 +249,7 @@ export default function CalendarConfigClient({
                     <td className="py-2 text-tertiary">
                       {exception.school_year_label}
                     </td>{" "}
-                    <td className="py-2 text-muted dark:text-slate-400">
+                    <td className="py-2 text-muted">
                       {" "}
                       {formatWeekdays(exception.school_weekdays)}{" "}
                     </td>{" "}
@@ -314,12 +314,12 @@ function SchoolYearCard({
         <div className="w-full">
           {" "}
           <h3 className="text-lg font-semibold">{year.label}</h3>{" "}
-          <p className="text-sm text-muted dark:text-slate-400">
+          <p className="text-sm text-muted">
             {" "}
             {new Date(year.start_date + "T00:00:00").toLocaleDateString()}{" "}
             &ndash;{""}{" "}
             {new Date(year.end_date + "T00:00:00").toLocaleDateString()}{" "}
-            <span className="ml-3 text-gray-400 dark:text-slate-500">
+            <span className="ml-3 text-muted">
               {" "}
               {year.lesson_count} lesson
               {year.lesson_count !== 1 ? "s" : ""}{" "}
@@ -368,7 +368,7 @@ function SchoolYearCard({
                 <button
                   type="button"
                   onClick={() => setEditingYear(false)}
-                  className="rounded border border-border px-3 py-1 text-xs text-tertiary hover:bg-surface-subtle dark:hover:bg-slate-700"
+                  className="rounded border border-border px-3 py-1 text-xs text-tertiary hover:bg-surface-subtle"
                 >
                   {" "}
                   Cancel{" "}
@@ -386,7 +386,7 @@ function SchoolYearCard({
                 ? `Close editing for ${year.label}`
                 : `Edit dates and label for ${year.label}`
             }
-            className="rounded-lg border border-border px-2.5 py-1 text-xs text-secondary hover:bg-surface-muted dark:hover:bg-slate-800"
+            className="rounded-lg border border-border px-2.5 py-1 text-xs text-secondary hover:bg-surface-muted"
           >
             {" "}
             {editingYear ? "Close" : "Edit Dates & Label"}{" "}
@@ -404,7 +404,7 @@ function SchoolYearCard({
       {/* School days */}{" "}
       <div className="mb-5">
         {" "}
-        <h4 className="mb-2 text-sm font-semibold uppercase tracking-wider text-muted dark:text-slate-400">
+        <h4 className="mb-2 text-sm font-semibold uppercase tracking-wider text-muted">
           {" "}
           School Days{" "}
         </h4>{" "}
@@ -417,7 +417,7 @@ function SchoolYearCard({
                 key={i}
                 onClick={() => toggleDraftWeekday(i)}
                 disabled={isPending}
-                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${active ? "bg-interactive-medium text-interactive-hover ring-1 ring-[var(--interactive-border)]" : "bg-surface-subtle text-gray-400 hover:bg-gray-200 dark:text-slate-400 dark:hover:bg-slate-700"} disabled:opacity-50`}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${active ? "bg-interactive-medium text-interactive-hover ring-1 ring-[var(--interactive-border)]" : "bg-surface-subtle text-muted hover:bg-gray-200"} disabled:opacity-50`}
               >
                 {" "}
                 {label}{" "}
@@ -440,7 +440,7 @@ function SchoolYearCard({
           <button
             onClick={() => setDraftWeekdays(year.weekdays)}
             disabled={isPending || !weekdayChanges}
-            className="rounded border border-border px-3 py-1 text-xs text-tertiary hover:bg-surface-subtle disabled:opacity-50 dark:hover:bg-slate-700"
+            className="rounded border border-border px-3 py-1 text-xs text-tertiary hover:bg-surface-subtle disabled:opacity-50"
           >
             {" "}
             Reset{" "}
@@ -457,7 +457,7 @@ function SchoolYearCard({
         {" "}
         <div className="mb-2 flex items-center justify-between">
           {" "}
-          <h4 className="text-sm font-semibold uppercase tracking-wider text-muted dark:text-slate-400">
+          <h4 className="text-sm font-semibold uppercase tracking-wider text-muted">
             {" "}
             Date Overrides{" "}
           </h4>{" "}
@@ -527,7 +527,7 @@ function SchoolYearCard({
           </form>
         )}{" "}
         {year.overrides.length === 0 ? (
-          <p className="text-sm text-gray-400 dark:text-slate-500">
+          <p className="text-sm text-muted">
             No overrides set.
           </p>
         ) : (
@@ -536,7 +536,7 @@ function SchoolYearCard({
             {year.overrides.map((ov) => (
               <div
                 key={ov.id}
-                className="flex items-center justify-between rounded-lg px-3 py-1.5 text-sm hover:bg-surface-muted dark:hover:bg-slate-800"
+                className="flex items-center justify-between rounded-lg px-3 py-1.5 text-sm hover:bg-surface-muted"
               >
                 {" "}
                 <div className="flex items-center gap-3">
@@ -552,7 +552,7 @@ function SchoolYearCard({
                     {new Date(ov.date + "T00:00:00").toLocaleDateString()}{" "}
                   </span>{" "}
                   {ov.reason && (
-                    <span className="text-muted dark:text-slate-400">
+                    <span className="text-muted">
                       {ov.reason}
                     </span>
                   )}{" "}
@@ -561,7 +561,7 @@ function SchoolYearCard({
                   onClick={() => onRemoveOverride(ov.id)}
                   disabled={isPending}
                   aria-label={`Remove override on ${new Date(ov.date + "T00:00:00").toLocaleDateString()}`}
-                  className="text-xs text-gray-400 hover:text-red-600 disabled:opacity-50 dark:text-slate-500 dark:hover:text-red-300"
+                  className="text-xs text-muted hover:text-red-600 disabled:opacity-50"
                 >
                   {" "}
                   Remove{" "}

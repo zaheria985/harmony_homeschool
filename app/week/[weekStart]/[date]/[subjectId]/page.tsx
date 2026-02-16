@@ -24,7 +24,7 @@ export default async function SubjectLessonsPage({
     ? requestedChildId
     : children[0]?.id;
   if (!childId) {
-    return <p className="text-muted dark:text-slate-400">No children found.</p>;
+    return <p className="text-muted">No children found.</p>;
   }
   const { date, subjectId } = params;
   const [lessons, subject] = await Promise.all([
@@ -48,7 +48,7 @@ export default async function SubjectLessonsPage({
         </h2>{" "}
       </div>{" "}
       {lessons.length === 0 ? (
-        <p className="py-8 text-center text-gray-400 dark:text-slate-500">
+        <p className="py-8 text-center text-muted">
           No lessons for this subject today.
         </p>
       ) : (

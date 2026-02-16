@@ -37,7 +37,7 @@ export default function TagsClient({ tags }: { tags: TagItem[] }) {
         />{" "}
       </div>{" "}
       {filtered.length === 0 ? (
-        <p className="text-sm text-gray-400">No tags found.</p>
+        <p className="text-sm text-muted">No tags found.</p>
       ) : (
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {" "}

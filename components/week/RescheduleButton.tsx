@@ -24,7 +24,7 @@ export default function RescheduleButton({
       {" "}
       <button
         onClick={() => setOpen(true)}
-        className="text-xs text-gray-400 hover:text-interactive dark:text-slate-500 dark:hover:text-primary-300"
+        className="text-xs text-muted hover:text-interactive"
         title="Reschedule"
       >
         {" "}
@@ -60,7 +60,7 @@ export default function RescheduleButton({
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="rounded-lg border border-border px-4 py-2 text-sm text-secondary hover:bg-surface-muted dark:hover:bg-slate-800"
+              className="rounded-lg border border-border px-4 py-2 text-sm text-secondary hover:bg-surface-muted"
             >
               {" "}
               Cancel{" "}

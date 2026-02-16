@@ -39,7 +39,7 @@ export default function SubjectCard({
       </div>{" "}
       <div className="mt-2">
         {" "}
-        <div className="mb-1 text-xs text-muted dark:text-slate-400">
+        <div className="mb-1 text-xs text-muted">
           {" "}
           {completedLessons}/{totalLessons} complete{" "}
         </div>{" "}

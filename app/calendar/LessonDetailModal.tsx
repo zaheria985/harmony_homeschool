@@ -91,9 +91,9 @@ export default function LessonDetailModal({
     >
       {" "}
       {loading ? (
-        <p className="text-gray-400 dark:text-slate-500">Loading...</p>
+        <p className="text-muted">Loading...</p>
       ) : !lesson ? (
-        <p className="text-gray-400 dark:text-slate-500">Lesson not found</p>
+        <p className="text-muted">Lesson not found</p>
       ) : (
         <div className="space-y-4">
           {" "}
@@ -107,8 +107,8 @@ export default function LessonDetailModal({
             <span className="text-sm font-medium text-primary">
               {lesson.subject_name}
             </span>{" "}
-            <span className="text-sm text-gray-400">·</span>{" "}
-            <span className="text-sm text-muted dark:text-slate-400">
+            <span className="text-sm text-muted">·</span>{" "}
+            <span className="text-sm text-muted">
               {lesson.curriculum_name}
             </span>{" "}
           </div>{" "}
@@ -128,7 +128,7 @@ export default function LessonDetailModal({
               {lesson.status.replace("_", "")}{" "}
             </Badge>{" "}
             {lesson.planned_date && (
-              <span className="text-sm text-muted dark:text-slate-400">
+              <span className="text-sm text-muted">
                 {" "}
                 {new Date(lesson.planned_date + "T12:00:00").toLocaleDateString(
                   undefined,
@@ -161,7 +161,7 @@ export default function LessonDetailModal({
                         url: r.url,
                       })
                     }
-                    className="flex w-full items-center gap-2 rounded-lg border border-light p-2 text-left text-sm hover:bg-surface-muted dark:hover:bg-slate-800"
+                    className="flex w-full items-center gap-2 rounded-lg border border-light p-2 text-left text-sm hover:bg-surface-muted"
                   >
                     {" "}
                     <span className="rounded bg-surface-subtle px-1.5 py-0.5 text-xs font-medium uppercase text-tertiary">
@@ -198,7 +198,7 @@ export default function LessonDetailModal({
             {!readOnly && (
               <button
                 onClick={() => onEdit(lesson)}
-                className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-secondary hover:bg-surface-muted dark:hover:bg-slate-800"
+                className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-secondary hover:bg-surface-muted"
               >
                 {" "}
                 Edit{" "}

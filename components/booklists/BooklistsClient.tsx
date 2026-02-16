@@ -267,7 +267,7 @@ export default function BooklistsClient({
             </button>{" "}
             <button
               onClick={openAddBook}
-              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-secondary hover:bg-surface-muted dark:hover:bg-slate-800"
+              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-secondary hover:bg-surface-muted"
             >
               {" "}
               + Add Book{" "}
@@ -355,7 +355,7 @@ export default function BooklistsClient({
                     <h2 className="text-sm font-semibold uppercase tracking-wide text-secondary">
                       {list.name}
                     </h2>{" "}
-                    <p className="text-xs text-muted dark:text-slate-400">
+                    <p className="text-xs text-muted">
                       {" "}
                       {list.books.length}{" "}
                       {list.books.length === 1 ? "book" : "books"}{" "}
@@ -367,7 +367,7 @@ export default function BooklistsClient({
                       <button
                         onClick={() => openEdit(list)}
                         aria-label={`Edit booklist ${list.name}`}
-                        className="rounded border px-2 py-1 text-xs text-tertiary hover:bg-surface-muted dark:hover:bg-slate-800"
+                        className="rounded border px-2 py-1 text-xs text-tertiary hover:bg-surface-muted"
                       >
                         {" "}
                         Edit{" "}
@@ -389,7 +389,7 @@ export default function BooklistsClient({
                   </p>
                 )}{" "}
                 {list.books.length === 0 ? (
-                  <p className="text-sm text-gray-400 dark:text-slate-500">
+                  <p className="text-sm text-muted">
                     Drop a book here or edit this list to add books.
                   </p>
                 ) : (
@@ -507,14 +507,14 @@ export default function BooklistsClient({
               <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-light p-2">
                 {" "}
                 {filteredBooks.length === 0 ? (
-                  <p className="py-4 text-center text-sm text-gray-400">
+                  <p className="py-4 text-center text-sm text-muted">
                     No books found.
                   </p>
                 ) : (
                   filteredBooks.map((book) => (
                     <label
                       key={book.id}
-                      className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-surface-muted dark:hover:bg-slate-800"
+                      className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-surface-muted"
                     >
                       {" "}
                       <input
@@ -537,7 +537,7 @@ export default function BooklistsClient({
                   ))
                 )}{" "}
               </div>{" "}
-              <p className="mt-1 text-xs text-muted dark:text-slate-400">
+              <p className="mt-1 text-xs text-muted">
                 {selectedBookIds.length} selected
               </p>{" "}
             </div>
@@ -551,14 +551,14 @@ export default function BooklistsClient({
               <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-light p-2">
                 {" "}
                 {allTags.length === 0 ? (
-                  <p className="text-sm text-gray-400">
+                  <p className="text-sm text-muted">
                     No tags available yet.
                   </p>
                 ) : (
                   allTags.map((tag) => (
                     <label
                       key={tag}
-                      className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-surface-muted dark:hover:bg-slate-800"
+                      className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-surface-muted"
                     >
                       {" "}
                       <input
@@ -571,7 +571,7 @@ export default function BooklistsClient({
                   ))
                 )}{" "}
               </div>{" "}
-              <p className="mt-1 text-xs text-muted dark:text-slate-400">
+              <p className="mt-1 text-xs text-muted">
                 {matchingBooksFromTags.length} books will be copied into this
                 list
               </p>{" "}
@@ -582,7 +582,7 @@ export default function BooklistsClient({
             <button
               type="button"
               onClick={() => setShowModal(false)}
-              className="rounded-lg border border-border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted dark:hover:bg-slate-800"
+              className="rounded-lg border border-border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted"
             >
               {" "}
               Cancel{" "}
@@ -660,7 +660,7 @@ export default function BooklistsClient({
               {booklists.map((list) => (
                 <label
                   key={list.id}
-                  className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-secondary hover:bg-surface-muted dark:hover:bg-slate-800"
+                  className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-secondary hover:bg-surface-muted"
                 >
                   {" "}
                   <input
@@ -678,7 +678,7 @@ export default function BooklistsClient({
             <button
               type="button"
               onClick={() => setShowAddBookModal(false)}
-              className="rounded-lg border border-border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted dark:hover:bg-slate-800"
+              className="rounded-lg border border-border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted"
             >
               {" "}
               Cancel{" "}

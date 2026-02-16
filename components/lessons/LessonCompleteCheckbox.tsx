@@ -35,7 +35,7 @@ export default function LessonCompleteCheckbox({
       checked={!!completed}
       disabled={isPending}
       onChange={(e) => toggle(e.target.checked)}
-      className="h-4 w-4 rounded border-slate-300 text-interactive focus:ring-focus"
+      className="h-4 w-4 rounded border-border text-interactive focus:ring-focus"
       aria-label="Mark lesson complete"
     />
   );

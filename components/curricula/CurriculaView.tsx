@@ -279,7 +279,7 @@ export default function CurriculaView({
                   {/* Progress bar */}
                   <div className="mt-2 h-1.5 w-full rounded-full bg-surface-subtle">
                     <div
-                      className="h-1.5 rounded-full bg-[var(--success-bg)]0"
+                      className="h-1.5 rounded-full bg-[var(--success-bg)]"
                       style={{ width: `${pct}%` }}
                     />
                   </div>
@@ -293,7 +293,7 @@ export default function CurriculaView({
       {/* Table View */}
       {view === "table" && timelineFiltered.length > 0 && (
         <div className="overflow-x-auto rounded-lg border bg-surface shadow-sm">
-          <table className="min-w-full divide-y divide-gray-200">
+          <table className="min-w-full divide-y divide-border">
             <thead className="bg-surface-muted">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">
@@ -322,7 +322,7 @@ export default function CurriculaView({
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-border">
               {timelineFiltered.map((curriculum) => {
                 const pct =
                   curriculum.lesson_count > 0
@@ -416,7 +416,7 @@ export default function CurriculaView({
                       <div className="flex items-center gap-2">
                         <div className="h-1.5 w-16 rounded-full bg-surface-subtle">
                           <div
-                            className="h-1.5 rounded-full bg-[var(--success-bg)]0"
+                            className="h-1.5 rounded-full bg-[var(--success-bg)]"
                             style={{ width: `${pct}%` }}
                           />
                         </div>

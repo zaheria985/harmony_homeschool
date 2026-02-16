@@ -330,13 +330,13 @@ export default function WeekGrid({
                           {" "}
                           {formatWeekdayShort(day.date)}{" "}
                         </span>{" "}
-                        <span className="ml-1 text-xs text-muted dark:text-slate-400">
+                        <span className="ml-1 text-xs text-muted">
                           {" "}
                           {formatShortDate(day.date)}{" "}
                         </span>{" "}
                       </div>{" "}
                       {totalLessons > 0 && (
-                        <span className="text-xs text-gray-400 dark:text-slate-500">
+                        <span className="text-xs text-muted">
                           {" "}
                           {completedLessons}/{totalLessons}{" "}
                         </span>
@@ -371,7 +371,7 @@ export default function WeekGrid({
                                 event.end_time,
                                 event.all_day,
                               ) && (
-                                <p className="mt-0.5 text-[10px] text-muted dark:text-slate-400">
+                                <p className="mt-0.5 text-[10px] text-muted">
                                   {" "}
                                   {formatTimeRange(
                                     event.start_time,
@@ -385,7 +385,7 @@ export default function WeekGrid({
                         </div>
                       )}{" "}
                       {totalLessons === 0 ? (
-                        <p className="py-2 text-center text-xs text-gray-300 dark:text-slate-500">
+                        <p className="py-2 text-center text-xs text-border">
                           {" "}
                           {isWeekend ? "Weekend" : "No lessons"}{" "}
                         </p>
@@ -451,7 +451,7 @@ export default function WeekGrid({
                                   onTouchMove={handleTouchMove}
                                   onTouchEnd={handleTouchEnd}
                                   onTouchCancel={handleTouchCancel}
-                                  className={`block line-clamp-2 text-sm leading-tight transition-colors hover:text-interactive dark:hover:text-primary-300 md:text-xs ${lesson.status === "completed" ? "text-gray-400 line-through dark:text-slate-500" : "text-tertiary"}`}
+                                  className={`block line-clamp-2 text-sm leading-tight transition-colors hover:text-interactive md:text-xs ${lesson.status === "completed" ? "text-muted line-through" : "text-tertiary"}`}
                                 >
                                   {" "}
                                   {lesson.title}{" "}

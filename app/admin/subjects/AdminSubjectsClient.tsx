@@ -210,7 +210,7 @@ export default function AdminSubjectsClient({
                   {" "}
                   <button
                     onClick={() => openEdit(subject)}
-                    className="rounded border border-border px-2 py-1 text-xs text-interactive hover:bg-interactive-light dark:hover:bg-slate-800"
+                    className="rounded border border-border px-2 py-1 text-xs text-interactive hover:bg-interactive-light"
                   >
                     {" "}
                     Edit{" "}
@@ -236,7 +236,7 @@ export default function AdminSubjectsClient({
               {" "}
               <thead>
                 {" "}
-                <tr className="border-b border-light text-muted dark:text-slate-400">
+                <tr className="border-b border-light text-muted">
                   {" "}
                   <th className="pb-3 font-medium">Color</th>{" "}
                   <th className="pb-3 font-medium">Name</th>{" "}
@@ -274,7 +274,7 @@ export default function AdminSubjectsClient({
                       <button
                         onClick={() => openEdit(subject)}
                         aria-label={`Edit subject ${subject.name}`}
-                        className="mr-2 rounded px-2 py-1 text-xs text-interactive hover:bg-interactive-light dark:hover:bg-slate-800"
+                        className="mr-2 rounded px-2 py-1 text-xs text-interactive hover:bg-interactive-light"
                       >
                         {" "}
                         Edit{" "}
@@ -331,7 +331,7 @@ export default function AdminSubjectsClient({
                   key={c.value}
                   type="button"
                   onClick={() => setColor(c.value)}
-                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs ${color === c.value ? "border-primary-500 bg-interactive-light font-medium dark:text-primary-200" : "border-light hover:bg-surface-muted dark:hover:bg-slate-800"}`}
+                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs ${color === c.value ? "border-primary-500 bg-interactive-light font-medium dark:text-primary-200" : "border-light hover:bg-surface-muted"}`}
                 >
                   <span
                     className="inline-block h-3 w-3 rounded-full"
@@ -347,7 +347,7 @@ export default function AdminSubjectsClient({
             <label className="mb-1 block text-sm font-medium text-secondary">
               {" "}
               Subject Photo{" "}
-              <span className="text-gray-400 dark:text-slate-500">
+              <span className="text-muted">
                 (optional)
               </span>{" "}
             </label>{" "}
@@ -360,7 +360,7 @@ export default function AdminSubjectsClient({
                   alt={editing.name}
                   className="h-10 w-10 rounded border border-light bg-transparent object-cover"
                 />{" "}
-                <span className="text-xs text-muted dark:text-slate-400">
+                <span className="text-xs text-muted">
                   Current image
                 </span>{" "}
               </div>
@@ -397,7 +397,7 @@ export default function AdminSubjectsClient({
             <button
               type="button"
               onClick={() => setModalOpen(false)}
-              className="rounded-lg border border-border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted dark:hover:bg-slate-800"
+              className="rounded-lg border border-border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted"
             >
               {" "}
               Cancel{" "}
@@ -434,7 +434,7 @@ export default function AdminSubjectsClient({
           {" "}
           <button
             onClick={() => setConfirmDelete(null)}
-            className="rounded-lg border border-border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted dark:hover:bg-slate-800"
+            className="rounded-lg border border-border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted"
           >
             {" "}
             Cancel{" "}

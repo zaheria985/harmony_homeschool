@@ -27,7 +27,7 @@ export default function LessonCard({ lesson }: { lesson: DaySubjectLesson }) {
             {" "}
             <Link
               href={`/lessons/${lesson.id}`}
-              className={`font-medium hover:underline ${isCompleted ? "text-gray-400 line-through dark:text-slate-500" : "text-interactive"}`}
+              className={`font-medium hover:underline ${isCompleted ? "text-muted line-through" : "text-interactive"}`}
             >
               {" "}
               {lesson.title}{" "}
@@ -42,7 +42,7 @@ export default function LessonCard({ lesson }: { lesson: DaySubjectLesson }) {
               {" "}
               <Link
                 href={`/curricula/${lesson.curriculum_id}`}
-                className="text-gray-400 hover:text-interactive hover:underline dark:text-slate-500 dark:hover:text-primary-300"
+                className="text-muted hover:text-interactive hover:underline"
               >
                 {" "}
                 {lesson.curriculum_name}{" "}
@@ -53,13 +53,13 @@ export default function LessonCard({ lesson }: { lesson: DaySubjectLesson }) {
             <p className="mt-1.5 text-sm text-tertiary">{lesson.description}</p>
           )}{" "}
           {lesson.grade !== null && (
-            <p className="mt-1 text-sm text-muted dark:text-slate-400">
+            <p className="mt-1 text-sm text-muted">
               {" "}
               Grade: <span className="font-medium">{lesson.grade}%</span>{" "}
             </p>
           )}{" "}
           {lesson.completion_notes && (
-            <p className="mt-1 text-sm italic text-gray-400 dark:text-slate-500">
+            <p className="mt-1 text-sm italic text-muted">
               {lesson.completion_notes}
             </p>
           )}{" "}

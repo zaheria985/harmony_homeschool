@@ -239,7 +239,7 @@ export default function AdminBulkPasteClient({
               ))}{" "}
             </select>{" "}
           </div>{" "}
-          <div className="text-sm text-muted dark:text-slate-400">
+          <div className="text-sm text-muted">
             {" "}
             <p className="font-medium text-secondary">Paste format</p>{" "}
             <p>title | date | description | status | result</p>{" "}
@@ -290,13 +290,13 @@ export default function AdminBulkPasteClient({
         <div className="mb-3 flex items-center justify-between">
           {" "}
           <h2 className="text-lg font-semibold text-primary">Preview</h2>{" "}
-          <span className="text-sm text-muted dark:text-slate-400">
+          <span className="text-sm text-muted">
             {" "}
             {validRows.length} valid / {rows.length} total{" "}
           </span>{" "}
         </div>{" "}
         {rows.length === 0 ? (
-          <p className="text-sm text-muted dark:text-slate-400">
+          <p className="text-sm text-muted">
             Paste rows above to preview before creating.
           </p>
         ) : (
@@ -304,7 +304,7 @@ export default function AdminBulkPasteClient({
             {" "}
             <table className="min-w-full text-left text-sm">
               {" "}
-              <thead className="border-b border-light bg-surface-muted text-xs uppercase text-muted dark:text-slate-400">
+              <thead className="border-b border-light bg-surface-muted text-xs uppercase text-muted">
                 {" "}
                 <tr>
                   {" "}
@@ -317,7 +317,7 @@ export default function AdminBulkPasteClient({
                   <th className="px-3 py-2">Validation</th>{" "}
                 </tr>{" "}
               </thead>{" "}
-              <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
+              <tbody className="divide-y divide-border">
                 {" "}
                 {rows.map((row, index) => (
                   <tr

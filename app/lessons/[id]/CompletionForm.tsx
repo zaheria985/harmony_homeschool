@@ -69,7 +69,7 @@ export default function CompletionForm({
               <input type="radio" name="passFail" value="fail" /> Fail{" "}
             </label>{" "}
           </div>{" "}
-          <p className="mt-1 text-xs text-muted dark:text-slate-400">
+          <p className="mt-1 text-xs text-muted">
             Defaults to Pass when left unselected.
           </p>{" "}
         </div>

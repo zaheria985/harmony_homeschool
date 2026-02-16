@@ -95,7 +95,7 @@ export default async function ReportsPage({
       <Card title="Students">
         {" "}
         {reports.length === 0 ? (
-          <p className="text-sm text-gray-400 dark:text-slate-500">
+          <p className="text-sm text-muted">
             No students yet.
           </p>
         ) : (
@@ -115,11 +115,11 @@ export default async function ReportsPage({
                 <Link
                   key={r.childId}
                   href={`/reports?student=${r.childId}`}
-                  className={`rounded-lg border px-3 py-2 transition-colors ${active ? "border-interactive-border bg-interactive-light/30" : "border-light hover:bg-surface-muted dark:hover:bg-slate-800"}`}
+                  className={`rounded-lg border px-3 py-2 transition-colors ${active ? "border-interactive-border bg-interactive-light/30" : "border-light hover:bg-surface-muted"}`}
                 >
                   {" "}
                   <p className="font-medium text-primary">{r.childName}</p>{" "}
-                  <p className="text-xs text-muted dark:text-slate-400">
+                  <p className="text-xs text-muted">
                     {pct}% complete
                   </p>{" "}
                 </Link>
@@ -134,7 +134,7 @@ export default async function ReportsPage({
           {" "}
           <div>
             {" "}
-            <p className="text-sm text-muted dark:text-slate-400">
+            <p className="text-sm text-muted">
               Completion
             </p>{" "}
             <p className="text-2xl font-bold text-primary">{overallPct}%</p>{" "}
@@ -146,7 +146,7 @@ export default async function ReportsPage({
           </div>{" "}
           <div>
             {" "}
-            <p className="text-sm text-muted dark:text-slate-400">
+            <p className="text-sm text-muted">
               Completed Lessons
             </p>{" "}
             <p className="text-2xl font-bold text-success-600">
@@ -155,7 +155,7 @@ export default async function ReportsPage({
           </div>{" "}
           <div>
             {" "}
-            <p className="text-sm text-muted dark:text-slate-400">
+            <p className="text-sm text-muted">
               In Progress
             </p>{" "}
             <p className="text-2xl font-bold text-warning-600">
@@ -170,7 +170,7 @@ export default async function ReportsPage({
       <Card title="Student Detail" className="mt-6">
         {" "}
         {!selected ? (
-          <p className="text-sm text-muted dark:text-slate-400">
+          <p className="text-sm text-muted">
             Select a student above to view their personal progress report.
           </p>
         ) : (
@@ -186,14 +186,14 @@ export default async function ReportsPage({
           {" "}
           <div>
             {" "}
-            <p className="text-sm text-muted dark:text-slate-400">Scope</p>{" "}
+            <p className="text-sm text-muted">Scope</p>{" "}
             <p className="text-lg font-semibold text-primary">
               {selected ? selected.childName : "Household"}
             </p>{" "}
           </div>{" "}
           <div>
             {" "}
-            <p className="text-sm text-muted dark:text-slate-400">
+            <p className="text-sm text-muted">
               Average Grade
             </p>{" "}
             <p className="text-lg font-semibold text-primary">
@@ -202,7 +202,7 @@ export default async function ReportsPage({
           </div>{" "}
           <div>
             {" "}
-            <p className="text-sm text-muted dark:text-slate-400">
+            <p className="text-sm text-muted">
               Recorded Grades
             </p>{" "}
             <p className="text-lg font-semibold text-primary">
@@ -211,7 +211,7 @@ export default async function ReportsPage({
           </div>{" "}
           <div>
             {" "}
-            <p className="text-sm text-muted dark:text-slate-400">View</p>{" "}
+            <p className="text-sm text-muted">View</p>{" "}
             <Link
               href="/grades"
               className="text-sm font-medium text-interactive hover:underline"
@@ -223,20 +223,20 @@ export default async function ReportsPage({
         </div>{" "}
         <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {" "}
-          <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-900/20 dark:text-emerald-300">
+          <p className="rounded-lg border border-[var(--success-border)] bg-[var(--success-bg)] px-3 py-2 text-sm text-[var(--success-text)]">
             {" "}
             Excellent (90+): <strong>{gradeBandCounts.excellent}</strong>{" "}
           </p>{" "}
-          <p className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800 dark:border-blue-800/60 dark:bg-blue-900/20 dark:text-blue-300">
+          <p className="rounded-lg border border-[var(--info-border)] bg-[var(--info-bg)] px-3 py-2 text-sm text-[var(--info-text)]">
             {" "}
             Strong (80-89): <strong>{gradeBandCounts.strong}</strong>{" "}
           </p>{" "}
-          <p className="rounded-lg border border-[var(--warning-border)] bg-[var(--warning-bg)] px-3 py-2 text-sm text-[var(--warning-text)] dark:border-amber-800/60/20 dark:text-amber-300">
+          <p className="rounded-lg border border-[var(--warning-border)] bg-[var(--warning-bg)] px-3 py-2 text-sm text-[var(--warning-text)]">
             {" "}
             Developing (70-79):{" "}
             <strong>{gradeBandCounts.developing}</strong>{" "}
           </p>{" "}
-          <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800 dark:border-rose-800/60 dark:bg-rose-900/20 dark:text-rose-300">
+          <p className="rounded-lg border border-[var(--error-border)] bg-[var(--error-bg)] px-3 py-2 text-sm text-[var(--error-text)]">
             {" "}
             Needs support (&lt;70):{" "}
             <strong>{gradeBandCounts.support}</strong>{" "}
@@ -277,7 +277,7 @@ function StudentReport({
         {" "}
         <div>
           {" "}
-          <p className="text-sm text-muted dark:text-slate-400">
+          <p className="text-sm text-muted">
             Completion
           </p>{" "}
           <p className="text-xl font-bold text-primary">
@@ -286,7 +286,7 @@ function StudentReport({
         </div>{" "}
         <div>
           {" "}
-          <p className="text-sm text-muted dark:text-slate-400">
+          <p className="text-sm text-muted">
             Completed
           </p>{" "}
           <p className="text-xl font-bold text-success-600">
@@ -295,7 +295,7 @@ function StudentReport({
         </div>{" "}
         <div>
           {" "}
-          <p className="text-sm text-muted dark:text-slate-400">
+          <p className="text-sm text-muted">
             In Progress
           </p>{" "}
           <p className="text-xl font-bold text-warning-600">
@@ -377,7 +377,7 @@ function StudentReport({
                       opacity: hasGrade ? 1 : 0.25,
                     }}
                   />{" "}
-                  <span className="line-clamp-1 text-center text-[10px] text-muted dark:text-slate-400">
+                  <span className="line-clamp-1 text-center text-[10px] text-muted">
                     {" "}
                     {String(s.subject_name).split("")[0]}{" "}
                   </span>{" "}
@@ -410,13 +410,13 @@ function StudentReport({
                     <span className="font-medium text-primary">
                       {String(s.subject_name)}
                     </span>{" "}
-                    <span className="text-muted dark:text-slate-400">
+                    <span className="text-muted">
                       {" "}
                       {String(s.completed)}/{String(s.total_lessons)}{" "}
                       lessons{" "}
                     </span>{" "}
                   </div>{" "}
-                  <p className="mb-1 text-xs text-muted dark:text-slate-400">
+                  <p className="mb-1 text-xs text-muted">
                     Average: {Number(s.avg_grade).toFixed(1)}
                   </p>{" "}
                   <ProgressBar
@@ -453,7 +453,7 @@ function StudentReport({
                     <span className="font-medium text-primary">
                       {String(s.subject_name)}
                     </span>{" "}
-                    <span className="text-muted dark:text-slate-400">
+                    <span className="text-muted">
                       {" "}
                       Pass {String(s.pass_count)} / Fail{" "}
                       {String(s.fail_count)}{" "}
@@ -471,7 +471,7 @@ function StudentReport({
         </div>
       )}{" "}
       {numericSubjects.length === 0 && passFailSubjects.length === 0 && (
-        <p className="text-sm text-muted dark:text-slate-400">
+        <p className="text-sm text-muted">
           No course progress yet.
         </p>
       )}{" "}

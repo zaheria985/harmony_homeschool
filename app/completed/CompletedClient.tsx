@@ -221,7 +221,7 @@ export default function CompletedClient({
               year: "",
             })
           }
-          className="rounded-lg border border-border px-3 py-1.5 text-sm text-tertiary hover:bg-surface-muted dark:hover:bg-slate-800"
+          className="rounded-lg border border-border px-3 py-1.5 text-sm text-tertiary hover:bg-surface-muted"
         >
           {" "}
           Clear{" "}
@@ -254,13 +254,13 @@ export default function CompletedClient({
         </p>{" "}
       </div>{" "}
       {/* Summary */}{" "}
-      <div className="mb-4 text-sm text-muted dark:text-slate-400 print:hidden">
+      <div className="mb-4 text-sm text-muted print:hidden">
         {" "}
         {lessons.length} completed lesson{lessons.length !== 1 ? "s" : ""}{" "}
       </div>{" "}
       {/* Results: Child → Week → Subject → Lessons */}{" "}
       {grouped.length === 0 ? (
-        <div className="rounded-xl border border-light bg-surface p-8 text-center text-sm text-muted dark:text-slate-400">
+        <div className="rounded-xl border border-light bg-surface p-8 text-center text-sm text-muted">
           {" "}
           No completed lessons found with the current filters.{" "}
         </div>
@@ -271,7 +271,7 @@ export default function CompletedClient({
             <div key={child.childName}>
               {" "}
               {/* Child name */}{" "}
-              <h2 className="mb-4 border-b-2 border-gray-800 pb-1 text-lg font-bold uppercase tracking-wide dark:border-slate-300 print:mb-3 print:text-xl">
+              <h2 className="mb-4 border-b-2 border-primary pb-1 text-lg font-bold uppercase tracking-wide print:mb-3 print:text-xl">
                 {" "}
                 {child.childName}{" "}
               </h2>{" "}
@@ -314,7 +314,7 @@ export default function CompletedClient({
                                 {" "}
                                 <div className="flex items-start gap-1.5">
                                   {" "}
-                                  <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-gray-400 dark:bg-slate-500" />{" "}
+                                  <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-border" />{" "}
                                   <div className="min-w-0">
                                     {" "}
                                     <span className="font-medium text-primary">
@@ -322,7 +322,7 @@ export default function CompletedClient({
                                       {l.title}{" "}
                                     </span>{" "}
                                     {l.curriculum_name && (
-                                      <span className="text-muted dark:text-slate-400">
+                                      <span className="text-muted">
                                         {" "}
                                         {""} — {l.curriculum_name}{" "}
                                       </span>
@@ -334,7 +334,7 @@ export default function CompletedClient({
                                       </span>
                                     )}{" "}
                                     {l.notes && (
-                                      <p className="mt-0.5 text-xs italic text-muted dark:text-slate-400">
+                                      <p className="mt-0.5 text-xs italic text-muted">
                                         {" "}
                                         {l.notes}{" "}
                                       </p>

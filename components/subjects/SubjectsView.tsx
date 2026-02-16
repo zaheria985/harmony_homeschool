@@ -81,7 +81,7 @@ export default function SubjectsView({
           placeholder="Search subjects..."
           className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary"
         />{" "}
-        <span className="text-sm text-muted dark:text-slate-400">
+        <span className="text-sm text-muted">
           {" "}
           {filteredSubjects.length} subject
           {filteredSubjects.length !== 1 ? "s" : ""}{" "}
@@ -100,7 +100,7 @@ export default function SubjectsView({
         </div>{" "}
       </div>{" "}
       {filteredSubjects.length === 0 && (
-        <div className="py-12 text-center text-sm text-muted dark:text-slate-400">
+        <div className="py-12 text-center text-sm text-muted">
           {" "}
           <p>No subjects yet.</p>{" "}
           <p className="mt-1">Add a subject from Admin to get started.</p>{" "}
@@ -157,12 +157,12 @@ export default function SubjectsView({
                   </div>{" "}
                   <div className="flex items-center justify-between text-sm">
                     {" "}
-                    <span className="text-muted dark:text-slate-400">
+                    <span className="text-muted">
                       {" "}
                       {subject.curriculum_count} course
                       {subject.curriculum_count === 1 ? "" : "s"}{" "}
                     </span>{" "}
-                    <span className="text-muted dark:text-slate-400">
+                    <span className="text-muted">
                       {" "}
                       {subject.completed_count}/{subject.lesson_count}{" "}
                       lessons{" "}
@@ -231,7 +231,7 @@ export default function SubjectsView({
           </div>{" "}
           <div className="hidden overflow-x-auto rounded-lg border border-light bg-surface shadow-sm md:block">
             {" "}
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="min-w-full divide-y divide-border">
               {" "}
               <thead className="bg-surface-muted">
                 {" "}
@@ -263,7 +263,7 @@ export default function SubjectsView({
                   </th>{" "}
                 </tr>{" "}
               </thead>{" "}
-              <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
+              <tbody className="divide-y divide-border">
                 {" "}
                 {filteredSubjects.map((subject) => {
                   const pct =
@@ -276,7 +276,7 @@ export default function SubjectsView({
                   return (
                     <tr
                       key={subject.id}
-                      className="hover:bg-surface-muted dark:hover:bg-slate-800"
+                      className="hover:bg-surface-muted"
                     >
                       {" "}
                       <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-primary">
@@ -323,13 +323,13 @@ export default function SubjectsView({
                                   alt={subject.name}
                                   className="h-8 w-8 rounded object-cover"
                                 />{" "}
-                                <span className="max-w-[16rem] truncate text-xs text-muted dark:text-slate-400">
+                                <span className="max-w-[16rem] truncate text-xs text-muted">
                                   {" "}
                                   {subject.thumbnail_url}{" "}
                                 </span>{" "}
                               </div>
                             ) : (
-                              <span className="text-gray-400 italic dark:text-slate-500">
+                              <span className="text-muted italic">
                                 Add image URL
                               </span>
                             )
@@ -355,7 +355,7 @@ export default function SubjectsView({
                               style={{ width: `${pct}%` }}
                             />{" "}
                           </div>{" "}
-                          <span className="text-xs text-muted dark:text-slate-400">
+                          <span className="text-xs text-muted">
                             {pct}%
                           </span>{" "}
                         </div>{" "}

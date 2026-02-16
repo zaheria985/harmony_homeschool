@@ -26,7 +26,7 @@ export default async function PrepPage({
         {" "}
         <a
           href="/prep"
-          className="rounded-lg border border-border px-3 py-2 text-sm text-tertiary hover:bg-surface-muted dark:hover:bg-slate-800"
+          className="rounded-lg border border-border px-3 py-2 text-sm text-tertiary hover:bg-surface-muted"
         >
           {" "}
           All Students{" "}
@@ -35,7 +35,7 @@ export default async function PrepPage({
           <a
             key={child.id}
             href={`/prep?child=${child.id}`}
-            className={`rounded-lg border border-border px-3 py-2 text-sm hover:bg-surface-muted dark:hover:bg-slate-800 ${selectedChildId === child.id ? "border-interactive-border bg-interactive-light text-interactive-hover/20 dark:text-primary-200" : "text-tertiary"}`}
+            className={`rounded-lg border border-border px-3 py-2 text-sm hover:bg-surface-muted ${selectedChildId === child.id ? "border-interactive-border bg-interactive-light text-interactive-hover/20 dark:text-primary-200" : "text-tertiary"}`}
           >
             {" "}
             {child.name}{" "}
@@ -45,7 +45,7 @@ export default async function PrepPage({
       {(materials as PrepMaterial[]).length === 0 ? (
         <Card title="Upcoming Materials">
           {" "}
-          <p className="text-sm text-muted dark:text-slate-400">
+          <p className="text-sm text-muted">
             No upcoming supply/book materials in the next 7 days.
           </p>{" "}
         </Card>

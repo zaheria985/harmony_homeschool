@@ -14,7 +14,7 @@ export default function WeekNav({ weekStart }: { weekStart: string }) {
       {" "}
       <button
         onClick={() => router.push(`/week/${prevWeek(weekStart)}${qs}`)}
-        className="rounded-lg border border-border px-2.5 py-1.5 text-sm text-tertiary hover:bg-surface-muted dark:hover:bg-slate-800"
+        className="rounded-lg border border-border px-2.5 py-1.5 text-sm text-tertiary hover:bg-surface-muted"
         title="Previous week"
       >
         {" "}
@@ -23,7 +23,7 @@ export default function WeekNav({ weekStart }: { weekStart: string }) {
       {!isCurrentWeek && (
         <button
           onClick={() => router.push(`/week/${todayWeek}${qs}`)}
-          className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-tertiary hover:bg-surface-muted dark:hover:bg-slate-800"
+          className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-tertiary hover:bg-surface-muted"
         >
           {" "}
           Today{" "}
@@ -31,7 +31,7 @@ export default function WeekNav({ weekStart }: { weekStart: string }) {
       )}{" "}
       <button
         onClick={() => router.push(`/week/${nextWeek(weekStart)}${qs}`)}
-        className="rounded-lg border border-border px-2.5 py-1.5 text-sm text-tertiary hover:bg-surface-muted dark:hover:bg-slate-800"
+        className="rounded-lg border border-border px-2.5 py-1.5 text-sm text-tertiary hover:bg-surface-muted"
         title="Next week"
       >
         {" "}

@@ -19,12 +19,12 @@ export default function StatCard({
       className={`rounded-xl border border-light border-l-4 bg-surface p-6 shadow-sm ${colorClasses[color]}`}
     >
       {" "}
-      <p className="text-sm font-medium text-muted dark:text-slate-400">
+      <p className="text-sm font-medium text-muted">
         {label}
       </p>{" "}
       <p className="mt-1 text-3xl font-bold text-primary">{value}</p>{" "}
       {sublabel && (
-        <p className="mt-1 text-sm text-gray-400 dark:text-slate-500">
+        <p className="mt-1 text-sm text-muted">
           {sublabel}
         </p>
       )}{" "}

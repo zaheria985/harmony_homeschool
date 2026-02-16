@@ -37,7 +37,7 @@ export default function DayColumn({
       {" "}
       <Link
         href={`/week/${weekStart}/${date}${qs}`}
-        className="flex items-baseline justify-between border-b px-3 py-2.5 hover:bg-surface-subtle/50 dark:hover:bg-slate-800/50"
+        className="flex items-baseline justify-between border-b px-3 py-2.5 hover:bg-surface-subtle/50/50"
       >
         {" "}
         <div>
@@ -48,12 +48,12 @@ export default function DayColumn({
             {" "}
             {formatWeekdayShort(date)}{" "}
           </span>{" "}
-          <span className="ml-1.5 text-xs text-muted dark:text-slate-400">
+          <span className="ml-1.5 text-xs text-muted">
             {formatShortDate(date)}
           </span>{" "}
         </div>{" "}
         {totalLessons > 0 && (
-          <span className="text-xs text-gray-400 dark:text-slate-500">
+          <span className="text-xs text-muted">
             {" "}
             {completedLessons}/{totalLessons}{" "}
           </span>
@@ -62,7 +62,7 @@ export default function DayColumn({
       <div className="flex flex-1 flex-col gap-2 p-2">
         {" "}
         {subjects.length === 0 ? (
-          <p className="py-4 text-center text-xs text-gray-400 dark:text-slate-500">
+          <p className="py-4 text-center text-xs text-muted">
             No lessons
           </p>
         ) : (

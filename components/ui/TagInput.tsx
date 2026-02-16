@@ -59,7 +59,7 @@ export default function TagInput({
               key={tag}
               type="button"
               onClick={() => removeTag(tag)}
-              className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-slate-50 px-2 py-0.5 text-xs text-slate-700 hover:bg-surface-slate dark:hover:bg-slate-700"
+              className="inline-flex items-center gap-1 rounded-full border border-border bg-surface-muted px-2 py-0.5 text-xs text-secondary hover:bg-surface-subtle"
               title={`Remove ${tag}`}
             >
               {" "}
@@ -87,7 +87,7 @@ export default function TagInput({
             }
           }}
           placeholder={placeholder || "Type tag and press Enter"}
-          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary placeholder:text-muted focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus dark:placeholder:text-slate-400"
+          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary placeholder:text-muted focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus placeholder:text-muted"
         />{" "}
         {open && (
           <div className="absolute z-20 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-light bg-surface p-1 shadow-lg">
@@ -97,14 +97,14 @@ export default function TagInput({
                 type="button"
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => commitTag(query)}
-                className="block w-full rounded px-2 py-1.5 text-left text-sm text-interactive hover:bg-interactive-light dark:hover:bg-slate-800"
+                className="block w-full rounded px-2 py-1.5 text-left text-sm text-interactive hover:bg-interactive-light"
               >
                 {" "}
                 Add &quot;{query.trim()}&quot;{" "}
               </button>
             )}{" "}
             {matches.length === 0 ? (
-              <p className="px-2 py-1.5 text-xs text-gray-400">
+              <p className="px-2 py-1.5 text-xs text-muted">
                 No matching tags
               </p>
             ) : (
@@ -117,7 +117,7 @@ export default function TagInput({
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => commitTag(tag)}
                     disabled={selectedTag}
-                    className={`block w-full rounded px-2 py-1.5 text-left text-sm ${selectedTag ? "cursor-not-allowed text-gray-400" : "text-secondary hover:bg-surface-muted dark:hover:bg-slate-800"}`}
+                    className={`block w-full rounded px-2 py-1.5 text-left text-sm ${selectedTag ? "cursor-not-allowed text-muted" : "text-secondary hover:bg-surface-muted"}`}
                   >
                     {" "}
                     {tag}{" "}
@@ -128,7 +128,7 @@ export default function TagInput({
           </div>
         )}{" "}
       </div>{" "}
-      <p className="text-xs text-gray-400">
+      <p className="text-xs text-muted">
         Type to search tags, press Enter to add
       </p>{" "}
     </div>

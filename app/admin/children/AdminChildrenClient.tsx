@@ -157,7 +157,7 @@ export default function AdminChildrenClient({
                 {" "}
                 <button
                   onClick={() => openEdit(child)}
-                  className="rounded border border-border px-2 py-1 text-xs text-interactive hover:bg-interactive-light dark:hover:bg-slate-800"
+                  className="rounded border border-border px-2 py-1 text-xs text-interactive hover:bg-interactive-light"
                 >
                   {" "}
                   Edit{" "}
@@ -182,7 +182,7 @@ export default function AdminChildrenClient({
               {" "}
               <thead>
                 {" "}
-                <tr className="border-b border-light text-muted dark:text-slate-400">
+                <tr className="border-b border-light text-muted">
                   {" "}
                   <th className="pb-3 font-medium">Name</th>{" "}
                   <th className="pb-3 font-medium">Subjects</th>{" "}
@@ -220,7 +220,7 @@ export default function AdminChildrenClient({
                       <button
                         onClick={() => openEdit(child)}
                         aria-label={`Edit child ${child.name}`}
-                        className="mr-2 rounded px-2 py-1 text-xs text-interactive hover:bg-interactive-light dark:hover:bg-slate-800"
+                        className="mr-2 rounded px-2 py-1 text-xs text-interactive hover:bg-interactive-light"
                       >
                         {" "}
                         Edit{" "}
@@ -270,7 +270,7 @@ export default function AdminChildrenClient({
             <label className="mb-1 block text-sm font-medium text-secondary">
               {" "}
               Emoji{" "}
-              <span className="text-gray-400 dark:text-slate-500">
+              <span className="text-muted">
                 (optional)
               </span>{" "}
             </label>{" "}
@@ -305,7 +305,7 @@ export default function AdminChildrenClient({
             <label className="mb-1 block text-sm font-medium text-secondary">
               {" "}
               Banner Photo{" "}
-              <span className="text-gray-400 dark:text-slate-500">
+              <span className="text-muted">
                 (optional)
               </span>{" "}
             </label>{" "}
@@ -352,7 +352,7 @@ export default function AdminChildrenClient({
             <button
               type="button"
               onClick={() => setModalOpen(false)}
-              className="rounded-lg border border-border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted dark:hover:bg-slate-800"
+              className="rounded-lg border border-border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted"
             >
               {" "}
               Cancel{" "}
@@ -393,7 +393,7 @@ export default function AdminChildrenClient({
           {" "}
           <button
             onClick={() => setConfirmDelete(null)}
-            className="rounded-lg border border-border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted dark:hover:bg-slate-800"
+            className="rounded-lg border border-border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted"
           >
             {" "}
             Cancel{" "}

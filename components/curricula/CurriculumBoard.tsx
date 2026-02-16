@@ -130,7 +130,7 @@ function ResourceMiniCard({
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="group flex items-center gap-2 rounded-lg border border-gray-100 bg-surface p-2 text-xs transition-colors hover:border-primary-200 hover:bg-interactive-light/30"
+      className="group flex items-center gap-2 rounded-lg border border-light bg-surface p-2 text-xs transition-colors hover:border-primary-200 hover:bg-interactive-light/30"
       onClick={(e) => e.stopPropagation()}
     >
       {thumbnail ? (
@@ -271,14 +271,14 @@ export default function CurriculumBoard({
               <h3 className="text-sm font-semibold text-primary">
                 Curriculum Resources
               </h3>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-muted">
                 {curriculumResources.length} shared
               </p>
             </div>
             <div className="space-y-4 p-3">
               {Object.entries(resourcesByType).map(([group, resources]) => (
                 <div key={group}>
-                  <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                  <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
                     {group}
                   </p>
                   <div className="space-y-1.5">
@@ -290,7 +290,7 @@ export default function CurriculumBoard({
                           href={r.url || `/resources/${r.id}`}
                           target={r.url ? "_blank" : undefined}
                           rel={r.url ? "noopener noreferrer" : undefined}
-                          className="flex items-center gap-2 rounded-lg border border-gray-100 bg-surface p-2 text-xs transition-colors hover:border-primary-200"
+                          className="flex items-center gap-2 rounded-lg border border-light bg-surface p-2 text-xs transition-colors hover:border-primary-200"
                         >
                           {r.thumbnail_url ? (
                             // eslint-disable-next-line @next/next/no-img-element
@@ -311,7 +311,7 @@ export default function CurriculumBoard({
                               {r.title}
                             </p>
                             {r.description && (
-                              <p className="truncate text-[10px] text-gray-400">
+                              <p className="truncate text-[10px] text-muted">
                                 {r.description}
                               </p>
                             )}
@@ -353,7 +353,7 @@ export default function CurriculumBoard({
               {/* Lesson number & date */}
               <div className="border-b px-4 py-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted">
                     Lesson {idx + 1}
                   </span>
                   <Badge variant={statusBadge[lesson.status] || "default"}>
@@ -385,12 +385,12 @@ export default function CurriculumBoard({
                   {lesson.title}
                 </h4>
                 {lesson.description && (
-                  <p className="mt-1 text-xs text-gray-400 line-clamp-2">
+                  <p className="mt-1 text-xs text-muted line-clamp-2">
                     {lesson.description}
                   </p>
                 )}
                 {lesson.estimated_duration && (
-                  <p className="mt-1 text-[10px] text-gray-400">
+                  <p className="mt-1 text-[10px] text-muted">
                     ~{lesson.estimated_duration} min
                   </p>
                 )}
@@ -399,7 +399,7 @@ export default function CurriculumBoard({
               {/* Resources */}
               {lesson.resources.length > 0 && (
                 <div className="border-t px-3 py-2">
-                  <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                  <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
                     Resources ({lesson.resources.length})
                   </p>
                   <div className="space-y-1.5">
@@ -419,7 +419,7 @@ export default function CurriculumBoard({
               {/* Completion checkboxes */}
               {assignedChildren.length > 0 && (
                 <div className="border-t px-4 py-2.5">
-                  <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                  <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
                     Completion
                   </p>
                   <div className="space-y-1">
@@ -448,7 +448,7 @@ export default function CurriculumBoard({
 
         {/* Empty state */}
         {lessons.length === 0 && (
-          <div className="flex w-full items-center justify-center py-16 text-sm text-gray-400">
+          <div className="flex w-full items-center justify-center py-16 text-sm text-muted">
             No lessons in this curriculum yet.
           </div>
         )}

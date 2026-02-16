@@ -60,7 +60,7 @@ export default function Modal({
               type="button"
               onClick={onClose}
               aria-label="Close modal"
-              className="text-gray-400 hover:text-tertiary dark:text-slate-400 dark:hover:text-slate-200"
+              className="text-muted hover:text-primary"
             >
               {" "}
               ✕{" "}

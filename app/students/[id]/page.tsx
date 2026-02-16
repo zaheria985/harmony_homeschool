@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import ProgressBar from "@/components/ui/ProgressBar";
@@ -39,10 +40,12 @@ export default async function StudentDetailPage({
       {child.banner_url && (
         <div className="mb-6 h-48 overflow-hidden rounded-xl">
           {" "}
-          <img
+          <Image
             src={child.banner_url}
             alt={`${child.name} banner`}
-            className="h-full w-full object-cover"
+            fill
+            className="object-cover"
+            priority
           />{" "}
         </div>
       )}{" "}
@@ -114,7 +117,7 @@ export default async function StudentDetailPage({
                   max={Number(s.total_lessons)}
                   color="primary"
                 />{" "}
-                <p className="mt-1 text-xs text-gray-400">
+                <p className="mt-1 text-xs text-muted">
                   {" "}
                   {s.completed_lessons} / {s.total_lessons} lessons{" "}
                 </p>{" "}
@@ -126,7 +129,7 @@ export default async function StudentDetailPage({
         <Card title="Upcoming Lessons">
           {" "}
           {upcoming.length === 0 ? (
-            <p className="py-4 text-center text-gray-400">
+            <p className="py-4 text-center text-muted">
               No upcoming lessons
             </p>
           ) : (

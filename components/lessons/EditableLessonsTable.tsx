@@ -336,10 +336,9 @@ export default function EditableLessonsTable({
   // Cell navigation
   // ============================================================================
 
-  const editableColumns = ["title", "planned_date", "status"];
-
   const navigateCell = useCallback(
     (currentCellId: string, dir: "next" | "prev" | "down" | "up") => {
+      const editableColumns = ["title", "planned_date", "status"];
       // cellId format: "row-col" e.g. "3-title"
       const [rowStr, col] = currentCellId.split("-");
       const rowIdx = parseInt(rowStr);
@@ -661,7 +660,7 @@ export default function EditableLessonsTable({
               {row.original.resource_count}
             </span>
           ) : (
-            <span className="text-gray-300">\u2014</span>
+            <span className="text-border">\u2014</span>
           )}
         </span>
       ),

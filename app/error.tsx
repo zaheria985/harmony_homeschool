@@ -20,14 +20,14 @@ export default function GlobalError({
       <h2 className="text-xl font-semibold text-[var(--error-text)]">
         Something went wrong
       </h2>{" "}
-      <p className="text-sm text-red-700">
+      <p className="text-sm text-[var(--error-text)]">
         {" "}
         We hit an unexpected error while rendering this page.{" "}
       </p>{" "}
       <button
         type="button"
         onClick={reset}
-        className="rounded-lg bg-red-700 px-4 py-2 text-sm font-medium text-white hover:bg-red-800"
+        className="rounded-lg bg-[var(--error-text)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
       >
         {" "}
         Try again{" "}

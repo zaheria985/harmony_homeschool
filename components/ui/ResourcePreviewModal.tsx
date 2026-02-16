@@ -69,13 +69,13 @@ export default function ResourcePreviewModal({
               href={url}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-lg border border-border px-3 py-2 text-sm text-secondary hover:bg-surface-muted dark:hover:bg-slate-800"
+              className="rounded-lg border border-border px-3 py-2 text-sm text-secondary hover:bg-surface-muted"
             >
               {" "}
               Open externally{" "}
             </a>
           ) : (
-            <span className="rounded-lg border border-light px-3 py-2 text-sm text-gray-400 dark:text-slate-500">
+            <span className="rounded-lg border border-light px-3 py-2 text-sm text-muted">
               {" "}
               No external URL{" "}
             </span>

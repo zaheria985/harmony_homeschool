@@ -164,7 +164,7 @@ export default function ResourcesClient({
                       {r.title}
                     </Link>
                     {r.description && (
-                      <p className="mt-0.5 text-xs text-gray-400 line-clamp-1">
+                      <p className="mt-0.5 text-xs text-muted line-clamp-1">
                         {r.description}
                       </p>
                     )}
@@ -177,7 +177,7 @@ export default function ResourcesClient({
                   <td className="px-4 py-3 text-tertiary">
                     {r.usage_count} {r.usage_count === 1 ? "lesson" : "lessons"}
                   </td>
-                  <td className="px-4 py-3 text-gray-400">
+                  <td className="px-4 py-3 text-muted">
                     {new Date(r.created_at).toLocaleDateString()}
                   </td>
                 </tr>
@@ -215,7 +215,7 @@ export default function ResourcesClient({
                 </div>
                 <h3 className="font-medium text-primary">{r.title}</h3>
                 {r.description && (
-                  <p className="mt-1 text-xs text-gray-400 line-clamp-2">
+                  <p className="mt-1 text-xs text-muted line-clamp-2">
                     {r.description}
                   </p>
                 )}

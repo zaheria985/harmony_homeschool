@@ -169,7 +169,7 @@ export default function ExternalEventsClient({
         </div>
       )}{" "}
       {events.length === 0 ? (
-        <div className="rounded-xl border border-light bg-surface p-8 text-center text-sm text-muted dark:text-slate-400">
+        <div className="rounded-xl border border-light bg-surface p-8 text-center text-sm text-muted">
           {" "}
           No external school events yet.{" "}
         </div>
@@ -196,14 +196,14 @@ export default function ExternalEventsClient({
                       {event.title}
                     </h3>{" "}
                   </div>{" "}
-                  <p className="mt-1 text-xs text-muted dark:text-slate-400">
+                  <p className="mt-1 text-xs text-muted">
                     {" "}
                     {recurrenceLabel(event)}{" "}
                     {event.end_date
                       ? `(${event.start_date} to ${event.end_date})`
                       : ""}{" "}
                   </p>{" "}
-                  <p className="text-xs text-muted dark:text-slate-400">
+                  <p className="text-xs text-muted">
                     {" "}
                     {formatTimeRange(
                       event.start_time,
@@ -211,7 +211,7 @@ export default function ExternalEventsClient({
                       event.all_day,
                     )}{" "}
                   </p>{" "}
-                  <p className="text-xs text-muted dark:text-slate-400">
+                  <p className="text-xs text-muted">
                     {" "}
                     Students:{" "}
                     {event.children.map((child) => child.name).join(",")}{" "}

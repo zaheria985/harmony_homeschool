@@ -82,7 +82,7 @@ export default function SubjectFormModal({
                 key={c}
                 type="button"
                 onClick={() => setColor(c)}
-                className={`h-8 w-8 rounded-full border-2 ${color === c ? "border-gray-900 dark:border-slate" : "border-transparent"}`}
+                className={`h-8 w-8 rounded-full border-2 ${color === c ? "border-primary" : "border-transparent"}`}
                 style={{ backgroundColor: c }}
               />
             ))}{" "}
@@ -93,7 +93,7 @@ export default function SubjectFormModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-secondary hover:bg-surface-muted dark:hover:bg-slate-800"
+            className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-secondary hover:bg-surface-muted hover:bg-surface-subtle"
           >
             {" "}
             Cancel{" "}

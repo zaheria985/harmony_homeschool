@@ -45,14 +45,14 @@ export default function DayModal({
           <h2 className="text-lg font-semibold text-primary">{title}</h2>{" "}
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-surface-subtle hover:text-tertiary dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+            className="rounded-lg p-1.5 text-muted hover:bg-surface-subtle hover:text-primary"
           >
             {" "}
             ✕{" "}
           </button>{" "}
         </div>{" "}
         {subjects.length === 0 ? (
-          <p className="py-8 text-center text-gray-400 dark:text-slate-500">
+          <p className="py-8 text-center text-muted">
             No lessons scheduled for this day.
           </p>
         ) : (
@@ -64,7 +64,7 @@ export default function DayModal({
                 className="rounded-lg border border-light bg-surface-slate"
               >
                 {" "}
-                <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3">
+                <div className="flex items-center gap-2 border-b border-light px-4 py-3">
                   {" "}
                   <span
                     className="h-3 w-3 rounded-full"
@@ -76,7 +76,7 @@ export default function DayModal({
                     {" "}
                     {subject.subjectName}{" "}
                   </h3>{" "}
-                  <span className="ml-auto text-xs text-gray-400 dark:text-slate-500">
+                  <span className="ml-auto text-xs text-muted">
                     {" "}
                     {
                       subject.lessons.filter((l) => l.status === "completed")
@@ -85,7 +85,7 @@ export default function DayModal({
                     / {subject.lessons.length}{" "}
                   </span>{" "}
                 </div>{" "}
-                <div className="divide-y divide-gray-50 px-4 py-2 dark:divide-slate-800">
+                <div className="divide-y divide-border px-4 py-2">
                   {" "}
                   {subject.lessons.map((lesson) => {
                     const isCompleted = lesson.status === "completed";
@@ -93,21 +93,21 @@ export default function DayModal({
                       <Link
                         key={lesson.id}
                         href={`/lessons/${lesson.id}`}
-                        className="flex items-center gap-2 py-2.5 transition-colors hover:text-interactive dark:hover:text-primary-300"
+                        className="flex items-center gap-2 py-2.5 transition-colors hover:text-interactive"
                         onClick={onClose}
                       >
                         {" "}
                         <span
-                          className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${isCompleted ? "bg-[var(--success-solid)]" : lesson.status === "in_progress" ? "bg-[var(--warning-solid)]" : "bg-gray-300"}`}
+                          className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${isCompleted ? "bg-[var(--success-solid)]" : lesson.status === "in_progress" ? "bg-[var(--warning-solid)]" : "bg-border"}`}
                         />{" "}
                         <span
-                          className={`flex-1 text-sm ${isCompleted ? "text-gray-400 line-through dark:text-slate-500" : "text-secondary"}`}
+                          className={`flex-1 text-sm ${isCompleted ? "text-muted line-through" : "text-secondary"}`}
                         >
                           {" "}
                           {lesson.title}{" "}
                         </span>{" "}
                         {lesson.grade !== null && (
-                          <span className="text-xs font-medium text-gray-400 dark:text-slate-500">
+                          <span className="text-xs font-medium text-muted">
                             {" "}
                             {lesson.grade}%{" "}
                           </span>

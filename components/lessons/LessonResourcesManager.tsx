@@ -133,7 +133,7 @@ function ResourceCardInner({
           <div className="text-center">
             {" "}
             <span className="text-4xl">📄</span>{" "}
-            <p className="mt-0.5 text-xs text-gray-400 dark:text-slate-500">
+            <p className="mt-0.5 text-xs text-muted">
               .pdf
             </p>{" "}
           </div>{" "}
@@ -155,7 +155,7 @@ function ResourceCardInner({
             {" "}
             <span className="text-xl">{config.icon}</span>{" "}
             {url && (
-              <p className="mt-0.5 text-[10px] text-gray-400 dark:text-slate-500">
+              <p className="mt-0.5 text-[10px] text-muted">
                 {" "}
                 {getDomain(url)}{" "}
               </p>
@@ -195,7 +195,7 @@ function ResourceCardInner({
           </p>
         )}{" "}
         {description && (
-          <p className="mt-1 text-xs text-gray-400 line-clamp-2 dark:text-slate-500">
+          <p className="mt-1 text-xs text-muted line-clamp-2">
             {" "}
             {description}{" "}
           </p>
@@ -319,14 +319,14 @@ export default function LessonResourcesManager({
               </button>{" "}
               <button
                 onClick={() => setShowQuickAdd(true)}
-                className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-tertiary hover:bg-surface-muted dark:hover:bg-slate-800"
+                className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-tertiary hover:bg-surface-muted"
               >
                 {" "}
                 + Quick Add{" "}
               </button>{" "}
               <button
                 onClick={() => setShowBulkSupplies(true)}
-                className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-tertiary hover:bg-surface-muted dark:hover:bg-slate-800"
+                className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-tertiary hover:bg-surface-muted"
               >
                 {" "}
                 + Bulk Supplies{" "}
@@ -338,7 +338,7 @@ export default function LessonResourcesManager({
           <p className="mb-3 text-sm text-red-600 dark:text-red-400">{error}</p>
         )}{" "}
         {resources.length === 0 ? (
-          <p className="py-6 text-center text-sm text-gray-400 dark:text-slate-500">
+          <p className="py-6 text-center text-sm text-muted">
             {" "}
             No resources attached yet{" "}
           </p>
@@ -372,7 +372,7 @@ export default function LessonResourcesManager({
                     onClick={() => handleRemove(r.id)}
                     disabled={isPending}
                     aria-label={`Remove resource ${r.title || r.url}`}
-                    className="absolute right-2 top-2 z-10 rounded-full bg-surface/90 p-1.5 text-gray-400 opacity-0 shadow-sm transition-opacity hover:bg-[var(--error-bg)] hover:text-red-500 group-hover:opacity-100 disabled:opacity-50/90 dark:hover:bg-red-900/30 dark:hover:text-red-300"
+                    className="absolute right-2 top-2 z-10 rounded-full bg-surface/90 p-1.5 text-muted opacity-0 shadow-sm transition-opacity hover:bg-[var(--error-bg)] hover:text-red-500 group-hover:opacity-100 disabled:opacity-50/90 dark:hover:bg-red-900/30"
                     title="Remove resource"
                   >
                     {" "}
@@ -405,7 +405,7 @@ export default function LessonResourcesManager({
             {" "}
             Shared Course Resources{" "}
           </h3>{" "}
-          <p className="mb-4 text-xs text-gray-400 dark:text-slate-500">
+          <p className="mb-4 text-xs text-muted">
             {" "}
             Resources shared across all lessons in this curriculum{" "}
           </p>{" "}
@@ -457,7 +457,7 @@ export default function LessonResourcesManager({
                       </p>
                     )}{" "}
                     {r.attachment_notes && (
-                      <p className="text-xs text-gray-400 truncate dark:text-slate-500">
+                      <p className="text-xs text-muted truncate">
                         {" "}
                         {r.attachment_notes}{" "}
                       </p>
@@ -494,7 +494,7 @@ export default function LessonResourcesManager({
             <div className="max-h-64 space-y-1 overflow-y-auto">
               {" "}
               {filteredLibrary.length === 0 ? (
-                <p className="py-4 text-center text-sm text-gray-400 dark:text-slate-500">
+                <p className="py-4 text-center text-sm text-muted">
                   {" "}
                   {availableLibrary.length === 0
                     ? "All library resources already attached"
@@ -506,7 +506,7 @@ export default function LessonResourcesManager({
                   return (
                     <label
                       key={r.id}
-                      className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 hover:bg-surface-muted dark:hover:bg-slate-800"
+                      className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 hover:bg-surface-muted"
                     >
                       {" "}
                       <input
@@ -529,7 +529,7 @@ export default function LessonResourcesManager({
                           {r.title}{" "}
                         </p>{" "}
                         {r.description && (
-                          <p className="text-xs text-gray-400 truncate dark:text-slate-500">
+                          <p className="text-xs text-muted truncate">
                             {" "}
                             {r.description}{" "}
                           </p>
@@ -542,7 +542,7 @@ export default function LessonResourcesManager({
               )}{" "}
             </div>{" "}
             {selectedLibrary.length > 0 && (
-              <p className="text-xs text-muted dark:text-slate-400">
+              <p className="text-xs text-muted">
                 {" "}
                 {selectedLibrary.length} selected{" "}
               </p>
@@ -554,7 +554,7 @@ export default function LessonResourcesManager({
                   setShowLibrary(false);
                   setSelectedLibrary([]);
                 }}
-                className="rounded-lg border border-border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted dark:hover:bg-slate-800"
+                className="rounded-lg border border-border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted"
               >
                 {" "}
                 Cancel{" "}
@@ -647,7 +647,7 @@ export default function LessonResourcesManager({
               <button
                 type="button"
                 onClick={() => setShowQuickAdd(false)}
-                className="rounded-lg border border-border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted dark:hover:bg-slate-800"
+                className="rounded-lg border border-border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted"
               >
                 {" "}
                 Cancel{" "}
@@ -673,7 +673,7 @@ export default function LessonResourcesManager({
           {" "}
           <div className="space-y-3">
             {" "}
-            <p className="text-xs text-muted dark:text-slate-400">
+            <p className="text-xs text-muted">
               {" "}
               Paste one supply per line. Example: notebook, glue sticks, colored
               pencils.{" "}
@@ -689,7 +689,7 @@ export default function LessonResourcesManager({
               {" "}
               <button
                 onClick={() => setShowBulkSupplies(false)}
-                className="rounded-lg border border-border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted dark:hover:bg-slate-800"
+                className="rounded-lg border border-border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted"
               >
                 {" "}
                 Cancel{" "}

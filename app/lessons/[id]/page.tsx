@@ -74,7 +74,7 @@ export default async function LessonDetailPage({
           )}{" "}
           <Link
             href="/lessons/table"
-            className="rounded-lg border border-border px-3 py-1.5 text-sm text-tertiary hover:bg-surface-muted dark:hover:bg-slate-800"
+            className="rounded-lg border border-border px-3 py-1.5 text-sm text-tertiary hover:bg-surface-muted"
           >
             {" "}
             Back to Lessons{" "}
@@ -87,16 +87,16 @@ export default async function LessonDetailPage({
         {/* Student */}{" "}
         <Link
           href={`/students/${lesson.child_id}`}
-          className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-secondary hover:bg-surface-muted dark:hover:bg-slate-800"
+          className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-secondary hover:bg-surface-muted"
         >
           {" "}
           <span className="text-lg">👤</span> {lesson.child_name}{" "}
         </Link>{" "}
-        <span className="text-gray-300 dark:text-slate-600">|</span>{" "}
+        <span className="text-border">|</span>{" "}
         {/* Subject with color */}{" "}
         <Link
           href={`/subjects/${lesson.subject_id}`}
-          className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-secondary hover:bg-surface-muted dark:hover:bg-slate-800"
+          className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-secondary hover:bg-surface-muted"
         >
           {" "}
           <span
@@ -105,23 +105,23 @@ export default async function LessonDetailPage({
           />{" "}
           {lesson.subject_name}{" "}
         </Link>{" "}
-        <span className="text-gray-300 dark:text-slate-600">|</span>{" "}
+        <span className="text-border">|</span>{" "}
         {/* Curriculum */}{" "}
         <Link
           href={`/curricula/${lesson.curriculum_id}`}
-          className="rounded-lg px-3 py-1.5 text-sm font-medium text-secondary hover:bg-surface-muted dark:hover:bg-slate-800"
+          className="rounded-lg px-3 py-1.5 text-sm font-medium text-secondary hover:bg-surface-muted"
         >
           {" "}
           📋 {lesson.curriculum_name}{" "}
         </Link>{" "}
-        <span className="text-gray-300 dark:text-slate-600">|</span>{" "}
+        <span className="text-border">|</span>{" "}
         {/* Status */} <Badge variant={statusVariant}>{lesson.status}</Badge>{" "}
         {/* Date */}{" "}
         {lesson.planned_date && (
           <>
             {" "}
-            <span className="text-gray-300 dark:text-slate-600">|</span>{" "}
-            <span className="text-sm text-muted dark:text-slate-400">
+            <span className="text-border">|</span>{" "}
+            <span className="text-sm text-muted">
               {" "}
               📅 {new Date(lesson.planned_date).toLocaleDateString()}{" "}
             </span>{" "}
@@ -132,7 +132,7 @@ export default async function LessonDetailPage({
       {lesson.description && (
         <div className="mb-6 rounded-xl border border-light bg-surface p-5 shadow-sm">
           {" "}
-          <h3 className="mb-2 text-sm font-semibold text-muted uppercase tracking-wider dark:text-slate-400">
+          <h3 className="mb-2 text-sm font-semibold text-muted uppercase tracking-wider">
             {" "}
             Description{" "}
           </h3>{" "}
@@ -144,7 +144,7 @@ export default async function LessonDetailPage({
       {/* Completion section */}{" "}
       <div className="mb-6 rounded-xl border border-light bg-surface p-5 shadow-sm">
         {" "}
-        <h3 className="mb-3 text-sm font-semibold text-muted uppercase tracking-wider dark:text-slate-400">
+        <h3 className="mb-3 text-sm font-semibold text-muted uppercase tracking-wider">
           {" "}
           Completion{" "}
         </h3>{" "}
@@ -164,7 +164,7 @@ export default async function LessonDetailPage({
             {lesson.completion.grade != null && (
               <div>
                 {" "}
-                <span className="text-sm text-muted dark:text-slate-400">
+                <span className="text-sm text-muted">
                   Grade:{" "}
                 </span>{" "}
                 <span className="text-lg font-bold">
@@ -176,7 +176,7 @@ export default async function LessonDetailPage({
             {lesson.completion.pass_fail && (
               <div>
                 {" "}
-                <span className="text-sm text-muted dark:text-slate-400">
+                <span className="text-sm text-muted">
                   Result:{" "}
                 </span>{" "}
                 <span className="text-lg font-bold">
@@ -190,13 +190,13 @@ export default async function LessonDetailPage({
             {lesson.completion.notes && (
               <div className="text-sm text-tertiary">
                 {" "}
-                <span className="text-gray-400 dark:text-slate-500">
+                <span className="text-muted">
                   Notes:{" "}
                 </span>{" "}
                 {lesson.completion.notes}{" "}
               </div>
             )}{" "}
-            <span className="ml-auto text-xs text-gray-400 dark:text-slate-500">
+            <span className="ml-auto text-xs text-muted">
               {" "}
               {new Date(
                 lesson.completion.completed_at,

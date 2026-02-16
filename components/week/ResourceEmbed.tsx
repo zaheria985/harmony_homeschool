@@ -36,7 +36,7 @@ export default function ResourceEmbed({
         <span className="text-red-500">PDF</span>
         <span className="truncate">{label}</span>
         {resource.page_number && (
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-muted">
             p.{resource.page_number}
           </span>
         )}

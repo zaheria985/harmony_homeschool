@@ -102,7 +102,7 @@ export default async function SubjectDetailPage({
       {/* Courses */}
       <Card title="Courses" className="mb-8">
         {subject.curricula.length === 0 ? (
-          <p className="py-4 text-center text-gray-400">No courses yet</p>
+          <p className="py-4 text-center text-muted">No courses yet</p>
         ) : (
           <div className="space-y-3">
             {subject.curricula.map((cu: Record<string, string | number>) => (
@@ -141,7 +141,7 @@ export default async function SubjectDetailPage({
       {/* All Lessons — editable table with sorting, inline editing, bulk ops */}
       <Card title="Lessons" className="mb-8">
         {subject.lessons.length === 0 ? (
-          <p className="py-4 text-center text-gray-400">No lessons yet</p>
+          <p className="py-4 text-center text-muted">No lessons yet</p>
         ) : (
           <EditableLessonsTable
             lessons={subject.lessons}

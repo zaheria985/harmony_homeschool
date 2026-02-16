@@ -193,7 +193,7 @@ export default function ResourceDetailClient({
         </button>{" "}
         <Link
           href="/resources"
-          className="rounded-lg border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted dark:hover:bg-slate-800"
+          className="rounded-lg border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted"
         >
           {" "}
           Back to Resources{" "}
@@ -329,7 +329,7 @@ export default function ResourceDetailClient({
             </button>{" "}
           </div>{" "}
           {resource.lessons.length === 0 ? (
-            <p className="text-sm text-gray-400 dark:text-slate-400">
+            <p className="text-sm text-muted">
               {" "}
               Not linked to any lessons yet{" "}
             </p>
@@ -351,7 +351,7 @@ export default function ResourceDetailClient({
                       {" "}
                       {l.title}{" "}
                     </Link>{" "}
-                    <div className="mt-0.5 flex items-center gap-2 text-xs text-gray-400">
+                    <div className="mt-0.5 flex items-center gap-2 text-xs text-muted">
                       {" "}
                       {l.subject_color && (
                         <span
@@ -376,7 +376,7 @@ export default function ResourceDetailClient({
                     onClick={() => handleDetach(l.id)}
                     disabled={isPending}
                     aria-label={`Detach resource from lesson ${l.title}`}
-                    className="ml-2 text-xs text-gray-400 hover:text-red-500"
+                    className="ml-2 text-xs text-muted hover:text-red-500"
                     title="Detach from lesson"
                   >
                     {" "}
@@ -546,7 +546,7 @@ export default function ResourceDetailClient({
             {" "}
             <label className="mb-1 block text-sm font-medium text-secondary">
               {" "}
-              Cover Photo <span className="text-gray-400">(optional)</span>{" "}
+              Cover Photo <span className="text-muted">(optional)</span>{" "}
             </label>{" "}
             {resource.thumbnail_url && !clearThumbnail && (
               <div className="mb-2 flex items-center gap-2 rounded-lg border border-light p-2">
@@ -624,7 +624,7 @@ export default function ResourceDetailClient({
           <div className="max-h-64 space-y-1 overflow-y-auto">
             {" "}
             {filteredAvailable.length === 0 ? (
-              <p className="py-4 text-center text-sm text-gray-400">
+              <p className="py-4 text-center text-sm text-muted">
                 {" "}
                 No available lessons{" "}
               </p>
@@ -647,7 +647,7 @@ export default function ResourceDetailClient({
                       {" "}
                       {l.title}{" "}
                     </p>{" "}
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-muted">
                       {" "}
                       {l.subject_name} · {l.child_name}{" "}
                     </p>{" "}

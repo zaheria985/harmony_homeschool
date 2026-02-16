@@ -91,7 +91,7 @@ function PrepItemCard({
             {item.child_name} · {item.subject_name} ·{" "}
             {item.curriculum_name}{" "}
           </p>{" "}
-          <p className="text-xs text-muted dark:text-slate-400">
+          <p className="text-xs text-muted">
             Lesson: {item.lesson_title}
           </p>{" "}
           {showDay && (
@@ -202,7 +202,7 @@ export default function PrepMaterialsView({
           <button
             type="button"
             onClick={() => setGroupMode("date")}
-            className={`flex-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors sm:flex-none sm:px-3 sm:text-sm ${groupMode === "date" ? "bg-interactive-medium text-interactive-hover/40 dark:text-primary-200" : "text-tertiary hover:bg-surface-subtle dark:hover:bg-slate-800"}`}
+            className={`flex-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors sm:flex-none sm:px-3 sm:text-sm ${groupMode === "date" ? "bg-interactive-medium text-interactive-hover/40 dark:text-primary-200" : "text-tertiary hover:bg-surface-subtle"}`}
           >
             {" "}
             By Date{" "}
@@ -210,7 +210,7 @@ export default function PrepMaterialsView({
           <button
             type="button"
             onClick={() => setGroupMode("subject")}
-            className={`flex-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors sm:flex-none sm:px-3 sm:text-sm ${groupMode === "subject" ? "bg-interactive-medium text-interactive-hover/40 dark:text-primary-200" : "text-tertiary hover:bg-surface-subtle dark:hover:bg-slate-800"}`}
+            className={`flex-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors sm:flex-none sm:px-3 sm:text-sm ${groupMode === "subject" ? "bg-interactive-medium text-interactive-hover/40 dark:text-primary-200" : "text-tertiary hover:bg-surface-subtle"}`}
           >
             {" "}
             By Subject{" "}
@@ -218,7 +218,7 @@ export default function PrepMaterialsView({
           <button
             type="button"
             onClick={() => setGroupMode("course")}
-            className={`flex-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors sm:flex-none sm:px-3 sm:text-sm ${groupMode === "course" ? "bg-interactive-medium text-interactive-hover/40 dark:text-primary-200" : "text-tertiary hover:bg-surface-subtle dark:hover:bg-slate-800"}`}
+            className={`flex-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors sm:flex-none sm:px-3 sm:text-sm ${groupMode === "course" ? "bg-interactive-medium text-interactive-hover/40 dark:text-primary-200" : "text-tertiary hover:bg-surface-subtle"}`}
           >
             {" "}
             By Course{" "}

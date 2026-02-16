@@ -84,7 +84,7 @@ export default function GradesTableClient({ grades }: { grades: GradeRow[] }) {
                         ? "font-semibold text-interactive"
                         : Number(g.grade) >= 70
                           ? "font-semibold text-warning-600"
-                          : "font-semibold text-red-600"
+                          : "font-semibold text-[var(--error-text)]"
                   }
                 />
               </td>
