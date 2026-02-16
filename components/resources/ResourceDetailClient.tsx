@@ -61,9 +61,9 @@ function styleForTag(tag: string) {
   return tagStyles[sum % tagStyles.length];
 }
 const darkFieldClass =
-  "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary placeholder:text-muted focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus dark:placeholder:text-slate-400";
+  "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary placeholder:text-muted focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus placeholder:text-muted";
 const darkFileClass =
-  "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary file:mr-3 file:rounded-md file:border-0 file:bg-surface-subtle file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-secondary hover:file:bg-gray-200 dark:file:text-slate-100 dark:hover:file:bg-slate-600";
+  "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary file:mr-3 file:rounded-md file:border-0 file:bg-surface-subtle file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-secondary hover:file:bg-surface-subtle";
 export default function ResourceDetailClient({
   resource,
   allLessons,

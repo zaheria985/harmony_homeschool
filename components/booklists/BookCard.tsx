@@ -55,10 +55,10 @@ export default function BookCard({
           )}{" "}
           <div className="flex flex-1 flex-col p-3">
             {" "}
-            <p className="line-clamp-2 text-sm font-semibold text-slate-900">
+            <p className="line-clamp-2 text-sm font-semibold text-primary">
               {book.title}
             </p>{" "}
-            <p className="mt-1 line-clamp-1 text-xs text-slate-600">
+            <p className="mt-1 line-clamp-1 text-xs text-tertiary">
               {book.author || "Unknown author"}
             </p>{" "}
             {book.tags.length > 0 && (

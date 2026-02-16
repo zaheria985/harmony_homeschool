@@ -417,7 +417,7 @@ function SchoolYearCard({
                 key={i}
                 onClick={() => toggleDraftWeekday(i)}
                 disabled={isPending}
-                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${active ? "bg-interactive-medium text-interactive-hover ring-1 ring-[var(--interactive-border)]" : "bg-surface-subtle text-muted hover:bg-gray-200"} disabled:opacity-50`}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${active ? "bg-interactive-medium text-interactive-hover ring-1 ring-[var(--interactive-border)]" : "bg-surface-subtle text-muted hover:bg-surface-muted"} disabled:opacity-50`}
               >
                 {" "}
                 {label}{" "}

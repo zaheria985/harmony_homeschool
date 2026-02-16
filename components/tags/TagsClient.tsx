@@ -33,7 +33,7 @@ export default function TagsClient({ tags }: { tags: TagItem[] }) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Filter tags..."
-          className="w-full max-w-md rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary placeholder:text-muted dark:placeholder:text-slate-400"
+          className="w-full max-w-md rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary placeholder:text-muted"
         />{" "}
       </div>{" "}
       {filtered.length === 0 ? (

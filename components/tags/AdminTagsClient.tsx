@@ -22,7 +22,7 @@ export default function AdminTagsClient({ tags }: { tags: TagItem[] }) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Filter tags..."
-          className="max-w-md rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary placeholder:text-muted dark:placeholder:text-slate-400"
+          className="max-w-md rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary placeholder:text-muted"
         />
         <form
           className="flex gap-2"
@@ -43,7 +43,7 @@ export default function AdminTagsClient({ tags }: { tags: TagItem[] }) {
             value={newTagName}
             onChange={(e) => setNewTagName(e.target.value)}
             placeholder="New tag name..."
-            className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary placeholder:text-muted dark:placeholder:text-slate-400"
+            className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary placeholder:text-muted"
           />
           <button
             type="submit"

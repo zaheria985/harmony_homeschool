@@ -60,7 +60,7 @@ export default function BooklistsClient({
   const [bookDescription, setBookDescription] = useState("");
   const [booklistTargets, setBooklistTargets] = useState<string[]>([]);
   const fieldClass =
-    "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary placeholder:text-muted focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus dark:placeholder:text-slate-400";
+    "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary placeholder:text-muted focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus";
   const isKid = userRole === "kid";
   const personalBooklist =
     booklists.find((list) => list.owner_child_id === userChildId) || null;

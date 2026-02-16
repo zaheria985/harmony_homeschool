@@ -281,7 +281,7 @@ export default function AdminBulkPasteClient({
             onChange={(e) => updateRawAndRows(e.target.value)}
             rows={10}
             placeholder="Fractions practice\t2026-02-15\tWorkbook pages 10-12\tplanned"
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2 font-mono text-sm text-primary placeholder:text-[var(--input-placeholder)] dark:placeholder:text-slate-500"
+            className="w-full rounded-lg border border-border bg-surface px-3 py-2 font-mono text-sm text-primary placeholder:text-[var(--input-placeholder)]"
           />{" "}
         </div>{" "}
       </div>{" "}

@@ -489,7 +489,7 @@ export default function LessonResourcesManager({
               placeholder="Search resources..."
               value={librarySearch}
               onChange={(e) => setLibrarySearch(e.target.value)}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary placeholder:text-[var(--input-placeholder)] focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus dark:placeholder:text-slate-500"
+              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary placeholder:text-[var(--input-placeholder)] focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"
             />{" "}
             <div className="max-h-64 space-y-1 overflow-y-auto">
               {" "}
@@ -627,7 +627,7 @@ export default function LessonResourcesManager({
                 type="url"
                 required
                 placeholder="https://..."
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary placeholder:text-[var(--input-placeholder)] focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus dark:placeholder:text-slate-500"
+                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary placeholder:text-[var(--input-placeholder)] focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"
               />{" "}
             </div>{" "}
             <div>
@@ -639,7 +639,7 @@ export default function LessonResourcesManager({
               <input
                 name="title"
                 placeholder="Resource title"
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary placeholder:text-[var(--input-placeholder)] focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus dark:placeholder:text-slate-500"
+                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary placeholder:text-[var(--input-placeholder)] focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"
               />{" "}
             </div>{" "}
             <div className="flex justify-end gap-2">
@@ -682,7 +682,7 @@ export default function LessonResourcesManager({
               value={bulkSupplyText}
               onChange={(e) => setBulkSupplyText(e.target.value)}
               rows={8}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary placeholder:text-[var(--input-placeholder)] dark:placeholder:text-slate-500"
+              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary placeholder:text-[var(--input-placeholder)]"
               placeholder="Notebook\nGlue sticks\nColored pencils"
             />{" "}
             <div className="flex justify-end gap-2">
