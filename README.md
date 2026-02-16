@@ -2,8 +2,6 @@
 
 A self-hosted web app for planning homeschool lessons, tracking completion, and reviewing progress.
 
-> This project was built with the assistance of AI (Claude by Anthropic and OpenAI Codex).
-
 ## Docker Quick Start (Recommended)
 
 1. Clone and enter the repo:
