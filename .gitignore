@@ -22,6 +22,9 @@ ARCHITECTURE_DETAILED.md
 # Beads task tracking (local workflow state)
 .beads/
 
+# Sisyphus task runner (local workflow state)
+.sisyphus/
+
 # Claude Code local settings (may contain tokens/permissions)
 .claude/
 

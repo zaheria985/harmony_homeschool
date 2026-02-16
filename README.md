@@ -2,6 +2,30 @@
 
 A self-hosted web app for planning homeschool lessons, tracking completion, and reviewing progress.
 
+![Dashboard](docs/screenshots/dashboard.png)
+
+## Features
+
+- **Student Management** — Track multiple children with individual profiles and progress
+- **Lesson Planning** — Organize lessons by subject and curriculum with a kanban-style board
+- **Weekly Planner** — Drag-and-drop calendar view with per-child and all-kids views
+- **Grade Tracking** — Record and review grades with detailed breakdowns by subject
+- **Progress Reports** — Generate reports across subjects, children, and time periods
+- **Curriculum Management** — Define curricula, assign to children, and track completion
+- **Resource Library** — Attach and manage learning resources across lessons
+- **AI-Assisted Import** — Bulk import lessons with LLM support (OpenAI, Claude, or compatible)
+- **Self-Hosted** — Full Docker support with PostgreSQL, zero external dependencies
+- **Multi-User** — Parent and kid accounts with role-based access
+
+<details>
+<summary>More screenshots</summary>
+
+![Weekly Planner](docs/screenshots/weekly-planner.png)
+![Lesson Detail](docs/screenshots/lesson-detail.png)
+![Grades](docs/screenshots/grades.png)
+
+</details>
+
 ## Docker Quick Start (Recommended)
 
 1. Clone and enter the repo:

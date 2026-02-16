@@ -137,11 +137,6 @@ export default function LessonFormModal({
       return;
     }
 
-    // Save resources via API if this is a new lesson
-    // For now, resources are saved on the lesson detail page — the form captures them
-    // but actual resource insertion would need a separate server action.
-    // TODO: Add resource saving in a follow-up
-
     setSaving(false);
     onSaved();
     onClose();
