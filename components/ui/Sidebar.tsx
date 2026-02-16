@@ -17,6 +17,7 @@ import {
   TrendingUp,
   Settings,
   Users,
+  UserCog,
   Sun,
   Moon,
   PanelLeftOpen,
@@ -40,6 +41,7 @@ const mainNavItems = [
 ];
 const adminNavItem = { href: "/admin", label: "Admin", icon: Settings };
 const settingsNavItem = { href: "/settings/users", label: "Users", icon: Users };
+const accountNavItem = { href: "/settings/account", label: "Account", icon: UserCog };
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -170,6 +172,24 @@ export default function Sidebar() {
               })}
             </>
           )}
+          <div className="my-2 border-t border-[var(--border)]" />
+          {(() => {
+            const active =
+              pathname === accountNavItem.href ||
+              pathname.startsWith(accountNavItem.href + "/");
+            const Icon = accountNavItem.icon;
+            return (
+              <Link
+                href={accountNavItem.href}
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${desktopCollapsed ? "justify-center" : "gap-3"} ${active ? "border-l-2 border-l-[var(--brand)] bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]" : "text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--app-text)]"}`}
+                title={desktopCollapsed ? accountNavItem.label : undefined}
+              >
+                <Icon size={20} />
+                {!desktopCollapsed && accountNavItem.label}
+              </Link>
+            );
+          })()}
         </nav>
         <div className="border-t border-[var(--border)] p-4">
           <button
