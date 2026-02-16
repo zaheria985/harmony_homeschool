@@ -4,6 +4,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import ProgressBar from "@/components/ui/ProgressBar";
 import EmptyState from "@/components/ui/EmptyState";
+import { GraduationCap } from "lucide-react";
 import { getAllChildren } from "@/lib/queries/students";
 import { getCurrentUser } from "@/lib/session";
 export default async function StudentsPage() {
@@ -16,7 +17,7 @@ export default async function StudentsPage() {
       {" "}
       <PageHeader title="Students" />{" "}
       {children.length === 0 ? (
-        <EmptyState message="No students added yet" icon="👨‍🎓" />
+        <EmptyState message="No students added yet" icon={<GraduationCap size={28} />} />
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {" "}

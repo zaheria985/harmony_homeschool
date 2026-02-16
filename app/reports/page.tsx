@@ -137,7 +137,7 @@ export default async function ReportsPage({
             <p className="text-sm text-muted">
               Completion
             </p>{" "}
-            <p className="text-2xl font-bold text-primary">{overallPct}%</p>{" "}
+            <p className="font-display text-2xl text-primary">{overallPct}%</p>{" "}
             <ProgressBar
               value={overallPct}
               showLabel={false}
@@ -149,7 +149,7 @@ export default async function ReportsPage({
             <p className="text-sm text-muted">
               Completed Lessons
             </p>{" "}
-            <p className="text-2xl font-bold text-success-600">
+            <p className="font-display text-2xl text-success-600">
               {completedLessons}
             </p>{" "}
           </div>{" "}
@@ -158,7 +158,7 @@ export default async function ReportsPage({
             <p className="text-sm text-muted">
               In Progress
             </p>{" "}
-            <p className="text-2xl font-bold text-warning-600">
+            <p className="font-display text-2xl text-warning-600">
               {inProgressLessons}
             </p>{" "}
           </div>{" "}
@@ -280,7 +280,7 @@ function StudentReport({
           <p className="text-sm text-muted">
             Completion
           </p>{" "}
-          <p className="text-xl font-bold text-primary">
+          <p className="font-display text-xl text-primary">
             {completionPct}%
           </p>{" "}
         </div>{" "}
@@ -289,7 +289,7 @@ function StudentReport({
           <p className="text-sm text-muted">
             Completed
           </p>{" "}
-          <p className="text-xl font-bold text-success-600">
+          <p className="font-display text-xl text-success-600">
             {String(report.overall.completed)}
           </p>{" "}
         </div>{" "}
@@ -298,7 +298,7 @@ function StudentReport({
           <p className="text-sm text-muted">
             In Progress
           </p>{" "}
-          <p className="text-xl font-bold text-warning-600">
+          <p className="font-display text-xl text-warning-600">
             {String(report.overall.in_progress)}
           </p>{" "}
         </div>{" "}

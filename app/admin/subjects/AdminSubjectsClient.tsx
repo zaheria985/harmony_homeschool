@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Card from "@/components/ui/Card";
 import Modal from "@/components/ui/Modal";
 import EmptyState from "@/components/ui/EmptyState";
+import { BookOpen } from "lucide-react";
 import ViewToggle from "@/components/ui/ViewToggle";
 import {
   createSubject,
@@ -169,18 +170,18 @@ export default function AdminSubjectsClient({
         />{" "}
       </div>{" "}
       {localSubjects.length === 0 ? (
-        <EmptyState message="No subjects added yet" icon="📖" />
+        <EmptyState message="No subjects added yet" icon={<BookOpen size={28} />} />
       ) : view === "gallery" ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {" "}
           {localSubjects.map((subject) => (
             <div
               key={subject.id}
-              className="rounded-xl border border-light bg-surface shadow-sm"
+              className="rounded-2xl border border-light bg-surface shadow-warm"
             >
               {" "}
               <div
-                className="h-2 rounded-t-xl"
+                className="h-2 rounded-t-2xl"
                 style={{
                   backgroundColor: subject.color || "#6366f1",
                 }}

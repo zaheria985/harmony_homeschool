@@ -10,24 +10,19 @@ export default function StatCard({
   color?: "primary" | "success" | "warning";
 }) {
   const colorClasses = {
-    primary: "border-l-primary-500",
-    success: "border-l-success-500",
-    warning: "border-l-warning-500",
+    primary: "border-l-[var(--interactive)]",
+    success: "border-l-[var(--success-solid)]",
+    warning: "border-l-[var(--warning-solid)]",
   };
   return (
     <div
-      className={`rounded-xl border border-light border-l-4 bg-surface p-6 shadow-sm ${colorClasses[color]}`}
+      className={`rounded-2xl border border-light border-l-4 bg-surface p-6 shadow-warm ${colorClasses[color]}`}
     >
-      {" "}
-      <p className="text-sm font-medium text-muted">
-        {label}
-      </p>{" "}
-      <p className="mt-1 text-3xl font-bold text-primary">{value}</p>{" "}
+      <p className="text-sm font-medium text-muted">{label}</p>
+      <p className="mt-1 font-display text-3xl text-primary">{value}</p>
       {sublabel && (
-        <p className="mt-1 text-sm text-muted">
-          {sublabel}
-        </p>
-      )}{" "}
+        <p className="mt-1 text-sm text-muted">{sublabel}</p>
+      )}
     </div>
   );
 }

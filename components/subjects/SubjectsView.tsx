@@ -121,12 +121,12 @@ export default function SubjectsView({
               <div
                 key={subject.id}
                 onClick={() => router.push(`/subjects/${subject.id}`)}
-                className="cursor-pointer rounded-xl border border-light bg-surface shadow-sm transition-shadow hover:shadow-md"
+                className="cursor-pointer rounded-2xl border border-light bg-surface shadow-warm transition-shadow hover:shadow-warm-md"
               >
                 {" "}
                 {/* Color bar */}{" "}
                 <div
-                  className="h-2 rounded-t-xl"
+                  className="h-2 rounded-t-2xl"
                   style={{ backgroundColor: subject.color || "#6366f1" }}
                 />{" "}
                 {subject.thumbnail_url && (
@@ -198,7 +198,7 @@ export default function SubjectsView({
               return (
                 <div
                   key={subject.id}
-                  className="rounded-lg border border-light bg-surface p-3 shadow-sm"
+                  className="rounded-lg border border-light bg-surface p-3 shadow-warm"
                 >
                   {" "}
                   <div className="mb-2 flex items-center justify-between">
@@ -229,7 +229,7 @@ export default function SubjectsView({
               );
             })}{" "}
           </div>{" "}
-          <div className="hidden overflow-x-auto rounded-lg border border-light bg-surface shadow-sm md:block">
+          <div className="hidden overflow-x-auto rounded-lg border border-light bg-surface shadow-warm md:block">
             {" "}
             <table className="min-w-full divide-y divide-border">
               {" "}

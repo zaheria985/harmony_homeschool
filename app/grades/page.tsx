@@ -4,6 +4,7 @@ import Link from "next/link";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import EmptyState from "@/components/ui/EmptyState";
+import { FileText } from "lucide-react";
 import GradesTableClient from "@/components/grades/GradesTableClient";
 import { getAllGrades } from "@/lib/queries/grades";
 import { getAllChildren } from "@/lib/queries/students";
@@ -72,7 +73,7 @@ export default async function GradesPage() {
       {/* All Grades Table */}
       <Card title="All Grades">
         {grades.length === 0 ? (
-          <EmptyState message="No grades recorded yet" icon="📝" />
+          <EmptyState message="No grades recorded yet" icon={<FileText size={28} />} />
         ) : (
           <GradesTableClient
             grades={grades as Array<{

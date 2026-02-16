@@ -46,7 +46,7 @@ function PrepItemCard({
 }) {
   return (
     <div
-      className={`rounded-xl border bg-surface p-2.5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md sm:p-3 ${checked ? "border-emerald-300 bg-emerald-50/70 dark:border-emerald-600/50 dark:bg-emerald-900/20" : "border-light"}`}
+      className={`rounded-2xl border bg-surface p-2.5 shadow-warm transition-all hover:-translate-y-0.5 hover:shadow-warm-md sm:p-3 ${checked ? "border-emerald-300 bg-emerald-50/70 dark:border-emerald-600/50 dark:bg-emerald-900/20" : "border-light"}`}
     >
       {" "}
       <div className="flex items-start gap-2.5 sm:gap-3">

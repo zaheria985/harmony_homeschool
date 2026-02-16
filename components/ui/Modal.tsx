@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useRef } from "react";
+import { X } from "lucide-react";
+
 export default function Modal({
   open,
   onClose,
@@ -47,28 +49,24 @@ export default function Modal({
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onClick={handleBackdropClick}
-      className="w-full max-w-lg rounded-xl border border-light bg-surface p-0 shadow-xl backdrop:bg-[var(--overlay)]"
+      className="w-full max-w-lg rounded-2xl border border-light bg-surface p-0 shadow-warm-xl backdrop:bg-[var(--overlay)]"
     >
-      {" "}
       <div className="p-6">
-        {" "}
         {title && (
           <div className="mb-4 flex items-center justify-between">
-            {" "}
-            <h2 className="text-lg font-semibold text-primary">{title}</h2>{" "}
+            <h2 className="font-display text-lg text-primary">{title}</h2>
             <button
               type="button"
               onClick={onClose}
               aria-label="Close modal"
-              className="text-muted hover:text-primary"
+              className="rounded-lg p-1 text-muted transition-colors hover:bg-surface-subtle hover:text-primary"
             >
-              {" "}
-              ✕{" "}
-            </button>{" "}
+              <X size={18} />
+            </button>
           </div>
-        )}{" "}
-        {children}{" "}
-      </div>{" "}
+        )}
+        {children}
+      </div>
     </dialog>
   );
 }

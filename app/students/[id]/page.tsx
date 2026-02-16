@@ -58,26 +58,26 @@ export default async function StudentDetailPage({
         <Card>
           {" "}
           <p className="text-sm text-muted">Total Lessons</p>{" "}
-          <p className="text-2xl font-bold">{progress.total_lessons}</p>{" "}
+          <p className="font-display text-2xl">{progress.total_lessons}</p>{" "}
         </Card>{" "}
         <Card>
           {" "}
           <p className="text-sm text-muted">Completed</p>{" "}
-          <p className="text-2xl font-bold text-success-600">
+          <p className="font-display text-2xl text-success-600">
             {progress.completed}
           </p>{" "}
         </Card>{" "}
         <Card>
           {" "}
           <p className="text-sm text-muted">In Progress</p>{" "}
-          <p className="text-2xl font-bold text-warning-600">
+          <p className="font-display text-2xl text-warning-600">
             {progress.in_progress}
           </p>{" "}
         </Card>{" "}
         <Card>
           {" "}
           <p className="text-sm text-muted">Average Grade</p>{" "}
-          <p className="text-2xl font-bold">
+          <p className="font-display text-2xl">
             {Number(progress.avg_grade).toFixed(1)}
           </p>{" "}
         </Card>{" "}

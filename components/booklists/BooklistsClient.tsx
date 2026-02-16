@@ -278,7 +278,7 @@ export default function BooklistsClient({
       {isKid && (
         <form
           onSubmit={handleKidAddBook}
-          className="mb-4 rounded-xl border border-light bg-surface p-3"
+          className="mb-4 rounded-2xl border border-light bg-surface p-3"
         >
           {" "}
           <p className="mb-2 text-sm font-semibold text-secondary">
@@ -345,7 +345,7 @@ export default function BooklistsClient({
                   e.preventDefault();
                   handleDrop(list.id);
                 }}
-                className={`min-h-[20rem] rounded-xl border p-3 transition-colors ${dragOverListId === list.id ? "border-interactive-border bg-interactive-light/70/20" : "border-light bg-surface-muted/60/40"}`}
+                className={`min-h-[20rem] rounded-2xl border p-3 transition-colors ${dragOverListId === list.id ? "border-interactive-border bg-interactive-light/70/20" : "border-light bg-surface-muted/60/40"}`}
               >
                 {" "}
                 <div className="mb-3 flex items-start justify-between gap-2 border-b border-light pb-2">

@@ -3,6 +3,7 @@ import { useState } from "react";
 import Card from "@/components/ui/Card";
 import Modal from "@/components/ui/Modal";
 import EmptyState from "@/components/ui/EmptyState";
+import { GraduationCap } from "lucide-react";
 import ViewToggle from "@/components/ui/ViewToggle";
 import { createChild, updateChild, deleteChild } from "@/lib/actions/students";
 import { useRouter } from "next/navigation";
@@ -120,14 +121,14 @@ export default function AdminChildrenClient({
         />{" "}
       </div>{" "}
       {children.length === 0 ? (
-        <EmptyState message="No children added yet" icon="👨‍🎓" />
+        <EmptyState message="No children added yet" icon={<GraduationCap size={28} />} />
       ) : view === "gallery" ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {" "}
           {children.map((child) => (
             <div
               key={child.id}
-              className="rounded-xl border border-light bg-surface p-4 shadow-sm"
+              className="rounded-2xl border border-light bg-surface p-4 shadow-warm"
             >
               {" "}
               {child.banner_url && (

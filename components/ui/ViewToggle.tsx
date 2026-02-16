@@ -45,12 +45,12 @@ export default function ViewToggle({
   const activeView = mounted ? view : defaultView;
 
   return (
-    <div className="flex rounded-lg border bg-surface">
+    <div className="flex rounded-xl border bg-surface">
       {options.map((opt) => (
         <button
           key={opt.key}
           onClick={() => handleChange(opt.key)}
-          className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+          className={`px-3 py-1.5 text-sm font-medium transition-colors first:rounded-l-xl last:rounded-r-xl ${
             activeView === opt.key
               ? "bg-interactive-light text-interactive-hover"
               : "text-muted hover:text-secondary"
@@ -68,14 +68,14 @@ export function ViewToggleNav({ options }: { options: ViewOption[] }) {
   const pathname = usePathname();
 
   return (
-    <div className="flex rounded-lg border bg-surface">
+    <div className="flex rounded-xl border bg-surface">
       {options.map((opt) => {
         const active = opt.href === pathname;
         return (
           <Link
             key={opt.key}
             href={opt.href || "#"}
-            className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+            className={`px-3 py-1.5 text-sm font-medium transition-colors first:rounded-l-xl last:rounded-r-xl ${
               active
                 ? "bg-interactive-light text-interactive-hover"
                 : "text-muted hover:text-secondary"

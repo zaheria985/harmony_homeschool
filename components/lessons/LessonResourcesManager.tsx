@@ -299,7 +299,7 @@ export default function LessonResourcesManager({
     <div className="space-y-6">
       {" "}
       {/* Lesson Resources Section */}{" "}
-      <div className="rounded-xl border border-light bg-surface p-6 shadow-sm">
+      <div className="rounded-2xl border border-light bg-surface p-6 shadow-warm">
         {" "}
         <div className="mb-4 flex items-center justify-between">
           {" "}
@@ -348,7 +348,7 @@ export default function LessonResourcesManager({
             {resources.map((r) => (
               <div
                 key={r.id}
-                className="group relative overflow-hidden rounded-xl border border-light bg-surface shadow-sm transition-shadow hover:shadow-md"
+                className="group relative overflow-hidden rounded-2xl border border-light bg-surface shadow-warm transition-shadow hover:shadow-warm-md"
               >
                 {" "}
                 <ResourceCardInner
@@ -372,7 +372,7 @@ export default function LessonResourcesManager({
                     onClick={() => handleRemove(r.id)}
                     disabled={isPending}
                     aria-label={`Remove resource ${r.title || r.url}`}
-                    className="absolute right-2 top-2 z-10 rounded-full bg-surface/90 p-1.5 text-muted opacity-0 shadow-sm transition-opacity hover:bg-[var(--error-bg)] hover:text-red-500 group-hover:opacity-100 disabled:opacity-50/90 dark:hover:bg-red-900/30"
+                    className="absolute right-2 top-2 z-10 rounded-full bg-surface/90 p-1.5 text-muted opacity-0 shadow-warm transition-opacity hover:bg-[var(--error-bg)] hover:text-red-500 group-hover:opacity-100 disabled:opacity-50/90 dark:hover:bg-red-900/30"
                     title="Remove resource"
                   >
                     {" "}
@@ -399,7 +399,7 @@ export default function LessonResourcesManager({
       </div>{" "}
       {/* Shared Course Resources Section */}{" "}
       {curriculumResources.length > 0 && (
-        <div className="rounded-xl border border-dashed border-border bg-surface-muted/50 p-6/40">
+        <div className="rounded-2xl border border-dashed border-border bg-surface-muted/50 p-6/40">
           {" "}
           <h3 className="mb-1 text-sm font-semibold text-secondary">
             {" "}

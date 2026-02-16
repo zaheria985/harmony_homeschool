@@ -203,7 +203,7 @@ export default function ResourceDetailClient({
       <div className="grid gap-6 lg:grid-cols-2">
         {" "}
         {/* Details */}{" "}
-        <div className="rounded-xl border border-light bg-surface p-6 shadow-sm">
+        <div className="rounded-2xl border border-light bg-surface p-6 shadow-warm">
           {" "}
           <h3 className="mb-4 text-lg font-semibold text-primary">
             Details
@@ -311,7 +311,7 @@ export default function ResourceDetailClient({
           </dl>{" "}
         </div>{" "}
         {/* Linked Lessons */}{" "}
-        <div className="rounded-xl border border-light bg-surface p-6 shadow-sm">
+        <div className="rounded-2xl border border-light bg-surface p-6 shadow-warm">
           {" "}
           <div className="mb-4 flex items-center justify-between">
             {" "}

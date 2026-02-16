@@ -230,11 +230,11 @@ export default function CurriculaView({
               <div
                 key={curriculum.id}
                 onClick={() => router.push(`/curricula/${curriculum.id}`)}
-                className="cursor-pointer rounded-xl border bg-surface shadow-sm transition-shadow hover:shadow-md"
+                className="cursor-pointer rounded-2xl border bg-surface shadow-warm transition-shadow hover:shadow-warm-md"
               >
                 {/* Color bar from subject */}
                 <div
-                  className="h-2 rounded-t-xl"
+                  className="h-2 rounded-t-2xl"
                   style={{
                     backgroundColor: curriculum.subject_color || "#6366f1",
                   }}
@@ -292,7 +292,7 @@ export default function CurriculaView({
 
       {/* Table View */}
       {view === "table" && timelineFiltered.length > 0 && (
-        <div className="overflow-x-auto rounded-lg border bg-surface shadow-sm">
+        <div className="overflow-x-auto rounded-lg border bg-surface shadow-warm">
           <table className="min-w-full divide-y divide-border">
             <thead className="bg-surface-muted">
               <tr>

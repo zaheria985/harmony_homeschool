@@ -169,7 +169,7 @@ export default function ExternalEventsClient({
         </div>
       )}{" "}
       {events.length === 0 ? (
-        <div className="rounded-xl border border-light bg-surface p-8 text-center text-sm text-muted">
+        <div className="rounded-2xl border border-light bg-surface p-8 text-center text-sm text-muted">
           {" "}
           No external school events yet.{" "}
         </div>
@@ -179,7 +179,7 @@ export default function ExternalEventsClient({
           {events.map((event) => (
             <div
               key={event.id}
-              className="rounded-xl border border-light bg-surface p-4 shadow-sm"
+              className="rounded-2xl border border-light bg-surface p-4 shadow-warm"
             >
               {" "}
               <div className="flex items-start justify-between gap-3">

@@ -9,13 +9,12 @@ export default function Card({
 }) {
   return (
     <div
-      className={`rounded-xl border border-light bg-surface p-6 shadow-sm ${className}`}
+      className={`rounded-2xl border border-light bg-surface p-6 shadow-warm ${className}`}
     >
-      {" "}
       {title && (
-        <h3 className="mb-4 text-lg font-semibold text-primary">{title}</h3>
-      )}{" "}
-      {children}{" "}
+        <h3 className="mb-4 font-display text-lg text-primary">{title}</h3>
+      )}
+      {children}
     </div>
   );
 }

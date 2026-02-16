@@ -55,7 +55,7 @@ export default function AdminTagsClient({ tags }: { tags: TagItem[] }) {
         </form>
       </div>{" "}
       {error && <p className="text-sm text-red-600">{error}</p>}{" "}
-      <div className="rounded-xl border border-light bg-surface p-4 shadow-sm">
+      <div className="rounded-2xl border border-light bg-surface p-4 shadow-warm">
         {" "}
         <table className="w-full text-left text-sm">
           {" "}

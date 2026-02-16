@@ -32,7 +32,7 @@ export default function DayColumn({
   const qs = childParam ? `?child=${childParam}` : "";
   return (
     <div
-      className={`flex min-w-[180px] flex-1 flex-col rounded-xl border ${today ? "border-interactive-border bg-interactive-light/30/20" : "border-light bg-surface-muted/50"}`}
+      className={`flex min-w-[180px] flex-1 flex-col rounded-2xl border ${today ? "border-interactive-border bg-interactive-light/30/20" : "border-light bg-surface-muted/50"}`}
     >
       {" "}
       <Link

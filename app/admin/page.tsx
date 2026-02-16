@@ -54,7 +54,7 @@ export default async function AdminPage() {
                   <p className="text-sm text-muted">{s.description}</p>{" "}
                 </div>{" "}
               </div>{" "}
-              <div className="text-2xl font-bold text-interactive">
+              <div className="font-display text-2xl text-interactive">
                 {" "}
                 {stats[s.statKey]}{" "}
               </div>{" "}

@@ -779,7 +779,7 @@ export default function EditableLessonsTable({
       <div
         ref={tableRef}
         onPaste={handlePaste}
-        className="overflow-x-auto rounded-xl border border-light bg-surface shadow-sm"
+        className="overflow-x-auto rounded-2xl border border-light bg-surface shadow-warm"
       >
         <table className="w-full text-left">
           <thead className="border-b bg-surface-muted">

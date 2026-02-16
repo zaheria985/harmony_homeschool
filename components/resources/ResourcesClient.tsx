@@ -5,6 +5,7 @@ import Link from "next/link";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
 import EmptyState from "@/components/ui/EmptyState";
+import { Package } from "lucide-react";
 import ViewToggle from "@/components/ui/ViewToggle";
 import { createGlobalResource } from "@/lib/actions/resources";
 
@@ -141,9 +142,9 @@ export default function ResourcesClient({
 
       {/* Content */}
       {filtered.length === 0 ? (
-        <EmptyState message="No resources found" icon="📦" />
+        <EmptyState message="No resources found" icon={<Package size={28} />} />
       ) : view === "table" ? (
-        <div className="overflow-x-auto rounded-xl border border-light bg-surface shadow-sm">
+        <div className="overflow-x-auto rounded-2xl border border-light bg-surface shadow-warm">
           <table className="w-full text-left text-sm">
             <thead className="border-b bg-surface-muted text-xs uppercase text-muted">
               <tr>
@@ -191,10 +192,10 @@ export default function ResourcesClient({
             <Link
               key={r.id}
               href={`/resources/${r.id}`}
-              className="flex h-full flex-col rounded-xl border border-light bg-surface shadow-sm transition-shadow hover:shadow-md"
+              className="flex h-full flex-col rounded-2xl border border-light bg-surface shadow-warm transition-shadow hover:shadow-warm-md"
             >
               {r.thumbnail_url ? (
-                <div className="overflow-hidden rounded-t-xl border-b border-light">
+                <div className="overflow-hidden rounded-t-2xl border-b border-light">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={r.thumbnail_url}
@@ -203,7 +204,7 @@ export default function ResourcesClient({
                   />
                 </div>
               ) : (
-                <div className="flex aspect-[3/4] w-full items-center justify-center rounded-t-xl border-b border-light text-4xl">
+                <div className="flex aspect-[3/4] w-full items-center justify-center rounded-t-2xl border-b border-light text-4xl">
                   {typeIcons[r.type]}
                 </div>
               )}

@@ -32,7 +32,7 @@ export default async function UsersPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-6">
-      <h1 className="text-2xl font-bold text-primary">User Management</h1>
+      <h1 className="font-display text-2xl text-primary">User Management</h1>
       <p className="text-sm text-muted">
         Create and manage kid accounts so your children can log in and view their lessons.
       </p>

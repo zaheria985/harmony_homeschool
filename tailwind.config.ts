@@ -8,6 +8,10 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        display: ["var(--font-display)"],
+        body: ["var(--font-body)"],
+      },
       colors: {
         surface: {
           DEFAULT: "var(--surface)",
@@ -23,30 +27,30 @@ const config: Config = {
           border: "var(--interactive-border)",
         },
         primary: {
-          50: "#eef2ff",
-          100: "#e0e7ff",
-          200: "#c7d2fe",
-          300: "#a5b4fc",
-          400: "#818cf8",
-          500: "#6366f1",
-          600: "#4f46e5",
-          700: "#4338ca",
-          800: "#3730a3",
-          900: "#312e81",
+          50: "#eef4ef",
+          100: "#dce8dd",
+          200: "#b5d1b8",
+          300: "#8fb593",
+          400: "#6f9a73",
+          500: "#5a7a5e",
+          600: "#4a6a4e",
+          700: "#3d6641",
+          800: "#2d4a30",
+          900: "#1e3320",
         },
         success: {
-          50: "#ecfdf5",
-          100: "#d1fae5",
-          500: "#10b981",
-          600: "#059669",
-          700: "#047857",
+          50: "#eef4ef",
+          100: "#dce8dd",
+          500: "#5a7a5e",
+          600: "#4a6a4e",
+          700: "#3d6641",
         },
         warning: {
-          50: "#fffbeb",
-          100: "#fef3c7",
-          500: "#f59e0b",
-          600: "#d97706",
-          700: "#b45309",
+          50: "#fdf6eb",
+          100: "#f8ead0",
+          500: "#c4952d",
+          600: "#a87d25",
+          700: "#8a6d2b",
         },
       },
       textColor: {
@@ -65,6 +69,9 @@ const config: Config = {
       },
       ringColor: {
         focus: "var(--input-focus-ring)",
+      },
+      borderRadius: {
+        card: "var(--radius-card)",
       },
     },
   },

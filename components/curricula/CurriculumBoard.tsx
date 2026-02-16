@@ -264,10 +264,10 @@ export default function CurriculumBoard({
         {/* Resources Column (fixed left) */}
         {hasResources && (
           <div
-            className="w-64 flex-shrink-0 rounded-xl border border-light bg-surface-muted shadow-sm"
+            className="w-64 flex-shrink-0 rounded-2xl border border-light bg-surface-muted shadow-warm"
             style={{ scrollSnapAlign: "start" }}
           >
-            <div className="border-b bg-surface px-4 py-3 rounded-t-xl">
+            <div className="border-b bg-surface px-4 py-3 rounded-t-2xl">
               <h3 className="text-sm font-semibold text-primary">
                 Curriculum Resources
               </h3>
@@ -341,7 +341,7 @@ export default function CurriculumBoard({
           return (
             <div
               key={lesson.id}
-              className={`w-64 flex-shrink-0 rounded-xl border-2 bg-surface shadow-sm transition-shadow hover:shadow-md ${borderColor}`}
+              className={`w-64 flex-shrink-0 rounded-2xl border-2 bg-surface shadow-warm transition-shadow hover:shadow-warm-md ${borderColor}`}
               style={{ scrollSnapAlign: "start" }}
             >
               {/* Header with color bar */}

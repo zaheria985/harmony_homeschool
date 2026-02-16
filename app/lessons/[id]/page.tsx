@@ -82,7 +82,7 @@ export default async function LessonDetailPage({
         </div>{" "}
       </PageHeader>{" "}
       {/* Inherited context bar — always visible */}{" "}
-      <div className="mb-6 flex flex-wrap items-center gap-4 rounded-xl border border-light bg-surface p-4 shadow-sm">
+      <div className="mb-6 flex flex-wrap items-center gap-4 rounded-2xl border border-light bg-surface p-4 shadow-warm">
         {" "}
         {/* Student */}{" "}
         <Link
@@ -130,7 +130,7 @@ export default async function LessonDetailPage({
       </div>{" "}
       {/* Description */}{" "}
       {lesson.description && (
-        <div className="mb-6 rounded-xl border border-light bg-surface p-5 shadow-sm">
+        <div className="mb-6 rounded-2xl border border-light bg-surface p-5 shadow-warm">
           {" "}
           <h3 className="mb-2 text-sm font-semibold text-muted uppercase tracking-wider">
             {" "}
@@ -142,7 +142,7 @@ export default async function LessonDetailPage({
         </div>
       )}{" "}
       {/* Completion section */}{" "}
-      <div className="mb-6 rounded-xl border border-light bg-surface p-5 shadow-sm">
+      <div className="mb-6 rounded-2xl border border-light bg-surface p-5 shadow-warm">
         {" "}
         <h3 className="mb-3 text-sm font-semibold text-muted uppercase tracking-wider">
           {" "}

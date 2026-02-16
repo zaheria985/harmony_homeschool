@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Card from "@/components/ui/Card";
 import Modal from "@/components/ui/Modal";
 import EmptyState from "@/components/ui/EmptyState";
+import { ClipboardList } from "lucide-react";
 import {
   createCurriculum,
   updateCurriculum,
@@ -251,7 +252,7 @@ export default function AdminCurriculaClient({
       </div>
 
       {curricula.length === 0 ? (
-        <EmptyState message="No curricula added yet" icon="📋" />
+        <EmptyState message="No curricula added yet" icon={<ClipboardList size={28} />} />
       ) : (
         <Card>
           <div className="overflow-x-auto">

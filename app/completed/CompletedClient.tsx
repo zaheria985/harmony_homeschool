@@ -240,7 +240,7 @@ export default function CompletedClient({
       {/* Print header (visible only when printing) */}{" "}
       <div className="hidden print:block print:mb-6">
         {" "}
-        <h1 className="text-2xl font-bold">Completed Work Report</h1>{" "}
+        <h1 className="font-display text-2xl">Completed Work Report</h1>{" "}
         <p className="text-sm text-tertiary">
           {" "}
           {filters.child
@@ -260,7 +260,7 @@ export default function CompletedClient({
       </div>{" "}
       {/* Results: Child → Week → Subject → Lessons */}{" "}
       {grouped.length === 0 ? (
-        <div className="rounded-xl border border-light bg-surface p-8 text-center text-sm text-muted">
+        <div className="rounded-2xl border border-light bg-surface p-8 text-center text-sm text-muted">
           {" "}
           No completed lessons found with the current filters.{" "}
         </div>
@@ -291,7 +291,7 @@ export default function CompletedClient({
                       {week.subjects.map((subject) => (
                         <div
                           key={subject.subjectName}
-                          className="rounded-lg border border-light bg-surface shadow-sm print:break-inside-avoid print:shadow-none"
+                          className="rounded-lg border border-light bg-surface shadow-warm print:break-inside-avoid print:shadow-none"
                           style={{
                             borderTopWidth: "3px",
                             borderTopColor: subject.subjectColor,

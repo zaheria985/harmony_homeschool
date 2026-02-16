@@ -192,7 +192,7 @@ export default function AdminBulkPasteClient({
   return (
     <div className="space-y-6">
       {" "}
-      <div className="rounded-xl border border-light bg-surface p-5 shadow-sm">
+      <div className="rounded-2xl border border-light bg-surface p-5 shadow-warm">
         {" "}
         <div className="grid gap-4 md:grid-cols-3">
           {" "}
@@ -285,7 +285,7 @@ export default function AdminBulkPasteClient({
           />{" "}
         </div>{" "}
       </div>{" "}
-      <div className="rounded-xl border border-light bg-surface p-5 shadow-sm">
+      <div className="rounded-2xl border border-light bg-surface p-5 shadow-warm">
         {" "}
         <div className="mb-3 flex items-center justify-between">
           {" "}

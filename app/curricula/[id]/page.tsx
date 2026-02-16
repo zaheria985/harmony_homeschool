@@ -92,19 +92,19 @@ export default async function CurriculumDetailPage({
         <Card>
           {" "}
           <p className="text-sm text-muted">Total Lessons</p>{" "}
-          <p className="text-2xl font-bold">{totalLessons}</p>{" "}
+          <p className="font-display text-2xl">{totalLessons}</p>{" "}
         </Card>{" "}
         <Card>
           {" "}
           <p className="text-sm text-muted">Completed</p>{" "}
-          <p className="text-2xl font-bold text-success-600">
+          <p className="font-display text-2xl text-success-600">
             {completedLessons}
           </p>{" "}
         </Card>{" "}
         <Card>
           {" "}
           <p className="text-sm text-muted">Progress</p>{" "}
-          <p className="text-2xl font-bold">{completionPct}%</p>{" "}
+          <p className="font-display text-2xl">{completionPct}%</p>{" "}
           <ProgressBar
             value={completionPct}
             showLabel={false}
