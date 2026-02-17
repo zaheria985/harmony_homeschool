@@ -207,26 +207,23 @@ export async function getCompletionMismatches(curriculumId: string) {
        JOIN children c ON c.id = ca.child_id
        WHERE ca.curriculum_id = $1
      ),
-     child_completions AS (
-       SELECT ac.child_id, ac.child_name, l.id AS lesson_id
+     completion_counts AS (
+       SELECT ac.child_id, ac.child_name,
+              COUNT(lc.id)::int AS completed_count
        FROM assigned_children ac
        CROSS JOIN lessons l
        LEFT JOIN lesson_completions lc ON lc.lesson_id = l.id AND lc.child_id = ac.child_id
-       WHERE l.curriculum_id = $1 AND lc.id IS NOT NULL
-     ),
-     completion_counts AS (
-       SELECT child_id, child_name, COUNT(*) AS completed_count
-       FROM child_completions
-       GROUP BY child_id, child_name
+       WHERE l.curriculum_id = $1
+       GROUP BY ac.child_id, ac.child_name
      )
      SELECT
        src.child_id AS source_child_id,
        src.child_name AS source_child_name,
-       src.completed_count::int AS source_completed_count,
+       src.completed_count AS source_completed_count,
        tgt.child_id AS target_child_id,
        tgt.child_name AS target_child_name,
-       tgt.completed_count::int AS target_completed_count,
-       (src.completed_count - tgt.completed_count)::int AS missing_count
+       tgt.completed_count AS target_completed_count,
+       (src.completed_count - tgt.completed_count) AS missing_count
      FROM completion_counts src
      CROSS JOIN completion_counts tgt
      WHERE src.child_id != tgt.child_id
