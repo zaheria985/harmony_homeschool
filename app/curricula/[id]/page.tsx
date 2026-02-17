@@ -7,8 +7,10 @@ import Badge from "@/components/ui/Badge";
 import ProgressBar from "@/components/ui/ProgressBar";
 import { CurriculumViewToggle } from "@/components/curricula/CurriculumViewToggle";
 import ScheduleSection from "@/components/curricula/ScheduleSection";
+import CompletionCopyBanner from "@/components/curricula/CompletionCopyBanner";
 import {
   getAssignmentDaysForCurriculum,
+  getCompletionMismatches,
   getCurriculumDetail,
 } from "@/lib/queries/curricula";
 export default async function CurriculumDetailPage({
@@ -16,9 +18,10 @@ export default async function CurriculumDetailPage({
 }: {
   params: { id: string };
 }) {
-  const [curriculum, assignmentDays] = await Promise.all([
+  const [curriculum, assignmentDays, mismatches] = await Promise.all([
     getCurriculumDetail(params.id),
     getAssignmentDaysForCurriculum(params.id),
+    getCompletionMismatches(params.id),
   ]);
   if (!curriculum) notFound();
   const totalLessons = curriculum.lessons.length;
@@ -58,6 +61,10 @@ export default async function CurriculumDetailPage({
           </Link>{" "}
         </div>{" "}
       </PageHeader>{" "}
+      <CompletionCopyBanner
+        curriculumId={params.id}
+        mismatches={mismatches}
+      />
       <div className="mb-6 flex items-center gap-3">
         {" "}
         <span

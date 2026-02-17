@@ -198,3 +198,66 @@ export async function updateGrade(formData: FormData) {
   revalidatePath("/reports");
   return { success: true };
 }
+
+const copyCompletionsSchema = z.object({
+  curriculumId: z.string().uuid(),
+  sourceChildId: z.string().uuid(),
+  targetChildId: z.string().uuid(),
+});
+
+export async function copyCompletionsToChild(
+  curriculumId: string,
+  sourceChildId: string,
+  targetChildId: string
+) {
+  const data = copyCompletionsSchema.safeParse({
+    curriculumId,
+    sourceChildId,
+    targetChildId,
+  });
+  if (!data.success) {
+    return { error: data.error.issues[0]?.message || "Invalid input" };
+  }
+
+  const { curriculumId: cId, sourceChildId: sId, targetChildId: tId } = data.data;
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const result = await client.query(
+      `INSERT INTO lesson_completions (lesson_id, child_id, completed_by_user_id, completed_at, grade, pass_fail, notes)
+       SELECT lc.lesson_id, $1, lc.completed_by_user_id, lc.completed_at, lc.grade, lc.pass_fail, lc.notes
+       FROM lesson_completions lc
+       JOIN lessons l ON l.id = lc.lesson_id
+       WHERE lc.child_id = $2
+         AND l.curriculum_id = $3
+       ON CONFLICT (lesson_id, child_id) DO NOTHING`,
+      [tId, sId, cId]
+    );
+
+    await client.query("COMMIT");
+
+    revalidatePath("/curricula");
+    revalidatePath("/lessons");
+    revalidatePath("/grades");
+    revalidatePath("/dashboard");
+    revalidatePath("/students");
+    revalidatePath("/reports");
+    revalidatePath("/week");
+    revalidatePath("/calendar");
+
+    return { success: true, copied: result.rowCount || 0 };
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Failed to copy completions", {
+      curriculumId: cId,
+      sourceChildId: sId,
+      targetChildId: tId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { error: "Failed to copy completions" };
+  } finally {
+    client.release();
+  }
+}

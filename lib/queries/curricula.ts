@@ -198,3 +198,41 @@ export async function getAssignmentDaysForCurriculum(curriculumId: string) {
     school_weekdays: number[];
   }>;
 }
+
+export async function getCompletionMismatches(curriculumId: string) {
+  const res = await pool.query(
+    `WITH assigned_children AS (
+       SELECT ca.child_id, c.name AS child_name
+       FROM curriculum_assignments ca
+       JOIN children c ON c.id = ca.child_id
+       WHERE ca.curriculum_id = $1
+     ),
+     child_completions AS (
+       SELECT ac.child_id, ac.child_name, l.id AS lesson_id
+       FROM assigned_children ac
+       CROSS JOIN lessons l
+       LEFT JOIN lesson_completions lc ON lc.lesson_id = l.id AND lc.child_id = ac.child_id
+       WHERE l.curriculum_id = $1 AND lc.id IS NOT NULL
+     ),
+     completion_counts AS (
+       SELECT child_id, child_name, COUNT(*) AS completed_count
+       FROM child_completions
+       GROUP BY child_id, child_name
+     )
+     SELECT
+       src.child_id AS source_child_id,
+       src.child_name AS source_child_name,
+       src.completed_count::int AS source_completed_count,
+       tgt.child_id AS target_child_id,
+       tgt.child_name AS target_child_name,
+       tgt.completed_count::int AS target_completed_count,
+       (src.completed_count - tgt.completed_count)::int AS missing_count
+     FROM completion_counts src
+     CROSS JOIN completion_counts tgt
+     WHERE src.child_id != tgt.child_id
+       AND src.completed_count > tgt.completed_count
+     ORDER BY missing_count DESC`,
+    [curriculumId]
+  );
+  return res.rows;
+}
