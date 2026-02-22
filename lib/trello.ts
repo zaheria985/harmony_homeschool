@@ -1,6 +1,3 @@
-const TRELLO_API_KEY = process.env.TRELLO_API_KEY || "";
-const TRELLO_TOKEN = process.env.TRELLO_TOKEN || "";
-
 // Types
 
 export interface TrelloBoard {
@@ -47,12 +44,14 @@ export interface TrelloCard {
 // Helpers
 
 export function isTrelloConfigured(): boolean {
-  return TRELLO_API_KEY.length > 0 && TRELLO_TOKEN.length > 0;
+  return (process.env.TRELLO_API_KEY || "").length > 0 && (process.env.TRELLO_TOKEN || "").length > 0;
 }
 
 async function trelloFetch<T>(path: string): Promise<T> {
+  const key = process.env.TRELLO_API_KEY || "";
+  const token = process.env.TRELLO_TOKEN || "";
   const separator = path.includes("?") ? "&" : "?";
-  const url = `https://api.trello.com${path}${separator}key=${TRELLO_API_KEY}&token=${TRELLO_TOKEN}`;
+  const url = `https://api.trello.com${path}${separator}key=${key}&token=${token}`;
 
   const res = await fetch(url, {
     method: "GET",
