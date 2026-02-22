@@ -318,6 +318,109 @@ export async function bumpOverdueLessonsForAll(today: string, includeToday = tru
   return { success: true, bumped };
 }
 
+/**
+ * After completing a lesson early, shift remaining lessons in the same
+ * curriculum backward to fill the gap, respecting weekday constraints.
+ */
+export async function shiftLessonsAfterCompletion(lessonId: string, childId: string) {
+  // Get the completed lesson's curriculum and planned date
+  const lessonRes = await pool.query(
+    `SELECT l.curriculum_id, l.planned_date::text AS planned_date
+     FROM lessons l WHERE l.id = $1`,
+    [lessonId]
+  );
+  if (!lessonRes.rows[0]?.planned_date) return { success: true, shifted: 0 };
+
+  const { curriculum_id, planned_date } = lessonRes.rows[0];
+
+  // Get the curriculum assignment for this child to find weekday constraints
+  const assignmentRes = await pool.query(
+    `SELECT
+       ca.id, ca.school_year_id,
+       COALESCE(
+         NULLIF((
+           SELECT ARRAY_AGG(cad.weekday ORDER BY cad.weekday)
+           FROM curriculum_assignment_days cad
+           WHERE cad.assignment_id = ca.id
+         ), '{}'),
+         (
+           SELECT ARRAY_AGG(sd.weekday ORDER BY sd.weekday)
+           FROM school_days sd
+           WHERE sd.school_year_id = ca.school_year_id
+         )
+       ) AS weekdays
+     FROM curriculum_assignments ca
+     WHERE ca.curriculum_id = $1 AND ca.child_id = $2
+     LIMIT 1`,
+    [curriculum_id, childId]
+  );
+
+  const assignment = assignmentRes.rows[0];
+  if (!assignment) return { success: true, shifted: 0 };
+
+  const weekdays = assignment.weekdays || [];
+  if (weekdays.length === 0) return { success: true, shifted: 0 };
+
+  // Get all remaining incomplete lessons in this curriculum, ordered by date
+  const remainingRes = await pool.query(
+    `SELECT l.id, l.planned_date::text AS planned_date, l.order_index
+     FROM lessons l
+     WHERE l.curriculum_id = $1
+       AND l.status != 'completed'
+       AND l.planned_date IS NOT NULL
+     ORDER BY l.planned_date ASC, l.order_index ASC, l.id ASC`,
+    [curriculum_id]
+  );
+
+  if (remainingRes.rows.length === 0) return { success: true, shifted: 0 };
+
+  // Get date overrides
+  const overridesRes = await pool.query(
+    `SELECT date::text, type FROM date_overrides WHERE school_year_id = $1`,
+    [assignment.school_year_id]
+  );
+  const overrides = new Map<string, "exclude" | "include">();
+  for (const row of overridesRes.rows as { date: string; type: "exclude" | "include" }[]) {
+    overrides.set(row.date, row.type);
+  }
+
+  const weekdaySet = new Set<number>(weekdays);
+
+  // Start assigning from the completed lesson's original date
+  let cursor = parseDateKey(planned_date);
+  const updates: Array<{ id: string; plannedDate: string }> = [];
+
+  for (const lesson of remainingRes.rows as Array<{ id: string; planned_date: string; order_index: number }>) {
+    const nextDate = nextValidSchoolDate(cursor, weekdaySet, overrides);
+    const nextDateKey = formatDateKey(nextDate);
+    cursor = addDays(nextDate, 1);
+
+    if (lesson.planned_date === nextDateKey) continue;
+    updates.push({ id: lesson.id, plannedDate: nextDateKey });
+  }
+
+  if (updates.length > 0) {
+    const ids = updates.map((u) => u.id);
+    const dates = updates.map((u) => u.plannedDate);
+    await pool.query(
+      `UPDATE lessons AS l
+       SET planned_date = u.planned_date::date
+       FROM (
+         SELECT UNNEST($1::uuid[]) AS id, UNNEST($2::text[]) AS planned_date
+       ) AS u
+       WHERE l.id = u.id
+         AND l.planned_date IS DISTINCT FROM u.planned_date::date`,
+      [ids, dates]
+    );
+  }
+
+  if (updates.length > 0) {
+    revalidateAll();
+  }
+
+  return { success: true, shifted: updates.length };
+}
+
 export async function updateLessonTitle(id: string, title: string) {
   const parsedId = z.string().uuid().safeParse(id);
   const parsedTitle = z.string().min(1).safeParse(title);

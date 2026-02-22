@@ -4,8 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import pool from "@/lib/db";
 import { completionValuePayload } from "@/lib/utils/completion-values";
-import { bumpOverdueLessons } from "@/lib/actions/lessons";
-import { toDateStr } from "@/lib/utils/dates";
+import { shiftLessonsAfterCompletion } from "@/lib/actions/lessons";
 
 const parsedGradeSchema = z
   .string()
@@ -114,9 +113,8 @@ export async function markLessonComplete(formData: FormData) {
     client.release();
   }
 
-  // Bump remaining lessons forward so the schedule fills the gap
-  const today = toDateStr(new Date());
-  await bumpOverdueLessons(childId, today, true);
+  // Shift remaining lessons in the curriculum to fill the gap
+  await shiftLessonsAfterCompletion(lessonId, childId);
 
   revalidatePath("/lessons");
   revalidatePath("/week");
