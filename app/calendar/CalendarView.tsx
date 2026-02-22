@@ -204,6 +204,7 @@ export default function CalendarView({
         <div className="flex items-center gap-2">
           <button
             onClick={prevMonth}
+            aria-label="Previous month"
             className="rounded-lg border px-3 py-2 text-sm hover:bg-surface-muted"
           >
             &larr;
@@ -213,6 +214,7 @@ export default function CalendarView({
           </span>
           <button
             onClick={nextMonth}
+            aria-label="Next month"
             className="rounded-lg border px-3 py-2 text-sm hover:bg-surface-muted"
           >
             &rarr;

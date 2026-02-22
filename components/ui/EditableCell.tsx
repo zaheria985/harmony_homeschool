@@ -159,13 +159,14 @@ export default function EditableCell({
   }
 
   return (
-    <div
+    <button
+      type="button"
       onClick={startEditing}
-      className={`group cursor-pointer rounded px-1 py-0.5 -mx-1 -my-0.5 hover:bg-interactive-light hover:ring-1 hover:ring-primary-200 transition-colors ${className}`}
-      title="Click to edit"
+      className={`group cursor-pointer rounded px-1 py-0.5 -mx-1 -my-0.5 text-left hover:bg-interactive-light hover:ring-1 hover:ring-primary-200 focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none transition-colors ${className}`}
+      aria-label="Click to edit"
     >
       {displayValue ??
         (editValue || <span className="text-muted italic">—</span>)}
-    </div>
+    </button>
   );
 }
