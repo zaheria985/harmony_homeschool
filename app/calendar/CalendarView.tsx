@@ -86,18 +86,25 @@ export default function CalendarView({
     }[];
   } | null>(null);
 
+  const [fetchError, setFetchError] = useState("");
+
   const fetchLessons = useCallback(() => {
     const params = new URLSearchParams({
       year: String(year),
       month: String(month),
     });
     if (selectedChild) params.set("childId", selectedChild);
+    setFetchError("");
     fetch(`/api/calendar?${params}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to load calendar data");
+        return r.json();
+      })
       .then((data) => {
         setLessons(data.lessons || []);
         setExternalEvents(data.externalEvents || []);
-      });
+      })
+      .catch(() => setFetchError("Failed to load calendar data. Please try again."));
   }, [selectedChild, year, month]);
 
   useEffect(() => {
@@ -212,6 +219,12 @@ export default function CalendarView({
           </button>
         </div>
       </div>
+
+      {fetchError && (
+        <p className="mb-4 rounded-lg bg-[var(--error-bg)] p-3 text-sm text-red-600" role="alert">
+          {fetchError}
+        </p>
+      )}
 
       {/* Calendar Grid */}
       <Card>

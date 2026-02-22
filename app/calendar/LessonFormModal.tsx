@@ -57,8 +57,12 @@ export default function LessonFormModal({
   useEffect(() => {
     if (!childId || !open) return;
     fetch(`/api/subjects?childId=${childId}`)
-      .then((r) => r.json())
-      .then((data) => setSubjects(data.subjects || []));
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to load subjects");
+        return r.json();
+      })
+      .then((data) => setSubjects(data.subjects || []))
+      .catch(() => setError("Failed to load subjects"));
   }, [childId, open]);
 
   // Load curricula when subject changes
@@ -69,8 +73,12 @@ export default function LessonFormModal({
       return;
     }
     fetch(`/api/curricula?subjectId=${subjectId}`)
-      .then((r) => r.json())
-      .then((data) => setCurricula(data.curricula || []));
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to load curricula");
+        return r.json();
+      })
+      .then((data) => setCurricula(data.curricula || []))
+      .catch(() => setError("Failed to load curricula"));
   }, [subjectId]);
 
   // Populate form for edit mode
@@ -145,11 +153,15 @@ export default function LessonFormModal({
   function handleSubjectCreated(newId: string) {
     // Refresh subjects list
     fetch(`/api/subjects?childId=${childId}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to refresh subjects");
+        return r.json();
+      })
       .then((data) => {
         setSubjects(data.subjects || []);
         setSubjectId(newId);
-      });
+      })
+      .catch(() => setError("Failed to refresh subjects"));
     setShowNewSubject(false);
   }
 
@@ -157,11 +169,15 @@ export default function LessonFormModal({
     // Refresh curricula list
     if (subjectId) {
       fetch(`/api/curricula?subjectId=${subjectId}`)
-        .then((r) => r.json())
+        .then((r) => {
+          if (!r.ok) throw new Error("Failed to refresh curricula");
+          return r.json();
+        })
         .then((data) => {
           setCurricula(data.curricula || []);
           setCurriculumId(newId);
-        });
+        })
+        .catch(() => setError("Failed to refresh curricula"));
     }
     setShowNewCurriculum(false);
   }
@@ -180,7 +196,7 @@ export default function LessonFormModal({
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <p className="rounded-lg bg-[var(--error-bg)] p-2 text-sm text-red-600">
+            <p className="rounded-lg bg-[var(--error-bg)] p-2 text-sm text-red-600" role="alert">
               {error}
             </p>
           )}
@@ -195,7 +211,7 @@ export default function LessonFormModal({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
-              className="w-full rounded-lg border px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"
             />
           </div>
 
@@ -208,7 +224,7 @@ export default function LessonFormModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              className="w-full rounded-lg border px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"
             />
           </div>
 
@@ -222,7 +238,7 @@ export default function LessonFormModal({
                 value={subjectId}
                 onChange={(e) => setSubjectId(e.target.value)}
                 required
-                className="flex-1 rounded-lg border px-3 py-2 text-sm"
+                className="flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"
               >
                 <option value="">Select subject...</option>
                 {subjects.map((s) => (
@@ -285,7 +301,7 @@ export default function LessonFormModal({
               type="date"
               value={plannedDate}
               onChange={(e) => setPlannedDate(e.target.value)}
-              className="w-full rounded-lg border px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"
             />
           </div>
 

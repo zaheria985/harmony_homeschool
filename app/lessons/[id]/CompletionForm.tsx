@@ -13,11 +13,13 @@ export default function CompletionForm({
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
   async function handleSubmit(formData: FormData) {
     setPending(true);
+    setError("");
     const result = await markLessonComplete(formData);
     if (result?.error) {
-      alert(result.error);
+      setError(result.error);
     } else {
       router.refresh();
     }
@@ -31,6 +33,11 @@ export default function CompletionForm({
       }}
       className="space-y-4"
     >
+      {error && (
+        <p className="rounded-lg bg-[var(--error-bg)] p-2 text-sm text-red-600" role="alert">
+          {error}
+        </p>
+      )}
       {" "}
       <input type="hidden" name="lessonId" value={lessonId} />{" "}
       <input type="hidden" name="childId" value={childId} />{" "}
