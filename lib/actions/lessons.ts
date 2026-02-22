@@ -323,10 +323,15 @@ export async function updateLessonTitle(id: string, title: string) {
   const parsedTitle = z.string().min(1).safeParse(title);
   if (!parsedId.success || !parsedTitle.success) return { error: "Invalid input" };
 
-  await pool.query("UPDATE lessons SET title = $1 WHERE id = $2", [
-    parsedTitle.data,
-    parsedId.data,
-  ]);
+  try {
+    await pool.query("UPDATE lessons SET title = $1 WHERE id = $2", [
+      parsedTitle.data,
+      parsedId.data,
+    ]);
+  } catch (err) {
+    console.error("Failed to update lesson title", { id: parsedId.data, error: err instanceof Error ? err.message : String(err) });
+    return { error: "Failed to update lesson title" };
+  }
 
   revalidateAll();
   return { success: true };
@@ -468,6 +473,9 @@ export async function bulkCreateLessons(
   if (hasCompleted && !schoolYearId) {
     return { error: "School year is required when importing completed lessons" };
   }
+  if (hasCompleted && selectedChildIds.length === 0) {
+    return { error: "At least one child is required when importing completed lessons" };
+  }
 
   const client = await pool.connect();
   let created = 0;
@@ -584,11 +592,16 @@ export async function updateLesson(formData: FormData) {
 
   const { id, title, curriculum_id, planned_date, description } = data.data;
 
-  await pool.query(
-    `UPDATE lessons SET title = $1, curriculum_id = $2, planned_date = $3, description = $4
-     WHERE id = $5`,
-    [title, curriculum_id, planned_date || null, description || null, id]
-  );
+  try {
+    await pool.query(
+      `UPDATE lessons SET title = $1, curriculum_id = $2, planned_date = $3, description = $4
+       WHERE id = $5`,
+      [title, curriculum_id, planned_date || null, description || null, id]
+    );
+  } catch (err) {
+    console.error("Failed to update lesson", { id, error: err instanceof Error ? err.message : String(err) });
+    return { error: "Failed to update lesson" };
+  }
 
   revalidateAll();
   return { success: true };
@@ -598,7 +611,12 @@ export async function deleteLesson(lessonId: string) {
   const parsed = z.string().uuid().safeParse(lessonId);
   if (!parsed.success) return { error: "Invalid lesson ID" };
 
-  await pool.query("DELETE FROM lessons WHERE id = $1", [parsed.data]);
+  try {
+    await pool.query("DELETE FROM lessons WHERE id = $1", [parsed.data]);
+  } catch (err) {
+    console.error("Failed to delete lesson", { lessonId: parsed.data, error: err instanceof Error ? err.message : String(err) });
+    return { error: "Failed to delete lesson" };
+  }
 
   revalidateAll();
   return { success: true };
@@ -608,10 +626,15 @@ export async function bulkDeleteLessons(lessonIds: string[]) {
   const parsed = z.array(z.string().uuid()).min(1).max(500).safeParse(lessonIds);
   if (!parsed.success) return { error: "Invalid lesson IDs" };
 
-  await pool.query(
-    `DELETE FROM lessons WHERE id = ANY($1::uuid[])`,
-    [parsed.data]
-  );
+  try {
+    await pool.query(
+      `DELETE FROM lessons WHERE id = ANY($1::uuid[])`,
+      [parsed.data]
+    );
+  } catch (err) {
+    console.error("Failed to bulk delete lessons", { count: parsed.data.length, error: err instanceof Error ? err.message : String(err) });
+    return { error: "Failed to delete lessons" };
+  }
 
   revalidateAll();
   return { success: true, deleted: parsed.data.length };

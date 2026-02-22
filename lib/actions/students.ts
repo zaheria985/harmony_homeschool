@@ -63,10 +63,15 @@ export async function updateChild(formData: FormData) {
     ? null
     : savedBanner?.path || bannerUrl || null;
 
-  await pool.query(
-    "UPDATE children SET name = $1, emoji = $2, banner_url = $3 WHERE id = $4",
-    [name.data, emoji || null, nextBannerUrl, id.data]
-  );
+  try {
+    await pool.query(
+      "UPDATE children SET name = $1, emoji = $2, banner_url = $3 WHERE id = $4",
+      [name.data, emoji || null, nextBannerUrl, id.data]
+    );
+  } catch (err) {
+    console.error("Failed to update child", { id: id.data, error: err instanceof Error ? err.message : String(err) });
+    return { error: "Failed to update child" };
+  }
 
   revalidatePath("/students");
   revalidatePath("/dashboard");
@@ -78,7 +83,12 @@ export async function deleteChild(childId: string) {
   const parsed = z.string().uuid().safeParse(childId);
   if (!parsed.success) return { error: "Invalid child ID" };
 
-  await pool.query("DELETE FROM children WHERE id = $1", [parsed.data]);
+  try {
+    await pool.query("DELETE FROM children WHERE id = $1", [parsed.data]);
+  } catch (err) {
+    console.error("Failed to delete child", { childId: parsed.data, error: err instanceof Error ? err.message : String(err) });
+    return { error: "Failed to delete child" };
+  }
 
   revalidatePath("/students");
   revalidatePath("/dashboard");

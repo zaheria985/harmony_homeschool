@@ -421,37 +421,43 @@ export async function attachResourceToLessons(
 
   const { resourceId: rId, lessonIds: lIds } = data.data;
 
+  const client = await pool.connect();
   try {
-    const resource = await pool.query(
+    await client.query("BEGIN");
+
+    const resource = await client.query(
       "SELECT title, type, url FROM resources WHERE id = $1",
       [rId]
     );
-    if (!resource.rows[0]) return { error: "Resource not found" };
+    if (!resource.rows[0]) {
+      await client.query("ROLLBACK");
+      return { error: "Resource not found" };
+    }
 
     const r = resource.rows[0];
     // Map resource types to lesson_resources types
     const lrType = ["youtube", "pdf", "url"].includes(r.type) ? r.type : "url";
 
     for (const lessonId of lIds) {
-      const existing = await pool.query(
-        "SELECT id FROM lesson_resources WHERE lesson_id = $1 AND resource_id = $2",
-        [lessonId, rId]
+      await client.query(
+        `INSERT INTO lesson_resources (lesson_id, resource_id, type, url, title)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (lesson_id, resource_id) DO NOTHING`,
+        [lessonId, rId, lrType, r.url || "", r.title]
       );
-      if (existing.rows.length === 0) {
-        await pool.query(
-          `INSERT INTO lesson_resources (lesson_id, resource_id, type, url, title)
-           VALUES ($1, $2, $3, $4, $5)`,
-          [lessonId, rId, lrType, r.url || "", r.title]
-        );
-      }
     }
+
+    await client.query("COMMIT");
   } catch (err) {
+    await client.query("ROLLBACK");
     console.error("Failed to attach resource to lessons", {
       resourceId: rId,
       lessonIds: lIds,
       error: err instanceof Error ? err.message : String(err),
     });
     return { error: "Failed to attach resource" };
+  } finally {
+    client.release();
   }
 
   revalidatePath("/resources");
