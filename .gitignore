@@ -28,6 +28,9 @@ ARCHITECTURE_DETAILED.md
 # Claude Code local settings (may contain tokens/permissions)
 .claude/
 
+# Git worktrees
+.worktrees/
+
 # IDE and editor configs
 .vscode/
 .idea/
