@@ -84,7 +84,7 @@ export async function getCurriculumBoardData(id: string) {
   const lessons = await pool.query(
     `SELECT
        l.id, l.title, l.description, l.status, l.planned_date,
-       l.order_index, l.estimated_duration
+       l.order_index, l.estimated_duration, l.section
      FROM lessons l
      WHERE l.curriculum_id = $1
      ORDER BY l.order_index, l.planned_date ASC NULLS LAST`,

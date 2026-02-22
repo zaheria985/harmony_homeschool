@@ -517,6 +517,7 @@ const bulkLessonItemSchema = z.object({
   pass_fail: z.enum(["pass", "fail"]).optional(),
   description: z.string().optional(),
   status: statusSchema.optional().default("planned"),
+  section: z.string().optional(),
 });
 
 const bulkCreateLessonsSchema = z.array(bulkLessonItemSchema).min(1).max(500);
@@ -558,6 +559,7 @@ export async function bulkCreateLessons(
     pass_fail?: "pass" | "fail";
     description?: string;
     status?: "planned" | "in_progress" | "completed";
+    section?: string;
   }>,
   options?: { childIds?: string[]; schoolYearId?: string }
 ) {
@@ -582,6 +584,7 @@ export async function bulkCreateLessons(
 
   const client = await pool.connect();
   let created = 0;
+  let createdIds: string[] = [];
 
   try {
     await client.query("BEGIN ISOLATION LEVEL SERIALIZABLE");
@@ -615,11 +618,12 @@ export async function bulkCreateLessons(
       schoolYearEnd = yearRes.rows[0]?.end_date || null;
     }
 
+    createdIds = [];
     for (let i = 0; i < data.data.length; i++) {
       const lesson = data.data[i];
       const createdLesson = await client.query(
-        `INSERT INTO lessons (title, curriculum_id, planned_date, description, status, order_index)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO lessons (title, curriculum_id, planned_date, description, status, order_index, section)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING id`,
         [
           lesson.title,
@@ -628,8 +632,11 @@ export async function bulkCreateLessons(
           lesson.description || null,
           lesson.status || "planned",
           i,
+          lesson.section || null,
         ]
       );
+
+      createdIds.push(createdLesson.rows[0].id);
 
       if (lesson.status === "completed" && parentUserId && selectedChildIds.length > 0) {
         const completedAt = lesson.completed_date || schoolYearEnd || lesson.planned_date || undefined;
@@ -669,7 +676,7 @@ export async function bulkCreateLessons(
   }
 
   revalidateAll();
-  return { success: true, created };
+  return { success: true, created, lessonIds: createdIds };
 }
 
 const updateLessonSchema = z.object({

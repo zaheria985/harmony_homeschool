@@ -41,6 +41,7 @@ type Lesson = {
   planned_date: string | null;
   order_index: number;
   estimated_duration: number | null;
+  section: string | null;
   resources: LessonResource[];
   completions: Completion[];
 };
@@ -196,6 +197,127 @@ function CompletionCheckbox({
 }
 
 // ============================================================================
+// Section-grouped sub-components
+// ============================================================================
+
+function LessonMiniCard({
+  lesson,
+  assignedChildren,
+  isPending,
+  onCompletionToggle,
+}: {
+  lesson: Lesson;
+  assignedChildren: Child[];
+  isPending: boolean;
+  onCompletionToggle: (lessonId: string, childId: string, shouldComplete: boolean) => void;
+}) {
+  const completedChildIds = new Set(lesson.completions.map((c) => c.child_id));
+  const allCompleted =
+    assignedChildren.length > 0 &&
+    assignedChildren.every((c) => completedChildIds.has(c.id));
+  const borderColor = allCompleted
+    ? "border-success-400"
+    : statusColors[lesson.status] || "border-light";
+
+  return (
+    <div className={`rounded-xl border-2 bg-surface p-3 ${borderColor}`}>
+      <Link href={`/lessons/${lesson.id}`} className="block hover:text-interactive">
+        <h4 className="text-sm font-medium text-primary line-clamp-2">
+          {lesson.title}
+        </h4>
+      </Link>
+      <div className="mt-1.5 flex items-center gap-2">
+        <Badge variant={statusBadge[lesson.status] || "default"}>
+          {lesson.status === "in_progress"
+            ? "In Progress"
+            : lesson.status.charAt(0).toUpperCase() + lesson.status.slice(1)}
+        </Badge>
+        {lesson.planned_date && (
+          <span className="text-[10px] text-muted">
+            {new Date(lesson.planned_date + "T00:00:00").toLocaleDateString(
+              undefined,
+              { month: "short", day: "numeric" },
+            )}
+          </span>
+        )}
+      </div>
+      {lesson.resources.length > 0 && (
+        <p className="mt-1 text-[10px] text-muted">
+          {lesson.resources.length} resource
+          {lesson.resources.length !== 1 ? "s" : ""}
+        </p>
+      )}
+      {assignedChildren.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+          {assignedChildren.map((child) => {
+            const completion = lesson.completions.find(
+              (c) => c.child_id === child.id,
+            );
+            return (
+              <CompletionCheckbox
+                key={child.id}
+                lessonId={lesson.id}
+                child={child}
+                completed={!!completion}
+                grade={completion?.grade ?? null}
+                isPending={isPending}
+                onToggle={onCompletionToggle}
+              />
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SectionColumn({
+  sectionName,
+  lessons,
+  subjectColor,
+  assignedChildren,
+  isPending,
+  onCompletionToggle,
+}: {
+  sectionName: string;
+  lessons: Lesson[];
+  subjectColor: string | null;
+  assignedChildren: Child[];
+  isPending: boolean;
+  onCompletionToggle: (lessonId: string, childId: string, shouldComplete: boolean) => void;
+}) {
+  return (
+    <div
+      className="w-72 flex-shrink-0 rounded-2xl border border-light bg-surface-muted shadow-warm"
+      style={{ scrollSnapAlign: "start" }}
+    >
+      {/* Color bar */}
+      <div
+        className="h-1.5 rounded-t-[10px]"
+        style={{ backgroundColor: subjectColor || "#6366f1" }}
+      />
+      {/* Section header */}
+      <div className="border-b bg-surface px-4 py-3 rounded-t-none">
+        <h3 className="text-sm font-semibold text-primary">{sectionName}</h3>
+        <p className="text-xs text-muted">{lessons.length} lessons</p>
+      </div>
+      {/* Stacked lesson cards */}
+      <div className="space-y-2 overflow-y-auto p-3" style={{ maxHeight: "70vh" }}>
+        {lessons.map((lesson) => (
+          <LessonMiniCard
+            key={lesson.id}
+            lesson={lesson}
+            assignedChildren={assignedChildren}
+            isPending={isPending}
+            onCompletionToggle={onCompletionToggle}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
 // Main Board Component
 // ============================================================================
 
@@ -247,6 +369,141 @@ export default function CurriculumBoard({
 
   const hasResources = curriculumResources.length > 0;
 
+  // Check if lessons use sections — if so, render section-grouped view
+  const hasSections = lessons.some((l) => l.section);
+
+  if (hasSections) {
+    const sectionOrder: string[] = [];
+    const sectionMap = new Map<string, Lesson[]>();
+    const unsectioned: Lesson[] = [];
+
+    for (const lesson of lessons) {
+      const key = lesson.section || "";
+      if (!key) {
+        unsectioned.push(lesson);
+        continue;
+      }
+      if (!sectionMap.has(key)) {
+        sectionOrder.push(key);
+        sectionMap.set(key, []);
+      }
+      sectionMap.get(key)!.push(lesson);
+    }
+
+    return (
+      <div className="relative">
+        {isPending && (
+          <div className="absolute right-0 top-0 z-10 rounded-lg bg-interactive-light px-3 py-1 text-xs font-medium text-interactive animate-pulse">
+            Saving...
+          </div>
+        )}
+
+        <div
+          className="flex gap-4 overflow-x-auto pb-4"
+          style={{ scrollSnapType: "x mandatory" }}
+        >
+          {/* Resources Column */}
+          {hasResources && (
+            <div
+              className="w-64 flex-shrink-0 rounded-2xl border border-light bg-surface-muted shadow-warm"
+              style={{ scrollSnapAlign: "start" }}
+            >
+              <div className="border-b bg-surface px-4 py-3 rounded-t-2xl">
+                <h3 className="text-sm font-semibold text-primary">
+                  Curriculum Resources
+                </h3>
+                <p className="text-xs text-muted">
+                  {curriculumResources.length} shared
+                </p>
+              </div>
+              <div className="space-y-4 p-3">
+                {Object.entries(resourcesByType).map(([group, resources]) => (
+                  <div key={group}>
+                    <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
+                      {group}
+                    </p>
+                    <div className="space-y-1.5">
+                      {resources.map((r) => {
+                        const cfg = typeConfig[r.type] || typeConfig.url;
+                        return (
+                          <a
+                            key={r.id}
+                            href={r.url || `/resources/${r.id}`}
+                            target={r.url ? "_blank" : undefined}
+                            rel={r.url ? "noopener noreferrer" : undefined}
+                            className="flex items-center gap-2 rounded-lg border border-light bg-surface p-2 text-xs transition-colors hover:border-primary-200"
+                          >
+                            {r.thumbnail_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={r.thumbnail_url}
+                                alt=""
+                                className="h-8 w-10 flex-shrink-0 rounded object-cover"
+                              />
+                            ) : (
+                              <span
+                                className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded bg-gradient-to-br ${cfg.bg} text-sm`}
+                              >
+                                {cfg.icon}
+                              </span>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate font-medium text-secondary">
+                                {r.title}
+                              </p>
+                              {r.description && (
+                                <p className="truncate text-[10px] text-muted">
+                                  {r.description}
+                                </p>
+                              )}
+                            </div>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Section columns */}
+          {sectionOrder.map((sectionName) => (
+            <SectionColumn
+              key={sectionName}
+              sectionName={sectionName}
+              lessons={sectionMap.get(sectionName)!}
+              subjectColor={subjectColor}
+              assignedChildren={assignedChildren}
+              isPending={isPending}
+              onCompletionToggle={handleCompletionToggle}
+            />
+          ))}
+
+          {/* Unsectioned lessons */}
+          {unsectioned.length > 0 && (
+            <SectionColumn
+              sectionName="Other"
+              lessons={unsectioned}
+              subjectColor={subjectColor}
+              assignedChildren={assignedChildren}
+              isPending={isPending}
+              onCompletionToggle={handleCompletionToggle}
+            />
+          )}
+
+          {/* Empty state */}
+          {lessons.length === 0 && (
+            <div className="flex w-full items-center justify-center py-16 text-sm text-muted">
+              No lessons in this curriculum yet.
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Fall back to existing per-lesson column layout
   return (
     <div className="relative">
       {/* Saving indicator */}

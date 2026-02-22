@@ -548,6 +548,67 @@ export async function bulkAddSuppliesToLesson(lessonId: string, lines: string) {
 }
 
 // ============================================================================
+// BULK LESSON RESOURCES (used by Trello import)
+// ============================================================================
+
+const bulkLessonResourceSchema = z.object({
+  lessonId: z.string().uuid(),
+  resources: z.array(
+    z.object({
+      type: z.enum(["youtube", "pdf", "url"]),
+      url: z.string().url(),
+      title: z.string().optional(),
+    })
+  ),
+});
+
+export async function bulkCreateLessonResources(
+  items: Array<{
+    lessonId: string;
+    resources: Array<{ type: "youtube" | "pdf" | "url"; url: string; title?: string }>;
+  }>
+) {
+  const parsed = z.array(bulkLessonResourceSchema).safeParse(items);
+  if (!parsed.success) {
+    return { error: parsed.error.errors[0]?.message || "Invalid input" };
+  }
+
+  const client = await pool.connect();
+  let created = 0;
+
+  try {
+    await client.query("BEGIN");
+
+    for (const item of parsed.data) {
+      for (const resource of item.resources) {
+        await client.query(
+          `INSERT INTO lesson_resources (lesson_id, type, url, title)
+           VALUES ($1, $2, $3, $4)`,
+          [item.lessonId, resource.type, resource.url, resource.title || null]
+        );
+        created++;
+      }
+    }
+
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Failed to bulk create lesson resources", {
+      itemCount: parsed.data.length,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { error: "Failed to create lesson resources" };
+  } finally {
+    client.release();
+  }
+
+  revalidatePath("/lessons");
+  revalidatePath("/resources");
+  revalidatePath("/curricula");
+  return { success: true, created };
+}
+
+// ============================================================================
 // CURRICULUM-LEVEL RESOURCES (shared across all lessons in a curriculum)
 // ============================================================================
 
