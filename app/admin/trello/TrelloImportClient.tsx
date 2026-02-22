@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
@@ -237,7 +237,7 @@ export default function TrelloImportClient({
       const res = await fetch("/api/trello?action=boards");
       if (!res.ok) throw new Error("Failed to fetch boards");
       const data = await res.json();
-      setBoards(data);
+      setBoards(data.boards || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch boards");
     } finally {
@@ -246,9 +246,9 @@ export default function TrelloImportClient({
   }, []);
 
   // Load boards when component mounts
-  useState(() => {
+  useEffect(() => {
     fetchBoards();
-  });
+  }, [fetchBoards]);
 
   // -------------------------------------------------------------------------
   // Fetch board details (lists + cards)
