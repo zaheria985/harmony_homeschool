@@ -3,7 +3,6 @@ import Link from "next/link";
 import PageHeader from "@/components/ui/PageHeader";
 import StatCard from "@/components/ui/StatCard";
 import Card from "@/components/ui/Card";
-import Badge from "@/components/ui/Badge";
 import {
   getDashboardStats,
   getUpcomingDueLessons,
@@ -13,6 +12,8 @@ import { getAllChildren } from "@/lib/queries/students";
 import { getCurrentUser } from "@/lib/session";
 import LessonCompleteCheckbox from "@/components/lessons/LessonCompleteCheckbox";
 import VikunjaSyncButton from "@/components/dashboard/VikunjaSyncButton";
+import PendingApprovalsWidget from "@/components/dashboard/PendingApprovalsWidget";
+import { getPendingCompletions } from "@/lib/actions/completions";
 type UpcomingItem = Record<string, string | number | null>;
 type GroupedDay = { dayKey: string; dayLabel: string };
 type ExternalEventItem = {
@@ -33,10 +34,12 @@ export default async function DashboardPage() {
   const scopedChildId =
     user.role === "kid" ? user.childId || undefined : undefined;
   const parentId = user.role === "parent" ? user.id : undefined;
-  const [stats, upcoming, children] = await Promise.all([
+  const isParent = user.role === "parent" || user.permissionLevel === "full";
+  const [stats, upcoming, children, pendingCompletions] = await Promise.all([
     getDashboardStats(parentId),
     getUpcomingDueLessons(3, scopedChildId, parentId),
     getAllChildren(parentId),
+    isParent ? getPendingCompletions() : Promise.resolve([]),
   ]);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -134,6 +137,11 @@ export default async function DashboardPage() {
           />{" "}
         </div>
       )}{" "}
+      {isParent && pendingCompletions.length > 0 && (
+        <div className="mb-6">
+          <PendingApprovalsWidget pendingCompletions={pendingCompletions} />
+        </div>
+      )}
       <Card title="Due in the Next 3 Days">
         {" "}
         <div className="space-y-5">

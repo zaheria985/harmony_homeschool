@@ -5,6 +5,7 @@ import { z } from "zod";
 import pool from "@/lib/db";
 import { completionValuePayload } from "@/lib/utils/completion-values";
 import { shiftLessonsAfterCompletion } from "@/lib/actions/lessons";
+import { getCurrentUser } from "@/lib/session";
 
 const parsedGradeSchema = z
   .string()
@@ -59,6 +60,45 @@ export async function markLessonComplete(formData: FormData) {
 
   const { lessonId, childId, gradeType, grade, passFail, notes } = data.data;
 
+  const currentUser = await getCurrentUser();
+
+  // If user has mark_complete permission (not full), insert into pending queue
+  if (currentUser.permissionLevel === "mark_complete") {
+    const payload = completionValuePayload({
+      gradeType,
+      grade,
+      passFail,
+      notes,
+    });
+
+    try {
+      await pool.query(
+        `INSERT INTO pending_completions (lesson_id, child_id, submitted_by, notes, grade)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (lesson_id, child_id) DO UPDATE
+           SET notes = $4, grade = $5, submitted_by = $3, created_at = now()`,
+        [
+          lessonId,
+          childId,
+          currentUser.id || null,
+          payload.notes ?? null,
+          payload.grade ?? null,
+        ]
+      );
+    } catch (err) {
+      console.error("Failed to submit pending completion", {
+        lessonId,
+        childId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return { error: "Failed to submit completion for approval" };
+    }
+
+    revalidatePath("/dashboard");
+    return { success: true, pending: true };
+  }
+
+  // Full permission: create the completion directly (existing behavior)
   const client = await pool.connect();
 
   try {
@@ -200,6 +240,131 @@ export async function updateGrade(formData: FormData) {
   revalidatePath("/calendar");
   revalidatePath("/students");
   revalidatePath("/reports");
+  return { success: true };
+}
+
+// --- Pending completion approval workflow ---
+
+const uuidSchema = z.string().uuid();
+
+export async function getPendingCompletions() {
+  const res = await pool.query(`
+    SELECT pc.id, pc.lesson_id, pc.child_id, pc.notes, pc.grade, pc.created_at,
+           l.title as lesson_title, l.section as lesson_section,
+           c.name as child_name,
+           u.name as submitted_by_name
+    FROM pending_completions pc
+    JOIN lessons l ON l.id = pc.lesson_id
+    JOIN children c ON c.id = pc.child_id
+    LEFT JOIN users u ON u.id = pc.submitted_by
+    ORDER BY pc.created_at DESC
+  `);
+  return res.rows;
+}
+
+export async function getPendingCompletionCount() {
+  const res = await pool.query(
+    "SELECT COUNT(*) as count FROM pending_completions"
+  );
+  return parseInt(res.rows[0].count, 10);
+}
+
+export async function approvePendingCompletion(pendingId: string) {
+  const parsed = uuidSchema.safeParse(pendingId);
+  if (!parsed.success) return { error: "Invalid pending completion ID" };
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Get the pending record
+    const pendingRes = await client.query(
+      "SELECT * FROM pending_completions WHERE id = $1",
+      [parsed.data]
+    );
+    const pending = pendingRes.rows[0];
+    if (!pending) {
+      await client.query("ROLLBACK");
+      return { error: "Pending completion not found" };
+    }
+
+    // Get the parent user for completed_by_user_id
+    const userRes = await client.query(
+      "SELECT id FROM users WHERE role = 'parent' LIMIT 1"
+    );
+    const userId = userRes.rows[0]?.id;
+    if (!userId) {
+      await client.query("ROLLBACK");
+      return { error: "No parent user found" };
+    }
+
+    // Insert into lesson_completions
+    await client.query(
+      `INSERT INTO lesson_completions (lesson_id, child_id, completed_by_user_id, grade, notes)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (lesson_id, child_id) DO UPDATE
+         SET grade = $4, notes = $5, completed_at = now()`,
+      [pending.lesson_id, pending.child_id, userId, pending.grade, pending.notes]
+    );
+
+    // Mark lesson as completed
+    await client.query(
+      "UPDATE lessons SET status = 'completed' WHERE id = $1",
+      [pending.lesson_id]
+    );
+
+    // Remove from pending
+    await client.query("DELETE FROM pending_completions WHERE id = $1", [
+      parsed.data,
+    ]);
+
+    await client.query("COMMIT");
+
+    // Shift remaining lessons after approval
+    await shiftLessonsAfterCompletion(pending.lesson_id, pending.child_id);
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Failed to approve pending completion", {
+      pendingId: parsed.data,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { error: "Failed to approve completion" };
+  } finally {
+    client.release();
+  }
+
+  revalidatePath("/lessons");
+  revalidatePath("/week");
+  revalidatePath("/grades");
+  revalidatePath("/dashboard");
+  revalidatePath("/subjects");
+  revalidatePath("/curricula");
+  revalidatePath("/calendar");
+  revalidatePath("/students");
+  revalidatePath("/reports");
+  return { success: true };
+}
+
+export async function rejectPendingCompletion(pendingId: string) {
+  const parsed = uuidSchema.safeParse(pendingId);
+  if (!parsed.success) return { error: "Invalid pending completion ID" };
+
+  try {
+    await pool.query("DELETE FROM pending_completions WHERE id = $1", [
+      parsed.data,
+    ]);
+  } catch (err) {
+    console.error("Failed to reject pending completion", {
+      pendingId: parsed.data,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { error: "Failed to reject completion" };
+  }
+
+  revalidatePath("/lessons");
+  revalidatePath("/week");
+  revalidatePath("/dashboard");
+  revalidatePath("/curricula");
   return { success: true };
 }
 
