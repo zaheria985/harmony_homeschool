@@ -263,7 +263,7 @@ function LessonMiniCard({
           <img
             src={getResourceImageUrl(coverResource)}
             alt={coverResource.title || ""}
-            className="h-36 w-full object-cover"
+            className="w-full"
           />
         </a>
       )}
@@ -306,7 +306,7 @@ function LessonMiniCard({
                 <img
                   src={getResourceImageUrl(r)}
                   alt={r.title || ""}
-                  className="h-24 w-full rounded-lg object-cover"
+                  className="w-full rounded-lg"
                 />
               </a>
             ))}
