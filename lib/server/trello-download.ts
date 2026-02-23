@@ -31,8 +31,10 @@ export async function downloadTrelloFile(
   const key = process.env.TRELLO_API_KEY || "";
   const token = process.env.TRELLO_TOKEN || "";
 
+  // Always try with Trello auth — the URL came from the Trello API so
+  // it may need key+token even if it's on an S3/CDN domain.
   let fetchUrl = trelloUrl;
-  if (/trello\.com|trello-attachments/.test(trelloUrl)) {
+  if (key && token) {
     const sep = trelloUrl.includes("?") ? "&" : "?";
     fetchUrl = `${trelloUrl}${sep}key=${key}&token=${token}`;
   }
@@ -41,21 +43,30 @@ export async function downloadTrelloFile(
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30_000);
 
-    const response = await fetch(fetchUrl, { signal: controller.signal });
+    console.log("[trello-download] fetching", trelloUrl.slice(0, 80));
+    const response = await fetch(fetchUrl, {
+      signal: controller.signal,
+      redirect: "follow",
+    });
     clearTimeout(timeout);
 
     if (!response.ok) {
-      console.warn("Trello file download failed", {
-        url: trelloUrl,
+      console.warn("[trello-download] HTTP error", {
+        url: trelloUrl.slice(0, 80),
         status: response.status,
+        statusText: response.statusText,
       });
       return null;
     }
 
     const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.byteLength === 0) {
+      console.warn("[trello-download] empty response", { url: trelloUrl.slice(0, 80) });
+      return null;
+    }
     if (buffer.byteLength > MAX_FILE_SIZE) {
-      console.warn("Trello file too large, skipping", {
-        url: trelloUrl,
+      console.warn("[trello-download] too large, skipping", {
+        url: trelloUrl.slice(0, 80),
         bytes: buffer.byteLength,
       });
       return null;
@@ -68,10 +79,14 @@ export async function downloadTrelloFile(
     await mkdir(absDir, { recursive: true });
     await writeFile(path.join(absDir, filename), buffer);
 
+    console.log("[trello-download] saved", {
+      file: filename,
+      bytes: buffer.byteLength,
+    });
     return { localPath: `/uploads/${subdir}/${filename}` };
   } catch (err) {
-    console.warn("Trello file download error", {
-      url: trelloUrl,
+    console.warn("[trello-download] error", {
+      url: trelloUrl.slice(0, 80),
       error: err instanceof Error ? err.message : String(err),
     });
     return null;

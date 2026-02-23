@@ -79,9 +79,8 @@ function extractResources(card: TrelloCard): ExtractedResource[] {
   const resources: ExtractedResource[] = [];
 
   for (const att of card.attachments) {
-    // Trello-hosted files need downloading; external links don't
-    const isTrelloHosted = /trello\.com|trello-attachments/.test(att.url);
-    const dl = isTrelloHosted ? att.url : undefined;
+    // Uploaded files have a mimeType; link-only attachments don't
+    const isFile = att.mimeType != null;
 
     if (/youtube\.com|youtu\.be/.test(att.url)) {
       resources.push({ type: "youtube", url: att.url, title: att.name });
@@ -89,11 +88,11 @@ function extractResources(card: TrelloCard): ExtractedResource[] {
       att.mimeType === "application/pdf" ||
       att.url.endsWith(".pdf")
     ) {
-      resources.push({ type: "pdf", url: att.url, title: att.name, downloadUrl: dl });
+      resources.push({ type: "pdf", url: att.url, title: att.name, downloadUrl: isFile ? att.url : undefined });
     } else if (att.mimeType?.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp)$/i.test(att.url)) {
-      resources.push({ type: "url", url: att.url, title: att.name, thumbnailUrl: att.url, downloadUrl: dl });
+      resources.push({ type: "url", url: att.url, title: att.name, thumbnailUrl: att.url, downloadUrl: isFile ? att.url : undefined });
     } else if (att.url.startsWith("http")) {
-      resources.push({ type: "url", url: att.url, title: att.name, downloadUrl: dl });
+      resources.push({ type: "url", url: att.url, title: att.name, downloadUrl: isFile ? att.url : undefined });
     }
   }
 

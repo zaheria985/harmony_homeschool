@@ -597,6 +597,7 @@ export async function bulkCreateLessonResources(
 
         // Download Trello-hosted files locally
         if (resource.downloadUrl) {
+          console.log("[bulk-resources] downloading", resource.downloadUrl.slice(0, 80));
           if (downloaded > 0) await sleep(300);
           const result = await downloadTrelloFile(resource.downloadUrl);
           if (result) {
