@@ -260,21 +260,21 @@ export async function addBookToPersonalWishlist(title: string, author: string) {
   if (!wishlistId) return { error: "No personal wishlist found" };
 
   let thumbnailUrl: string | null = null;
+  const olUrl = `https://openlibrary.org/search.json?title=${encodeURIComponent(parsed.data.title)}&author=${encodeURIComponent(parsed.data.author)}&limit=1`;
+  console.log("[openlibrary] fetching cover", { title: parsed.data.title, author: parsed.data.author, url: olUrl });
   try {
-    const q = `${parsed.data.title} ${parsed.data.author}`;
-    const lookup = await fetch(
-      `https://openlibrary.org/search.json?title=${encodeURIComponent(parsed.data.title)}&author=${encodeURIComponent(parsed.data.author)}&limit=1`
-    );
+    const lookup = await fetch(olUrl);
+    console.log("[openlibrary] response status:", lookup.status);
     if (lookup.ok) {
       const data = (await lookup.json()) as { docs?: Array<{ cover_i?: number }> };
       const coverId = data.docs?.[0]?.cover_i;
+      console.log("[openlibrary] cover_i:", coverId ?? "not found", "docs:", data.docs?.length ?? 0);
       if (coverId) {
         thumbnailUrl = `https://covers.openlibrary.org/b/id/${coverId}-L.jpg`;
       }
     }
-    void q;
   } catch (err) {
-    console.warn("OpenLibrary lookup failed", {
+    console.warn("[openlibrary] fetch failed", {
       title: parsed.data.title,
       author: parsed.data.author,
       error: err instanceof Error ? err.message : String(err),

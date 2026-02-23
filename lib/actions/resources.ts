@@ -260,7 +260,32 @@ export async function createGlobalResource(formData: FormData) {
   );
   if (savedThumbnail && "error" in savedThumbnail) return savedThumbnail;
 
-  const nextThumbnailUrl = savedThumbnail?.path || thumbnail_url || null;
+  let nextThumbnailUrl = savedThumbnail?.path || thumbnail_url || null;
+
+  // Auto-fetch cover from OpenLibrary for books without a thumbnail
+  if (!nextThumbnailUrl && type === "book" && title) {
+    const params = new URLSearchParams({ title, limit: "1" });
+    if (normalizedAuthor) params.set("author", normalizedAuthor);
+    const olUrl = `https://openlibrary.org/search.json?${params}`;
+    console.log("[openlibrary] fetching cover", { title, author: normalizedAuthor, url: olUrl });
+    try {
+      const lookup = await fetch(olUrl);
+      console.log("[openlibrary] response status:", lookup.status);
+      if (lookup.ok) {
+        const data = await lookup.json();
+        const coverId = data.docs?.[0]?.cover_i;
+        console.log("[openlibrary] cover_i:", coverId ?? "not found", "docs:", data.docs?.length ?? 0);
+        if (coverId) {
+          nextThumbnailUrl = `https://covers.openlibrary.org/b/id/${coverId}-L.jpg`;
+        }
+      }
+    } catch (err) {
+      console.warn("[openlibrary] fetch failed", {
+        title,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
 
   const client = await pool.connect();
   let id: string;

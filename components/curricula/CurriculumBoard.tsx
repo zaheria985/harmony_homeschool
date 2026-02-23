@@ -201,6 +201,20 @@ function CompletionCheckbox({
 // Section-grouped sub-components
 // ============================================================================
 
+function isImageResource(r: LessonResource): boolean {
+  const t = r.global_type || r.type;
+  if (t === "youtube" || t === "video") return false;
+  const thumb = r.global_thumbnail_url || r.thumbnail_url;
+  if (thumb) return /\.(jpg|jpeg|png|gif|webp)/i.test(thumb);
+  return /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(r.url);
+}
+
+function getResourceImageUrl(r: LessonResource): string {
+  const thumb = r.global_thumbnail_url || r.thumbnail_url;
+  if (thumb) return thumb;
+  return r.url;
+}
+
 function LessonMiniCard({
   lesson,
   assignedChildren,
@@ -221,122 +235,159 @@ function LessonMiniCard({
     ? "border-success-400"
     : statusColors[lesson.status] || "border-light";
 
-  const hasDetails = lesson.description || lesson.resources.length > 0;
+  // Find cover image (first image-type resource)
+  const coverResource = lesson.resources.find((r) => isImageResource(r)) || null;
+  const otherResources = lesson.resources.filter((r) => r !== coverResource);
 
-  // Build thumbnail URLs for collapsed preview strip
-  const thumbnails = lesson.resources
-    .map((r) => {
-      const type = r.global_type || r.type;
-      const ytId =
-        type === "youtube" || type === "video" ? extractYoutubeId(r.url) : null;
-      if (ytId) return `https://img.youtube.com/vi/${ytId}/mqdefault.jpg`;
-      const thumb = r.global_thumbnail_url || r.thumbnail_url;
-      if (thumb) return thumb;
-      if (/\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(r.url)) return r.url;
-      return null;
-    })
-    .filter(Boolean) as string[];
+  // Split remaining resources into images vs non-images
+  const otherImages = otherResources.filter((r) => isImageResource(r));
+  const nonImageResources = otherResources.filter((r) => !isImageResource(r));
+
+  const hasExpandableDetails = lesson.description || nonImageResources.length > 0;
 
   return (
-    <div className={`rounded-xl border-2 bg-surface p-3 ${borderColor}`}>
-      <Link href={`/lessons/${lesson.id}`} className="block hover:text-interactive">
-        <h4 className="text-sm font-medium text-primary line-clamp-2">
-          {lesson.title}
-        </h4>
-      </Link>
-      <div className="mt-1.5 flex items-center gap-2">
-        <Badge variant={statusBadge[lesson.status] || "default"}>
-          {lesson.status === "in_progress"
-            ? "In Progress"
-            : lesson.status.charAt(0).toUpperCase() + lesson.status.slice(1)}
-        </Badge>
-        {lesson.planned_date && (
-          <span className="text-[10px] text-muted">
-            {new Date(lesson.planned_date + "T00:00:00").toLocaleDateString(
-              undefined,
-              { month: "short", day: "numeric" },
-            )}
-          </span>
-        )}
-      </div>
-      {/* Thumbnail preview strip (always visible when there are thumbnails) */}
-      {thumbnails.length > 0 && !expanded && (
-        <div className="mt-2 flex gap-1.5 overflow-hidden">
-          {thumbnails.slice(0, 3).map((src, i) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={i}
-              src={src}
-              alt=""
-              className="h-10 w-16 flex-shrink-0 rounded object-cover"
-            />
-          ))}
-          {thumbnails.length > 3 && (
-            <span className="flex h-10 w-8 flex-shrink-0 items-center justify-center rounded bg-muted/30 text-[10px] text-muted">
-              +{thumbnails.length - 3}
+    <div className={`rounded-xl border-2 bg-surface overflow-hidden ${borderColor}`}>
+      {/* Cover image — full-width at top */}
+      {coverResource && (
+        <a
+          href={coverResource.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={getResourceImageUrl(coverResource)}
+            alt={coverResource.title || ""}
+            className="h-36 w-full object-cover"
+          />
+        </a>
+      )}
+
+      <div className="p-3">
+        <Link href={`/lessons/${lesson.id}`} className="block hover:text-interactive">
+          <h4 className="text-sm font-medium text-primary line-clamp-2">
+            {lesson.title}
+          </h4>
+        </Link>
+        <div className="mt-1.5 flex items-center gap-2">
+          <Badge variant={statusBadge[lesson.status] || "default"}>
+            {lesson.status === "in_progress"
+              ? "In Progress"
+              : lesson.status.charAt(0).toUpperCase() + lesson.status.slice(1)}
+          </Badge>
+          {lesson.planned_date && (
+            <span className="text-[10px] text-muted">
+              {new Date(lesson.planned_date + "T00:00:00").toLocaleDateString(
+                undefined,
+                { month: "short", day: "numeric" },
+              )}
             </span>
           )}
         </div>
-      )}
-      {hasDetails && !expanded && (
-        <button
-          type="button"
-          onClick={() => setExpanded(true)}
-          className="mt-1 text-[10px] text-muted hover:text-interactive"
-        >
-          {lesson.resources.length > 0
-            ? `${lesson.resources.length} resource${lesson.resources.length !== 1 ? "s" : ""}${lesson.description ? " + details" : ""}`
-            : "Show details"}
-          {" \u25BC"}
-        </button>
-      )}
-      {expanded && (
-        <div className="mt-2 space-y-2">
-          {lesson.description && (
-            <p className="text-xs text-muted">{lesson.description}</p>
-          )}
-          {lesson.resources.length > 0 && (
-            <div className="space-y-1.5">
-              {lesson.resources.map((r) => (
-                <ResourceMiniCard
-                  key={r.id}
-                  type={r.global_type || r.type}
-                  url={r.url}
-                  title={r.title}
-                  thumbnailUrl={r.global_thumbnail_url || r.thumbnail_url}
+
+        {/* Other image resources — displayed larger, always visible */}
+        {otherImages.length > 0 && (
+          <div className="mt-2 space-y-2">
+            {otherImages.map((r) => (
+              <a
+                key={r.id}
+                href={r.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={getResourceImageUrl(r)}
+                  alt={r.title || ""}
+                  className="h-24 w-full rounded-lg object-cover"
                 />
-              ))}
-            </div>
-          )}
+              </a>
+            ))}
+          </div>
+        )}
+
+        {/* Non-image resources — compact cards, always visible */}
+        {nonImageResources.length > 0 && (
+          <div className="mt-2 space-y-1.5">
+            {nonImageResources.slice(0, expanded ? undefined : 2).map((r) => (
+              <ResourceMiniCard
+                key={r.id}
+                type={r.global_type || r.type}
+                url={r.url}
+                title={r.title}
+                thumbnailUrl={r.global_thumbnail_url || r.thumbnail_url}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Expand/collapse for description + extra non-image resources */}
+        {hasExpandableDetails && !expanded && (
           <button
             type="button"
-            onClick={() => setExpanded(false)}
-            className="text-[10px] text-muted hover:text-interactive"
+            onClick={() => setExpanded(true)}
+            className="mt-1 text-[10px] text-muted hover:text-interactive"
           >
-            {"\u25B2 Collapse"}
+            {nonImageResources.length > 2
+              ? `+${nonImageResources.length - 2} more`
+              : lesson.description
+                ? "Show details"
+                : ""}
+            {(nonImageResources.length > 2 || lesson.description) && " \u25BC"}
           </button>
-        </div>
-      )}
-      {assignedChildren.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-          {assignedChildren.map((child) => {
-            const completion = lesson.completions.find(
-              (c) => c.child_id === child.id,
-            );
-            return (
-              <CompletionCheckbox
-                key={child.id}
-                lessonId={lesson.id}
-                child={child}
-                completed={!!completion}
-                grade={completion?.grade ?? null}
-                isPending={isPending}
-                onToggle={onCompletionToggle}
-              />
-            );
-          })}
-        </div>
-      )}
+        )}
+        {expanded && (
+          <div className="mt-2 space-y-2">
+            {lesson.description && (
+              <p className="text-xs text-muted">{lesson.description}</p>
+            )}
+            {nonImageResources.length > 2 && (
+              <div className="space-y-1.5">
+                {nonImageResources.slice(2).map((r) => (
+                  <ResourceMiniCard
+                    key={r.id}
+                    type={r.global_type || r.type}
+                    url={r.url}
+                    title={r.title}
+                    thumbnailUrl={r.global_thumbnail_url || r.thumbnail_url}
+                  />
+                ))}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setExpanded(false)}
+              className="text-[10px] text-muted hover:text-interactive"
+            >
+              {"\u25B2 Collapse"}
+            </button>
+          </div>
+        )}
+
+        {assignedChildren.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+            {assignedChildren.map((child) => {
+              const completion = lesson.completions.find(
+                (c) => c.child_id === child.id,
+              );
+              return (
+                <CompletionCheckbox
+                  key={child.id}
+                  lessonId={lesson.id}
+                  child={child}
+                  completed={!!completion}
+                  grade={completion?.grade ?? null}
+                  isPending={isPending}
+                  onToggle={onCompletionToggle}
+                />
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

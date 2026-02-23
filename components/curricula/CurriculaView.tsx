@@ -134,6 +134,22 @@ export default function CurriculaView({
     [subjects],
   );
 
+  // Group curricula by subject for board view
+  const bySubject = useMemo(() => {
+    const map = new Map<string, { name: string; color: string | null; items: Curriculum[] }>();
+    for (const c of timelineFiltered) {
+      let group = map.get(c.subject_id);
+      if (!group) {
+        group = { name: c.subject_name, color: c.subject_color, items: [] };
+        map.set(c.subject_id, group);
+      }
+      group.items.push(c);
+    }
+    return Array.from(map.entries()).sort((a, b) =>
+      a[1].name.localeCompare(b[1].name),
+    );
+  }, [timelineFiltered]);
+
   return (
     <>
       {/* Toolbar */}
@@ -190,6 +206,7 @@ export default function CurriculaView({
             storageKey="curricula-view"
             options={[
               { key: "gallery", label: "Gallery" },
+              { key: "board", label: "Board" },
               { key: "table", label: "Table" },
             ]}
             defaultView="gallery"
@@ -217,7 +234,7 @@ export default function CurriculaView({
 
       {/* Gallery View */}
       {view === "gallery" && timelineFiltered.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {timelineFiltered.map((curriculum) => {
             const pct =
               curriculum.lesson_count > 0
@@ -230,17 +247,11 @@ export default function CurriculaView({
               <div
                 key={curriculum.id}
                 onClick={() => router.push(`/curricula/${curriculum.id}`)}
-                className="cursor-pointer rounded-2xl border bg-surface shadow-warm transition-shadow hover:shadow-warm-md"
+                className="cursor-pointer rounded-xl border bg-surface shadow-warm transition-shadow hover:shadow-warm-md overflow-hidden"
               >
-                {/* Color bar from subject */}
-                <div
-                  className="h-2 rounded-t-2xl"
-                  style={{
-                    backgroundColor: curriculum.subject_color || "#6366f1",
-                  }}
-                />
-                {curriculum.cover_image && (
-                  <div className="h-36 overflow-hidden border-b">
+                {/* Cover image or color placeholder */}
+                {curriculum.cover_image ? (
+                  <div className="aspect-[3/4] overflow-hidden">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={curriculum.cover_image}
@@ -248,38 +259,38 @@ export default function CurriculaView({
                       className="h-full w-full object-cover"
                     />
                   </div>
+                ) : (
+                  <div
+                    className="aspect-[3/4] flex items-center justify-center"
+                    style={{
+                      backgroundColor: curriculum.subject_color || "#6366f1",
+                      opacity: 0.15,
+                    }}
+                  >
+                    <span className="text-4xl font-bold text-primary/20">
+                      {curriculum.name.charAt(0)}
+                    </span>
+                  </div>
                 )}
-                <div className="p-5">
-                  <h3 className="mb-1 font-semibold text-primary">
+                <div className="p-3">
+                  <h3 className="mb-1 text-sm font-semibold text-primary leading-tight line-clamp-2">
                     {curriculum.name}
                   </h3>
-                  <div className="mb-2 flex items-center gap-2">
+                  <div className="mb-1.5 flex flex-wrap items-center gap-1">
                     <Badge variant="primary">{curriculum.subject_name}</Badge>
-                    <Badge variant="default">
-                      {curriculum.course_type === "unit_study"
-                        ? "Unit Study"
-                        : "Curriculum"}
-                    </Badge>
                     <span className="text-xs text-muted">
                       {curriculum.child_name}
                     </span>
                   </div>
-                  {curriculum.description && (
-                    <p className="mb-3 line-clamp-2 text-sm text-muted">
-                      {curriculum.description}
-                    </p>
-                  )}
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted">
-                      {curriculum.completed_count}/{curriculum.lesson_count}{" "}
-                      lessons
+                  <div className="flex items-center justify-between text-xs text-muted">
+                    <span>
+                      {curriculum.completed_count}/{curriculum.lesson_count}
                     </span>
-                    <span className="text-xs text-muted">{pct}%</span>
+                    <span>{pct}%</span>
                   </div>
-                  {/* Progress bar */}
-                  <div className="mt-2 h-1.5 w-full rounded-full bg-surface-subtle">
+                  <div className="mt-1 h-1 w-full rounded-full bg-surface-subtle">
                     <div
-                      className="h-1.5 rounded-full bg-[var(--success-bg)]"
+                      className="h-1 rounded-full bg-[var(--success-bg)]"
                       style={{ width: `${pct}%` }}
                     />
                   </div>
@@ -287,6 +298,95 @@ export default function CurriculaView({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Board View — columns by subject */}
+      {view === "board" && timelineFiltered.length === 0 && (
+        <p className="py-12 text-center text-sm text-muted">
+          No courses match the selected filters.
+        </p>
+      )}
+
+      {view === "board" && timelineFiltered.length > 0 && (
+        <div className="overflow-x-auto pb-2">
+          <div className="flex gap-4 pb-4 snap-x snap-mandatory">
+            {bySubject.map(([subjectId, group]) => (
+              <div
+                key={subjectId}
+                className="w-64 flex-shrink-0 snap-start rounded-2xl border border-light bg-surface-muted/40 flex flex-col"
+              >
+                {/* Subject header with color bar */}
+                <div
+                  className="h-1.5 rounded-t-2xl"
+                  style={{ backgroundColor: group.color || "#6366f1" }}
+                />
+                <div className="px-3 pt-2 pb-2 border-b border-light">
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-secondary">
+                    {group.name}
+                  </h3>
+                  <p className="text-xs text-muted">
+                    {group.items.length} {group.items.length === 1 ? "course" : "courses"}
+                  </p>
+                </div>
+                {/* Curriculum cards */}
+                <div className="p-2 space-y-2 overflow-y-auto max-h-[70vh] flex-1">
+                  {group.items.map((curriculum) => {
+                    const pct =
+                      curriculum.lesson_count > 0
+                        ? Math.round(
+                            (curriculum.completed_count / curriculum.lesson_count) * 100,
+                          )
+                        : 0;
+                    return (
+                      <div
+                        key={curriculum.id}
+                        onClick={() => router.push(`/curricula/${curriculum.id}`)}
+                        className="cursor-pointer rounded-lg border bg-surface shadow-sm hover:shadow-md transition-shadow overflow-hidden"
+                      >
+                        {curriculum.cover_image ? (
+                          <div className="aspect-[3/4] overflow-hidden">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={curriculum.cover_image}
+                              alt={curriculum.name}
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div
+                            className="h-12 flex items-center justify-center"
+                            style={{
+                              backgroundColor: curriculum.subject_color || "#6366f1",
+                              opacity: 0.15,
+                            }}
+                          />
+                        )}
+                        <div className="p-2">
+                          <p className="text-sm font-medium text-primary leading-tight line-clamp-2">
+                            {curriculum.name}
+                          </p>
+                          <p className="text-xs text-muted mt-0.5">{curriculum.child_name}</p>
+                          <div className="mt-1.5 flex items-center justify-between text-xs text-muted">
+                            <span>
+                              {curriculum.completed_count}/{curriculum.lesson_count}
+                            </span>
+                            <span>{pct}%</span>
+                          </div>
+                          <div className="mt-1 h-1 w-full rounded-full bg-surface-subtle">
+                            <div
+                              className="h-1 rounded-full bg-[var(--success-bg)]"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

@@ -58,6 +58,8 @@ export default function BooklistsClient({
   const [bookTitle, setBookTitle] = useState("");
   const [bookAuthor, setBookAuthor] = useState("");
   const [bookDescription, setBookDescription] = useState("");
+  const [bookUrl, setBookUrl] = useState("");
+  const [bookThumbnailFile, setBookThumbnailFile] = useState<File | null>(null);
   const [booklistTargets, setBooklistTargets] = useState<string[]>([]);
   const fieldClass =
     "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary placeholder:text-muted focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus";
@@ -109,6 +111,8 @@ export default function BooklistsClient({
     setBookTitle("");
     setBookAuthor("");
     setBookDescription("");
+    setBookUrl("");
+    setBookThumbnailFile(null);
     setBooklistTargets([]);
     setError("");
     setShowAddBookModal(true);
@@ -235,6 +239,8 @@ export default function BooklistsClient({
       formData.set("type", "book");
       formData.set("author", bookAuthor.trim());
       formData.set("description", bookDescription.trim());
+      if (bookUrl.trim()) formData.set("url", bookUrl.trim());
+      if (bookThumbnailFile) formData.set("thumbnail_file", bookThumbnailFile);
       for (const listId of booklistTargets) {
         formData.append("booklist_ids", listId);
       }
@@ -319,7 +325,7 @@ export default function BooklistsClient({
       {error && (
         <p className="mb-3 text-sm text-red-600 dark:text-red-400">{error}</p>
       )}{" "}
-      {booklists.length === 0 ? (
+      {booklists.length === 0 && unassignedBooks.length === 0 ? (
         <EmptyState
           icon="📚"
           message="No booklists yet. Create one and add books from your resource library."
@@ -327,7 +333,7 @@ export default function BooklistsClient({
       ) : (
         <div className="overflow-x-auto pb-2">
           {" "}
-          <div className="grid auto-cols-[minmax(16rem,1fr)] grid-flow-col gap-3">
+          <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory">
             {" "}
             {booklists.map((list) => (
               <section
@@ -345,7 +351,7 @@ export default function BooklistsClient({
                   e.preventDefault();
                   handleDrop(list.id);
                 }}
-                className={`min-h-[20rem] rounded-2xl border p-3 transition-colors ${dragOverListId === list.id ? "border-interactive-border bg-interactive-light/70/20" : "border-light bg-surface-muted/60/40"}`}
+                className={`w-72 flex-shrink-0 snap-start rounded-2xl border p-3 transition-colors flex flex-col ${dragOverListId === list.id ? "border-interactive-border bg-interactive-light/70/20" : "border-light bg-surface-muted/60/40"}`}
               >
                 {" "}
                 <div className="mb-3 flex items-start justify-between gap-2 border-b border-light pb-2">
@@ -389,11 +395,11 @@ export default function BooklistsClient({
                   </p>
                 )}{" "}
                 {list.books.length === 0 ? (
-                  <p className="text-sm text-muted">
+                  <p className="text-sm text-muted flex-1">
                     Drop a book here or edit this list to add books.
                   </p>
                 ) : (
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-2 overflow-y-auto max-h-[60vh] flex-1">
                     {" "}
                     {list.books.map((book) => (
                       <BookCard
@@ -407,26 +413,31 @@ export default function BooklistsClient({
                 )}{" "}
               </section>
             ))}{" "}
+            {unassignedBooks.length > 0 && (
+              <section className="w-72 flex-shrink-0 snap-start rounded-2xl border border-dashed border-light bg-surface-muted/30 p-3 flex flex-col">
+                <div className="mb-3 border-b border-light pb-2">
+                  <h2 className="text-sm font-semibold uppercase tracking-wide text-secondary">
+                    Unassigned
+                  </h2>
+                  <p className="text-xs text-muted">
+                    {unassignedBooks.length} {unassignedBooks.length === 1 ? "book" : "books"}
+                  </p>
+                </div>
+                <div className="space-y-2 overflow-y-auto max-h-[60vh] flex-1">
+                  {unassignedBooks.map((book) => (
+                    <BookCard
+                      key={book.id}
+                      book={book}
+                      draggable
+                      onDragStart={(bookId) => setDraggingBookId(bookId)}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
           </div>{" "}
         </div>
       )}{" "}
-      {unassignedBooks.length > 0 && (
-        <div className="mt-6">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-secondary">
-            Unassigned Books
-          </h2>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-6">
-            {unassignedBooks.map((book) => (
-              <BookCard
-                key={book.id}
-                book={book}
-                draggable
-                onDragStart={(bookId) => setDraggingBookId(bookId)}
-              />
-            ))}
-          </div>
-        </div>
-      )}
       <Modal
         open={showModal}
         onClose={() => setShowModal(false)}
@@ -636,6 +647,31 @@ export default function BooklistsClient({
               value={bookAuthor}
               onChange={(e) => setBookAuthor(e.target.value)}
               className={fieldClass}
+            />{" "}
+          </div>{" "}
+          <div>
+            {" "}
+            <label className="mb-1 block text-sm font-medium text-secondary">
+              URL <span className="text-muted">(optional)</span>
+            </label>{" "}
+            <input
+              value={bookUrl}
+              onChange={(e) => setBookUrl(e.target.value)}
+              type="url"
+              placeholder="https://..."
+              className={fieldClass}
+            />{" "}
+          </div>{" "}
+          <div>
+            {" "}
+            <label className="mb-1 block text-sm font-medium text-secondary">
+              Cover image <span className="text-muted">(optional — auto-fetched if blank)</span>
+            </label>{" "}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setBookThumbnailFile(e.target.files?.[0] || null)}
+              className="w-full text-sm text-secondary file:mr-3 file:rounded-lg file:border-0 file:bg-interactive-light file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-interactive hover:file:bg-interactive-light/80"
             />{" "}
           </div>{" "}
           <div>
