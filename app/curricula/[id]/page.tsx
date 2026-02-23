@@ -3,11 +3,11 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
-import Badge from "@/components/ui/Badge";
 import ProgressBar from "@/components/ui/ProgressBar";
 import { CurriculumViewToggle } from "@/components/curricula/CurriculumViewToggle";
 import ScheduleSection from "@/components/curricula/ScheduleSection";
 import CompletionCopyBanner from "@/components/curricula/CompletionCopyBanner";
+import CurriculumLessonsList from "@/components/curricula/CurriculumLessonsList";
 import {
   getAssignmentDaysForCurriculum,
   getCompletionMismatches,
@@ -139,59 +139,19 @@ export default async function CurriculumDetailPage({
         {curriculum.lessons.length === 0 ? (
           <p className="py-4 text-center text-muted">No lessons yet</p>
         ) : (
-          <div className="space-y-3">
-            {" "}
-            {curriculum.lessons.map(
-              (l: Record<string, string | number | null>) => (
-                <Link
-                  key={String(l.id)}
-                  href={`/lessons/${l.id}`}
-                  className="flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-surface-muted"
-                >
-                  {" "}
-                  <div>
-                    {" "}
-                    <p className="font-medium">{String(l.title)}</p>{" "}
-                    {l.description && (
-                      <p className="mt-0.5 text-sm text-muted">
-                        {" "}
-                        {String(l.description)}{" "}
-                      </p>
-                    )}{" "}
-                    {l.planned_date && (
-                      <p className="mt-0.5 text-xs text-muted">
-                        {" "}
-                        {new Date(
-                          String(l.planned_date),
-                        ).toLocaleDateString()}{" "}
-                      </p>
-                    )}{" "}
-                  </div>{" "}
-                  <div className="flex items-center gap-3">
-                    {" "}
-                    {l.grade != null && (
-                      <span className="font-semibold text-interactive">
-                        {" "}
-                        {Number(l.grade).toFixed(0)}{" "}
-                      </span>
-                    )}{" "}
-                    <Badge
-                      variant={
-                        l.status === "completed"
-                          ? "success"
-                          : l.status === "in_progress"
-                            ? "warning"
-                            : "default"
-                      }
-                    >
-                      {" "}
-                      {String(l.status)}{" "}
-                    </Badge>{" "}
-                  </div>{" "}
-                </Link>
-              ),
-            )}{" "}
-          </div>
+          <CurriculumLessonsList
+            lessons={curriculum.lessons.map(
+              (l: Record<string, string | number | null>) => ({
+                id: String(l.id),
+                title: String(l.title),
+                description: l.description ? String(l.description) : null,
+                status: String(l.status),
+                planned_date: l.planned_date ? String(l.planned_date) : null,
+                grade: l.grade != null ? Number(l.grade) : null,
+              }),
+            )}
+            childId={curriculum.child_id}
+          />
         )}{" "}
       </Card>{" "}
     </div>

@@ -10,6 +10,7 @@ import EditLessonButton from "@/components/lessons/EditLessonButton";
 import LessonResourcesManager from "@/components/lessons/LessonResourcesManager";
 import CompletionForm from "./CompletionForm";
 import KidCompletionModal from "@/components/lessons/KidCompletionModal";
+import UncompleteButton from "@/components/lessons/UncompleteButton";
 import { getCurrentUser } from "@/lib/session";
 export default async function LessonDetailPage({
   params,
@@ -202,6 +203,12 @@ export default async function LessonDetailPage({
                 lesson.completion.completed_at,
               ).toLocaleDateString()}{" "}
             </span>{" "}
+            {!readOnlyKid && (
+              <UncompleteButton
+                lessonId={lesson.id}
+                childId={lesson.child_id}
+              />
+            )}{" "}
           </div>
         ) : readOnlyKid ? (
           <KidCompletionModal lessonId={lesson.id} childId={lesson.child_id} />

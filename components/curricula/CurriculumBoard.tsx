@@ -510,6 +510,47 @@ function SectionColumn({
 // Main Board Component
 // ============================================================================
 
+type FilterOption = "all" | "incomplete" | "completed";
+
+function StatusFilterBar({
+  filter,
+  onFilterChange,
+  totalCount,
+  completedCount,
+  incompleteCount,
+}: {
+  filter: FilterOption;
+  onFilterChange: (f: FilterOption) => void;
+  totalCount: number;
+  completedCount: number;
+  incompleteCount: number;
+}) {
+  const tabs: { key: FilterOption; label: string; count: number }[] = [
+    { key: "all", label: "All", count: totalCount },
+    { key: "incomplete", label: "Incomplete", count: incompleteCount },
+    { key: "completed", label: "Completed", count: completedCount },
+  ];
+
+  return (
+    <div className="mb-4 flex gap-1 rounded-lg bg-surface-muted p-1">
+      {tabs.map((tab) => (
+        <button
+          key={tab.key}
+          type="button"
+          onClick={() => onFilterChange(tab.key)}
+          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+            filter === tab.key
+              ? "bg-surface text-primary shadow-sm"
+              : "text-muted hover:text-secondary"
+          }`}
+        >
+          {tab.label} ({tab.count})
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function CurriculumBoard({
   curriculumId,
   subjectColor,
@@ -525,6 +566,26 @@ export default function CurriculumBoard({
   const [addingToSection, setAddingToSection] = useState<string | null>(null);
   const [newLessonTitle, setNewLessonTitle] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<FilterOption>("all");
+
+  const completedCount = lessons.filter((l) => {
+    const completedChildIds = new Set(l.completions.map((c) => c.child_id));
+    return assignedChildren.length > 0 && assignedChildren.every((c) => completedChildIds.has(c.id));
+  }).length;
+  const incompleteCount = lessons.length - completedCount;
+
+  const filteredLessons =
+    statusFilter === "all"
+      ? lessons
+      : statusFilter === "completed"
+        ? lessons.filter((l) => {
+            const completedChildIds = new Set(l.completions.map((c) => c.child_id));
+            return assignedChildren.length > 0 && assignedChildren.every((c) => completedChildIds.has(c.id));
+          })
+        : lessons.filter((l) => {
+            const completedChildIds = new Set(l.completions.map((c) => c.child_id));
+            return !(assignedChildren.length > 0 && assignedChildren.every((c) => completedChildIds.has(c.id)));
+          });
 
   async function handleAddLesson(sectionName: string) {
     if (!newLessonTitle.trim()) return;
@@ -589,7 +650,7 @@ export default function CurriculumBoard({
     const sectionMap = new Map<string, Lesson[]>();
     const unsectioned: Lesson[] = [];
 
-    for (const lesson of lessons) {
+    for (const lesson of filteredLessons) {
       const key = lesson.section || "";
       if (!key) {
         unsectioned.push(lesson);
@@ -609,6 +670,14 @@ export default function CurriculumBoard({
             Saving...
           </div>
         )}
+
+        <StatusFilterBar
+          filter={statusFilter}
+          onFilterChange={setStatusFilter}
+          totalCount={lessons.length}
+          completedCount={completedCount}
+          incompleteCount={incompleteCount}
+        />
 
         <div
           className="flex gap-4 overflow-x-auto pb-4"
@@ -723,9 +792,9 @@ export default function CurriculumBoard({
           )}
 
           {/* Empty state */}
-          {lessons.length === 0 && (
+          {filteredLessons.length === 0 && (
             <div className="flex w-full items-center justify-center py-16 text-sm text-muted">
-              No lessons in this curriculum yet.
+              {statusFilter === "all" ? "No lessons in this curriculum yet." : `No ${statusFilter} lessons.`}
             </div>
           )}
         </div>
@@ -742,6 +811,14 @@ export default function CurriculumBoard({
           Saving...
         </div>
       )}
+
+      <StatusFilterBar
+        filter={statusFilter}
+        onFilterChange={setStatusFilter}
+        totalCount={lessons.length}
+        completedCount={completedCount}
+        incompleteCount={incompleteCount}
+      />
 
       {/* Horizontal scroll container */}
       <div
@@ -814,7 +891,7 @@ export default function CurriculumBoard({
         )}
 
         {/* Lesson Columns */}
-        {lessons.map((lesson, idx) => {
+        {filteredLessons.map((lesson, idx) => {
           const completedChildIds = new Set(
             lesson.completions.map((c) => c.child_id),
           );
@@ -934,9 +1011,9 @@ export default function CurriculumBoard({
         })}
 
         {/* Empty state */}
-        {lessons.length === 0 && (
+        {filteredLessons.length === 0 && (
           <div className="flex w-full items-center justify-center py-16 text-sm text-muted">
-            No lessons in this curriculum yet.
+            {statusFilter === "all" ? "No lessons in this curriculum yet." : `No ${statusFilter} lessons.`}
           </div>
         )}
       </div>
