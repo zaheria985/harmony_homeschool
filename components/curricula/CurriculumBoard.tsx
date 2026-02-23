@@ -222,6 +222,19 @@ function LessonMiniCard({
 
   const hasDetails = lesson.description || lesson.resources.length > 0;
 
+  // Build thumbnail URLs for collapsed preview strip
+  const thumbnails = lesson.resources
+    .map((r) => {
+      const type = r.global_type || r.type;
+      const ytId =
+        type === "youtube" || type === "video" ? extractYoutubeId(r.url) : null;
+      if (ytId) return `https://img.youtube.com/vi/${ytId}/mqdefault.jpg`;
+      const thumb = r.global_thumbnail_url || r.thumbnail_url;
+      if (thumb) return thumb;
+      return null;
+    })
+    .filter(Boolean) as string[];
+
   return (
     <div className={`rounded-xl border-2 bg-surface p-3 ${borderColor}`}>
       <Link href={`/lessons/${lesson.id}`} className="block hover:text-interactive">
@@ -244,6 +257,25 @@ function LessonMiniCard({
           </span>
         )}
       </div>
+      {/* Thumbnail preview strip (always visible when there are thumbnails) */}
+      {thumbnails.length > 0 && !expanded && (
+        <div className="mt-2 flex gap-1.5 overflow-hidden">
+          {thumbnails.slice(0, 3).map((src, i) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={i}
+              src={src}
+              alt=""
+              className="h-10 w-16 flex-shrink-0 rounded object-cover"
+            />
+          ))}
+          {thumbnails.length > 3 && (
+            <span className="flex h-10 w-8 flex-shrink-0 items-center justify-center rounded bg-muted/30 text-[10px] text-muted">
+              +{thumbnails.length - 3}
+            </span>
+          )}
+        </div>
+      )}
       {hasDetails && !expanded && (
         <button
           type="button"
