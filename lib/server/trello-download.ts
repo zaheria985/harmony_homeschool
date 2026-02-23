@@ -31,13 +31,12 @@ export async function downloadTrelloFile(
   const key = process.env.TRELLO_API_KEY || "";
   const token = process.env.TRELLO_TOKEN || "";
 
-  // Trello attachment URLs use trello.com but API auth only works on
-  // api.trello.com — swap the domain and append key+token.
-  let fetchUrl = trelloUrl;
+  // Trello attachment download endpoint requires OAuth header auth,
+  // not query params. Swap trello.com → api.trello.com for the domain.
+  const fetchUrl = trelloUrl.replace("https://trello.com/", "https://api.trello.com/");
+  const headers: Record<string, string> = {};
   if (key && token) {
-    fetchUrl = fetchUrl.replace("https://trello.com/", "https://api.trello.com/");
-    const sep = fetchUrl.includes("?") ? "&" : "?";
-    fetchUrl = `${fetchUrl}${sep}key=${key}&token=${token}`;
+    headers["Authorization"] = `OAuth oauth_consumer_key="${key}", oauth_token="${token}"`;
   }
 
   try {
@@ -48,6 +47,7 @@ export async function downloadTrelloFile(
     const response = await fetch(fetchUrl, {
       signal: controller.signal,
       redirect: "follow",
+      headers,
     });
     clearTimeout(timeout);
 
