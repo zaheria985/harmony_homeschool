@@ -551,6 +551,8 @@ export async function bulkAddSuppliesToLesson(lessonId: string, lines: string) {
 // BULK LESSON RESOURCES (used by Trello import)
 // ============================================================================
 
+import { downloadTrelloFile, sleep } from "@/lib/server/trello-download";
+
 const bulkLessonResourceSchema = z.object({
   lessonId: z.string().uuid(),
   resources: z.array(
@@ -559,6 +561,7 @@ const bulkLessonResourceSchema = z.object({
       url: z.string().url(),
       title: z.string().optional(),
       thumbnailUrl: z.string().optional(),
+      downloadUrl: z.string().optional(),
     })
   ),
 });
@@ -566,7 +569,13 @@ const bulkLessonResourceSchema = z.object({
 export async function bulkCreateLessonResources(
   items: Array<{
     lessonId: string;
-    resources: Array<{ type: "youtube" | "pdf" | "url"; url: string; title?: string; thumbnailUrl?: string }>;
+    resources: Array<{
+      type: "youtube" | "pdf" | "url";
+      url: string;
+      title?: string;
+      thumbnailUrl?: string;
+      downloadUrl?: string;
+    }>;
   }>
 ) {
   const parsed = z.array(bulkLessonResourceSchema).safeParse(items);
@@ -576,21 +585,41 @@ export async function bulkCreateLessonResources(
 
   const client = await pool.connect();
   let created = 0;
+  let downloaded = 0;
 
   try {
     await client.query("BEGIN");
 
     for (const item of parsed.data) {
       for (const resource of item.resources) {
+        let finalUrl = resource.url;
+        let finalThumbnail = resource.thumbnailUrl || null;
+
+        // Download Trello-hosted files locally
+        if (resource.downloadUrl) {
+          if (downloaded > 0) await sleep(300);
+          const result = await downloadTrelloFile(resource.downloadUrl);
+          if (result) {
+            finalUrl = result.localPath;
+            // Use local path as thumbnail for images
+            const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(result.localPath);
+            if (isImage) finalThumbnail = result.localPath;
+            downloaded++;
+          }
+        }
+
+        // YouTube oembed lookup
         const youtubeMeta =
           resource.type === "youtube" ? await fetchYouTubeMeta(resource.url) : null;
         const finalTitle = resource.title || youtubeMeta?.title || null;
-        const finalThumbnail = resource.thumbnailUrl || youtubeMeta?.thumbnail_url || null;
+        if (!finalThumbnail) {
+          finalThumbnail = youtubeMeta?.thumbnail_url || null;
+        }
 
         await client.query(
           `INSERT INTO lesson_resources (lesson_id, type, url, title, thumbnail_url)
            VALUES ($1, $2, $3, $4, $5)`,
-          [item.lessonId, resource.type, resource.url, finalTitle, finalThumbnail]
+          [item.lessonId, resource.type, finalUrl, finalTitle, finalThumbnail]
         );
         created++;
       }
@@ -611,7 +640,7 @@ export async function bulkCreateLessonResources(
   revalidatePath("/lessons");
   revalidatePath("/resources");
   revalidatePath("/curricula");
-  return { success: true, created };
+  return { success: true, created, downloaded };
 }
 
 // ============================================================================

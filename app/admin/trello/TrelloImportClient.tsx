@@ -57,6 +57,7 @@ type ExtractedResource = {
   url: string;
   title: string;
   thumbnailUrl?: string;
+  downloadUrl?: string;
 };
 
 type LessonDraft = {
@@ -78,17 +79,21 @@ function extractResources(card: TrelloCard): ExtractedResource[] {
   const resources: ExtractedResource[] = [];
 
   for (const att of card.attachments) {
+    // Trello-hosted files need downloading; external links don't
+    const isTrelloHosted = /trello\.com|trello-attachments/.test(att.url);
+    const dl = isTrelloHosted ? att.url : undefined;
+
     if (/youtube\.com|youtu\.be/.test(att.url)) {
       resources.push({ type: "youtube", url: att.url, title: att.name });
     } else if (
       att.mimeType === "application/pdf" ||
       att.url.endsWith(".pdf")
     ) {
-      resources.push({ type: "pdf", url: att.url, title: att.name });
+      resources.push({ type: "pdf", url: att.url, title: att.name, downloadUrl: dl });
     } else if (att.mimeType?.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp)$/i.test(att.url)) {
-      resources.push({ type: "url", url: att.url, title: att.name, thumbnailUrl: att.url });
+      resources.push({ type: "url", url: att.url, title: att.name, thumbnailUrl: att.url, downloadUrl: dl });
     } else if (att.url.startsWith("http")) {
-      resources.push({ type: "url", url: att.url, title: att.name });
+      resources.push({ type: "url", url: att.url, title: att.name, downloadUrl: dl });
     }
   }
 
