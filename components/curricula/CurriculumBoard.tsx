@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Badge from "@/components/ui/Badge";
-import { updateLessonStatus } from "@/lib/actions/lessons";
+import { updateLessonStatus, createLesson } from "@/lib/actions/lessons";
 import { markLessonComplete } from "@/lib/actions/completions";
 
 // ============================================================================
@@ -399,6 +399,13 @@ function SectionColumn({
   assignedChildren,
   isPending,
   onCompletionToggle,
+  isAddingHere,
+  newLessonTitle,
+  onNewLessonTitleChange,
+  onAddClick,
+  onSave,
+  onCancel,
+  isSaving,
 }: {
   sectionName: string;
   lessons: Lesson[];
@@ -406,6 +413,13 @@ function SectionColumn({
   assignedChildren: Child[];
   isPending: boolean;
   onCompletionToggle: (lessonId: string, childId: string, shouldComplete: boolean) => void;
+  isAddingHere: boolean;
+  newLessonTitle: string;
+  onNewLessonTitleChange: (value: string) => void;
+  onAddClick: () => void;
+  onSave: () => void;
+  onCancel: () => void;
+  isSaving: boolean;
 }) {
   return (
     <div
@@ -433,6 +447,51 @@ function SectionColumn({
             onCompletionToggle={onCompletionToggle}
           />
         ))}
+
+        {/* Inline add form or button */}
+        {isAddingHere ? (
+          <div className="rounded-xl border border-light bg-surface p-3 space-y-2">
+            <input
+              type="text"
+              value={newLessonTitle}
+              onChange={(e) => onNewLessonTitleChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newLessonTitle.trim()) onSave();
+                if (e.key === "Escape") onCancel();
+              }}
+              placeholder="Lesson title..."
+              autoFocus
+              disabled={isSaving}
+              className="w-full rounded-lg border border-light bg-surface px-3 py-1.5 text-sm text-primary placeholder:text-muted focus:border-interactive focus:outline-none focus:ring-1 focus:ring-focus disabled:opacity-50"
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={onSave}
+                disabled={!newLessonTitle.trim() || isSaving}
+                className="rounded-lg bg-interactive px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-interactive-hover disabled:opacity-50"
+              >
+                {isSaving ? "Saving..." : "Save"}
+              </button>
+              <button
+                type="button"
+                onClick={onCancel}
+                disabled={isSaving}
+                className="rounded-lg px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:text-secondary disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={onAddClick}
+            className="w-full rounded-lg border border-dashed border-light px-3 py-2 text-sm text-muted hover:bg-surface-muted hover:text-secondary transition-colors"
+          >
+            + Add Lesson
+          </button>
+        )}
       </div>
     </div>
   );
@@ -451,6 +510,26 @@ export default function CurriculumBoard({
 }: BoardProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [addingToSection, setAddingToSection] = useState<string | null>(null);
+  const [newLessonTitle, setNewLessonTitle] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  async function handleAddLesson(sectionName: string) {
+    if (!newLessonTitle.trim()) return;
+    setIsSaving(true);
+    try {
+      const fd = new FormData();
+      fd.set("title", newLessonTitle.trim());
+      fd.set("curriculum_id", curriculumId);
+      fd.set("section", sectionName);
+      await createLesson(fd);
+      setNewLessonTitle("");
+      setAddingToSection(null);
+      router.refresh();
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   function handleCompletionToggle(
     lessonId: string,
@@ -598,6 +677,13 @@ export default function CurriculumBoard({
               assignedChildren={assignedChildren}
               isPending={isPending}
               onCompletionToggle={handleCompletionToggle}
+              isAddingHere={addingToSection === sectionName}
+              newLessonTitle={addingToSection === sectionName ? newLessonTitle : ""}
+              onNewLessonTitleChange={setNewLessonTitle}
+              onAddClick={() => { setAddingToSection(sectionName); setNewLessonTitle(""); }}
+              onSave={() => handleAddLesson(sectionName)}
+              onCancel={() => { setAddingToSection(null); setNewLessonTitle(""); }}
+              isSaving={isSaving}
             />
           ))}
 
@@ -610,6 +696,13 @@ export default function CurriculumBoard({
               assignedChildren={assignedChildren}
               isPending={isPending}
               onCompletionToggle={handleCompletionToggle}
+              isAddingHere={addingToSection === "Other"}
+              newLessonTitle={addingToSection === "Other" ? newLessonTitle : ""}
+              onNewLessonTitleChange={setNewLessonTitle}
+              onAddClick={() => { setAddingToSection("Other"); setNewLessonTitle(""); }}
+              onSave={() => handleAddLesson("Other")}
+              onCancel={() => { setAddingToSection(null); setNewLessonTitle(""); }}
+              isSaving={isSaving}
             />
           )}
 

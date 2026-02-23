@@ -28,6 +28,16 @@ export interface TrelloLabel {
   color: string;
 }
 
+export interface TrelloCheckItem {
+  name: string;
+  state: "complete" | "incomplete";
+}
+
+export interface TrelloChecklist {
+  name: string;
+  checkItems: TrelloCheckItem[];
+}
+
 export interface TrelloCard {
   id: string;
   name: string;
@@ -39,6 +49,7 @@ export interface TrelloCard {
   idList: string;
   labels: TrelloLabel[];
   attachments: TrelloAttachment[];
+  checklists?: TrelloChecklist[];
 }
 
 // Helpers
@@ -84,7 +95,7 @@ export async function getBoardLists(boardId: string): Promise<TrelloList[]> {
 
 export async function getBoardCards(boardId: string): Promise<TrelloCard[]> {
   const cards = await trelloFetch<TrelloCard[]>(
-    `/1/boards/${boardId}/cards?fields=name,desc,due,dueComplete,pos,closed,idList,labels&attachments=true`
+    `/1/boards/${boardId}/cards?fields=name,desc,due,dueComplete,pos,closed,idList,labels&attachments=true&checklists=all`
   );
   return cards.filter((c) => !c.closed);
 }

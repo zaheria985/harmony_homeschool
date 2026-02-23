@@ -41,6 +41,14 @@ type TrelloAttachment = {
   url: string;
   mimeType: string | null;
 };
+type TrelloCheckItem = {
+  name: string;
+  state: "complete" | "incomplete";
+};
+type TrelloChecklist = {
+  name: string;
+  checkItems: TrelloCheckItem[];
+};
 type TrelloCard = {
   id: string;
   name: string;
@@ -50,6 +58,7 @@ type TrelloCard = {
   pos: number;
   idList: string;
   attachments: TrelloAttachment[];
+  checklists?: TrelloChecklist[];
 };
 
 type ExtractedResource = {
@@ -126,6 +135,20 @@ function formatDate(iso: string | null): string | null {
   } catch {
     return null;
   }
+}
+
+function checklistsToMarkdown(checklists: TrelloChecklist[]): string {
+  const lines: string[] = [];
+  for (const cl of checklists) {
+    if (checklists.length > 1) {
+      lines.push(`**${cl.name}**`);
+    }
+    for (const item of cl.checkItems) {
+      const checkbox = item.state === "complete" ? "- [x]" : "- [ ]";
+      lines.push(`${checkbox} ${item.name}`);
+    }
+  }
+  return lines.join("\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -213,6 +236,7 @@ export default function TrelloImportClient({
   const [subjectId, setSubjectId] = useState("");
   const [prefixWithListName, setPrefixWithListName] = useState(false);
   const [importCompleted, setImportCompleted] = useState(false);
+  const [checklistMode, setChecklistMode] = useState<"lessons" | "description">("description");
   const [selectedChildIds, setSelectedChildIds] = useState<string[]>([]);
   const [schoolYearId, setSchoolYearId] = useState("");
 
@@ -295,25 +319,59 @@ export default function TrelloImportClient({
         return listDiff !== 0 ? listDiff : a.pos - b.pos;
       });
 
-      const drafts: LessonDraft[] = sorted
-        .filter((c) => !autoResourceIds.has(c.idList))
-        .map((card) => {
-          const listName = listMap.get(card.idList)?.name || "";
-          const title = prefixWithListName
-            ? `[${listName}] ${card.name}`
-            : card.name;
-          return {
-            cardId: card.id,
-            include: true,
-            title,
-            description: cleanDescription(card.desc),
-            planned_date: formatDate(card.due),
-            status:
-              importCompleted && card.dueComplete ? "completed" : "planned",
-            section: listName,
-            resources: extractResources(card),
-          };
+      const drafts: LessonDraft[] = [];
+      const lessonCards = sorted.filter((c) => !autoResourceIds.has(c.idList));
+
+      for (const card of lessonCards) {
+        const listName = listMap.get(card.idList)?.name || "";
+        const title = prefixWithListName
+          ? `[${listName}] ${card.name}`
+          : card.name;
+        const baseDesc = cleanDescription(card.desc);
+        const checklists = card.checklists ?? [];
+
+        // Append checklist markdown in description mode
+        let description = baseDesc;
+        if (checklistMode === "description" && checklists.length > 0) {
+          const md = checklistsToMarkdown(checklists);
+          description = baseDesc ? `${baseDesc}\n\n${md}` : md;
+        }
+
+        drafts.push({
+          cardId: card.id,
+          include: true,
+          title,
+          description,
+          planned_date: formatDate(card.due),
+          status:
+            importCompleted && card.dueComplete ? "completed" : "planned",
+          section: listName,
+          resources: extractResources(card),
         });
+
+        // In lessons mode, create a draft per checklist item
+        if (checklistMode === "lessons" && checklists.length > 0) {
+          for (const cl of checklists) {
+            for (const item of cl.checkItems) {
+              drafts.push({
+                cardId: `${card.id}-cl-${item.name}`,
+                include: true,
+                title: prefixWithListName
+                  ? `[${listName}] ${item.name}`
+                  : item.name,
+                description: "",
+                planned_date: null,
+                status:
+                  importCompleted && item.state === "complete"
+                    ? "completed"
+                    : "planned",
+                section: listName,
+                resources: [],
+              });
+            }
+          }
+        }
+      }
 
       setLessonDrafts(drafts);
     } catch (err) {
@@ -323,7 +381,7 @@ export default function TrelloImportClient({
     } finally {
       setDetailsLoading(false);
     }
-  }, [selectedBoardId, prefixWithListName, importCompleted]);
+  }, [selectedBoardId, prefixWithListName, importCompleted, checklistMode]);
 
   // -------------------------------------------------------------------------
   // Rebuild drafts when resource lists change
@@ -338,33 +396,67 @@ export default function TrelloImportClient({
         return listDiff !== 0 ? listDiff : a.pos - b.pos;
       });
 
-      const drafts: LessonDraft[] = sorted
-        .filter((c) => !newResourceIds.has(c.idList))
-        .map((card) => {
-          const listName = listMap.get(card.idList)?.name || "";
-          const title = prefixWithListName
-            ? `[${listName}] ${card.name}`
-            : card.name;
-          // Preserve existing include state if card was already in drafts
-          const existing = lessonDrafts.find((d) => d.cardId === card.id);
-          return {
-            cardId: card.id,
-            include: existing?.include ?? true,
-            title,
-            description: cleanDescription(card.desc),
-            planned_date: formatDate(card.due),
-            status:
-              importCompleted && card.dueComplete
-                ? ("completed" as const)
-                : ("planned" as const),
-            section: listName,
-            resources: extractResources(card),
-          };
+      const drafts: LessonDraft[] = [];
+      const lessonCards = sorted.filter((c) => !newResourceIds.has(c.idList));
+
+      for (const card of lessonCards) {
+        const listName = listMap.get(card.idList)?.name || "";
+        const title = prefixWithListName
+          ? `[${listName}] ${card.name}`
+          : card.name;
+        // Preserve existing include state if card was already in drafts
+        const existing = lessonDrafts.find((d) => d.cardId === card.id);
+        const baseDesc = cleanDescription(card.desc);
+        const checklists = card.checklists ?? [];
+
+        let description = baseDesc;
+        if (checklistMode === "description" && checklists.length > 0) {
+          const md = checklistsToMarkdown(checklists);
+          description = baseDesc ? `${baseDesc}\n\n${md}` : md;
+        }
+
+        drafts.push({
+          cardId: card.id,
+          include: existing?.include ?? true,
+          title,
+          description,
+          planned_date: formatDate(card.due),
+          status:
+            importCompleted && card.dueComplete
+              ? ("completed" as const)
+              : ("planned" as const),
+          section: listName,
+          resources: extractResources(card),
         });
+
+        if (checklistMode === "lessons" && checklists.length > 0) {
+          for (const cl of checklists) {
+            for (const item of cl.checkItems) {
+              const clId = `${card.id}-cl-${item.name}`;
+              const existingCl = lessonDrafts.find((d) => d.cardId === clId);
+              drafts.push({
+                cardId: clId,
+                include: existingCl?.include ?? true,
+                title: prefixWithListName
+                  ? `[${listName}] ${item.name}`
+                  : item.name,
+                description: "",
+                planned_date: null,
+                status:
+                  importCompleted && item.state === "complete"
+                    ? ("completed" as const)
+                    : ("planned" as const),
+                section: listName,
+                resources: [],
+              });
+            }
+          }
+        }
+      }
 
       setLessonDrafts(drafts);
     },
-    [lists, cards, prefixWithListName, importCompleted, lessonDrafts]
+    [lists, cards, prefixWithListName, importCompleted, lessonDrafts, checklistMode]
   );
 
   // -------------------------------------------------------------------------
@@ -751,6 +843,47 @@ export default function TrelloImportClient({
             </div>
           </Card>
 
+          {/* Checklist import mode */}
+          <Card title="Checklist Handling">
+            <div className="space-y-3">
+              <p className="text-sm text-muted">
+                Choose how Trello card checklists are imported.
+              </p>
+              <div className="space-y-2">
+                <label className="flex items-start gap-2 text-sm text-primary">
+                  <input
+                    type="radio"
+                    name="checklistMode"
+                    checked={checklistMode === "description"}
+                    onChange={() => setChecklistMode("description")}
+                    className="mt-0.5 accent-interactive"
+                  />
+                  <span>
+                    <span className="font-medium">Checklist items as description bullets</span>
+                    <span className="block text-muted">
+                      Append a markdown checklist to the lesson description ({"\u2610"} / {"\u2611"} items)
+                    </span>
+                  </span>
+                </label>
+                <label className="flex items-start gap-2 text-sm text-primary">
+                  <input
+                    type="radio"
+                    name="checklistMode"
+                    checked={checklistMode === "lessons"}
+                    onChange={() => setChecklistMode("lessons")}
+                    className="mt-0.5 accent-interactive"
+                  />
+                  <span>
+                    <span className="font-medium">Checklist items as separate lessons</span>
+                    <span className="block text-muted">
+                      Each checklist item becomes its own lesson in the same section; checked items import as completed
+                    </span>
+                  </span>
+                </label>
+              </div>
+            </div>
+          </Card>
+
           {/* Children */}
           <Card title="Assign to Children">
             <div className="space-y-2">
@@ -1098,6 +1231,7 @@ export default function TrelloImportClient({
                 setCards([]);
                 setResourceListIds(new Set());
                 setSelectedBoardId("");
+                setChecklistMode("description");
                 setError("");
               }}
               className="rounded-lg border border-border bg-surface px-4 py-2 text-sm font-medium text-secondary hover:bg-muted/30"

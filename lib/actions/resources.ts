@@ -430,6 +430,37 @@ export async function deleteGlobalResource(resourceId: string) {
   return { success: true };
 }
 
+export async function bulkDeleteResources(ids: string[]) {
+  const parsed = z.array(z.string().uuid()).min(1).safeParse(ids);
+  if (!parsed.success) return { error: "Invalid input" };
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    for (const id of parsed.data) {
+      await client.query(
+        "UPDATE lesson_resources SET resource_id = NULL WHERE resource_id = $1",
+        [id]
+      );
+      await client.query("DELETE FROM resources WHERE id = $1", [id]);
+    }
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Failed to bulk delete resources", {
+      count: parsed.data.length,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { error: "Failed to delete resources" };
+  } finally {
+    client.release();
+  }
+
+  revalidatePath("/resources");
+  revalidatePath("/lessons");
+  return { success: true, deleted: parsed.data.length };
+}
+
 const attachSchema = z.object({
   resourceId: z.string().uuid(),
   lessonIds: z.array(z.string().uuid()).min(1, "Select at least one lesson"),

@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
 import EmptyState from "@/components/ui/EmptyState";
 import { Package } from "lucide-react";
 import ViewToggle from "@/components/ui/ViewToggle";
-import { createGlobalResource } from "@/lib/actions/resources";
+import { createGlobalResource, bulkDeleteResources } from "@/lib/actions/resources";
 
 type Resource = {
   id: string;
@@ -55,6 +56,7 @@ export default function ResourcesClient({
   initialSearch?: string;
   initialTagFilter?: string;
 }) {
+  const router = useRouter();
   const [search, setSearch] = useState(initialSearch);
   const [typeFilter, setTypeFilter] = useState(initialTypeFilter);
   const [tagFilter, setTagFilter] = useState(initialTagFilter);
@@ -63,6 +65,17 @@ export default function ResourcesClient({
   const [createType, setCreateType] = useState("book");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   const filtered = resources.filter((r) => {
     if (typeFilter && r.type !== typeFilter) return false;
@@ -76,6 +89,29 @@ export default function ResourcesClient({
       return false;
     return true;
   });
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds((prev) => {
+      if (prev.size === filtered.length) return new Set();
+      return new Set(filtered.map((r) => r.id));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered.length, filtered]);
+
+  async function handleBulkDelete() {
+    if (selectedIds.size === 0) return;
+    const count = selectedIds.size;
+    if (!confirm(`Delete ${count} selected resource${count === 1 ? "" : "s"}? This cannot be undone.`)) return;
+    setIsDeleting(true);
+    const result = await bulkDeleteResources(Array.from(selectedIds));
+    setIsDeleting(false);
+    if ("error" in result && result.error) {
+      alert(result.error);
+    } else {
+      setSelectedIds(new Set());
+      router.refresh();
+    }
+  }
 
   function handleCreate(formData: FormData) {
     setError("");
@@ -140,6 +176,36 @@ export default function ResourcesClient({
         </div>
       </div>
 
+      {/* Bulk actions bar */}
+      {filtered.length > 0 && (
+        <div className="mb-4 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={toggleSelectAll}
+            className="rounded-lg border border-light px-3 py-1.5 text-xs font-medium text-secondary hover:bg-surface-muted"
+          >
+            {selectedIds.size === filtered.length ? "Deselect all" : "Select all"}
+          </button>
+          {selectedIds.size > 0 && (
+            <button
+              type="button"
+              onClick={handleBulkDelete}
+              disabled={isDeleting}
+              className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              {isDeleting
+                ? "Deleting..."
+                : `Delete selected (${selectedIds.size})`}
+            </button>
+          )}
+          {selectedIds.size > 0 && (
+            <span className="text-xs text-muted">
+              {selectedIds.size} of {filtered.length} selected
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Content */}
       {filtered.length === 0 ? (
         <EmptyState message="No resources found" icon={<Package size={28} />} />
@@ -148,6 +214,15 @@ export default function ResourcesClient({
           <table className="w-full text-left text-sm">
             <thead className="border-b bg-surface-muted text-xs uppercase text-muted">
               <tr>
+                <th className="w-10 px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.size === filtered.length && filtered.length > 0}
+                    onChange={toggleSelectAll}
+                    className="rounded border-gray-300"
+                    aria-label="Select all resources"
+                  />
+                </th>
                 <th className="px-4 py-3">Title</th>
                 <th className="px-4 py-3">Type</th>
                 <th className="px-4 py-3">Used in</th>
@@ -156,7 +231,16 @@ export default function ResourcesClient({
             </thead>
             <tbody className="divide-y">
               {filtered.map((r) => (
-                <tr key={r.id} className="hover:bg-surface-muted">
+                <tr key={r.id} className={`hover:bg-surface-muted ${selectedIds.has(r.id) ? "bg-blue-50 dark:bg-blue-950/20" : ""}`}>
+                  <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(r.id)}
+                      onChange={() => toggleSelect(r.id)}
+                      className="rounded border-gray-300"
+                      aria-label={`Select ${r.title}`}
+                    />
+                  </td>
                   <td className="px-4 py-3">
                     <Link
                       href={`/resources/${r.id}`}
@@ -189,43 +273,56 @@ export default function ResourcesClient({
       ) : (
         <div className="grid gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {filtered.map((r) => (
-            <Link
+            <div
               key={r.id}
-              href={`/resources/${r.id}`}
-              className="flex h-full flex-col rounded-2xl border border-light bg-surface shadow-warm transition-shadow hover:shadow-warm-md"
+              className={`relative flex h-full flex-col rounded-2xl border bg-surface shadow-warm transition-shadow hover:shadow-warm-md ${selectedIds.has(r.id) ? "border-blue-400 ring-2 ring-blue-200" : "border-light"}`}
             >
-              {r.thumbnail_url ? (
-                <div className="overflow-hidden rounded-t-2xl border-b border-light">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={r.thumbnail_url}
-                    alt={r.title}
-                    className="aspect-[3/4] w-full bg-transparent object-contain p-2"
-                  />
-                </div>
-              ) : (
-                <div className="flex aspect-[3/4] w-full items-center justify-center rounded-t-2xl border-b border-light text-4xl">
-                  {typeIcons[r.type]}
-                </div>
-              )}
-              <div className="flex flex-1 flex-col p-4">
-                <div className="mb-2">
-                  <Badge variant={typeBadgeVariant[r.type] as "default"}>
-                    {r.type}
-                  </Badge>
-                </div>
-                <h3 className="font-medium text-primary">{r.title}</h3>
-                {r.description && (
-                  <p className="mt-1 text-xs text-muted line-clamp-2">
-                    {r.description}
-                  </p>
-                )}
-                <p className="mt-2 text-xs text-muted">
-                  Used in {r.usage_count}{" "}
-                  {r.usage_count === 1 ? "lesson" : "lessons"}
-                </p>
+              <div className="absolute left-2 top-2 z-10">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(r.id)}
+                  onChange={() => toggleSelect(r.id)}
+                  className="h-4 w-4 rounded border-gray-300 shadow-sm"
+                  aria-label={`Select ${r.title}`}
+                />
               </div>
-            </Link>
+              <Link
+                href={`/resources/${r.id}`}
+                className="flex h-full flex-col"
+              >
+                {r.thumbnail_url ? (
+                  <div className="overflow-hidden rounded-t-2xl border-b border-light">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={r.thumbnail_url}
+                      alt={r.title}
+                      className="aspect-[3/4] w-full bg-transparent object-contain p-2"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex aspect-[3/4] w-full items-center justify-center rounded-t-2xl border-b border-light text-4xl">
+                    {typeIcons[r.type]}
+                  </div>
+                )}
+                <div className="flex flex-1 flex-col p-4">
+                  <div className="mb-2">
+                    <Badge variant={typeBadgeVariant[r.type] as "default"}>
+                      {r.type}
+                    </Badge>
+                  </div>
+                  <h3 className="font-medium text-primary">{r.title}</h3>
+                  {r.description && (
+                    <p className="mt-1 text-xs text-muted line-clamp-2">
+                      {r.description}
+                    </p>
+                  )}
+                  <p className="mt-2 text-xs text-muted">
+                    Used in {r.usage_count}{" "}
+                    {r.usage_count === 1 ? "lesson" : "lessons"}
+                  </p>
+                </div>
+              </Link>
+            </div>
           ))}
         </div>
       )}

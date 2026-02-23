@@ -507,6 +507,7 @@ const createLessonSchema = z.object({
   curriculum_id: z.string().uuid(),
   planned_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
   description: z.string().optional(),
+  section: z.string().optional(),
 });
 
 const bulkLessonItemSchema = z.object({
@@ -532,18 +533,19 @@ export async function createLesson(formData: FormData) {
     curriculum_id: formData.get("curriculum_id"),
     planned_date: formData.get("planned_date") || undefined,
     description: formData.get("description") || undefined,
+    section: formData.get("section") || undefined,
   });
 
   if (!data.success) {
     return { error: data.error.errors[0]?.message || "Invalid input" };
   }
 
-  const { title, curriculum_id, planned_date, description } = data.data;
+  const { title, curriculum_id, planned_date, description, section } = data.data;
 
   const res = await pool.query(
-    `INSERT INTO lessons (title, curriculum_id, planned_date, description)
-     VALUES ($1, $2, $3, $4) RETURNING id`,
-    [title, curriculum_id, planned_date || null, description || null]
+    `INSERT INTO lessons (title, curriculum_id, planned_date, description, section)
+     VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+    [title, curriculum_id, planned_date || null, description || null, section || null]
   );
 
   revalidateAll();
