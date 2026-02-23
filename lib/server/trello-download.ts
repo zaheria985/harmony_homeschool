@@ -31,12 +31,13 @@ export async function downloadTrelloFile(
   const key = process.env.TRELLO_API_KEY || "";
   const token = process.env.TRELLO_TOKEN || "";
 
-  // Always try with Trello auth — the URL came from the Trello API so
-  // it may need key+token even if it's on an S3/CDN domain.
+  // Trello attachment URLs use trello.com but API auth only works on
+  // api.trello.com — swap the domain and append key+token.
   let fetchUrl = trelloUrl;
   if (key && token) {
-    const sep = trelloUrl.includes("?") ? "&" : "?";
-    fetchUrl = `${trelloUrl}${sep}key=${key}&token=${token}`;
+    fetchUrl = fetchUrl.replace("https://trello.com/", "https://api.trello.com/");
+    const sep = fetchUrl.includes("?") ? "&" : "?";
+    fetchUrl = `${fetchUrl}${sep}key=${key}&token=${token}`;
   }
 
   try {
