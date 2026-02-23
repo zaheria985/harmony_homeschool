@@ -403,7 +403,7 @@ export default function BooklistsClient({
                     Drop a book here or edit this list to add books.
                   </p>
                 ) : (
-                  <div className="space-y-2 overflow-y-auto max-h-[60vh] flex-1">
+                  <div className="space-y-2 flex-1">
                     {" "}
                     {list.books.map((book) => (
                       <BookCard
@@ -427,7 +427,7 @@ export default function BooklistsClient({
                     {unassignedBooks.length} {unassignedBooks.length === 1 ? "book" : "books"}
                   </p>
                 </div>
-                <div className="space-y-2 overflow-y-auto max-h-[60vh] flex-1">
+                <div className="space-y-2 flex-1">
                   {unassignedBooks.map((book) => (
                     <BookCard
                       key={book.id}

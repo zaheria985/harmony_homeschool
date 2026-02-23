@@ -128,7 +128,7 @@ export default async function AdminPage() {
           </Card>
         </Link>
 
-        <Link href="/admin/tags">
+        <Link href="/tags">
           <Card className="transition-shadow hover:shadow-md">
             <div className="flex items-center gap-3">
               <span className="text-2xl">🏷️</span>

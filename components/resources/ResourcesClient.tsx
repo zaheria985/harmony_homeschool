@@ -6,6 +6,7 @@ import Link from "next/link";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
 import EmptyState from "@/components/ui/EmptyState";
+import RowActions from "@/components/ui/RowActions";
 import { Package } from "lucide-react";
 import ViewToggle from "@/components/ui/ViewToggle";
 import { createGlobalResource, bulkDeleteResources } from "@/lib/actions/resources";
@@ -103,12 +104,18 @@ export default function ResourcesClient({
     const count = selectedIds.size;
     if (!confirm(`Delete ${count} selected resource${count === 1 ? "" : "s"}? This cannot be undone.`)) return;
     setIsDeleting(true);
-    const result = await bulkDeleteResources(Array.from(selectedIds));
-    setIsDeleting(false);
-    if ("error" in result && result.error) {
-      alert(result.error);
-    } else {
-      setSelectedIds(new Set());
+    try {
+      const result = await bulkDeleteResources(Array.from(selectedIds));
+      if ("error" in result && result.error) {
+        alert(result.error);
+      } else {
+        setSelectedIds(new Set());
+      }
+    } catch (err) {
+      alert("Failed to delete resources. Please try again.");
+      console.error("Bulk delete error:", err);
+    } finally {
+      setIsDeleting(false);
       router.refresh();
     }
   }
@@ -227,6 +234,7 @@ export default function ResourcesClient({
                 <th className="px-4 py-3">Type</th>
                 <th className="px-4 py-3">Used in</th>
                 <th className="px-4 py-3">Added</th>
+                <th className="px-4 py-3">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -264,6 +272,23 @@ export default function ResourcesClient({
                   </td>
                   <td className="px-4 py-3 text-muted">
                     {new Date(r.created_at).toLocaleDateString()}
+                  </td>
+                  <td className="px-4 py-3">
+                    <RowActions
+                      onView={() => router.push(`/resources/${r.id}`)}
+                      onDelete={() => {
+                        startTransition(async () => {
+                          try {
+                            await bulkDeleteResources([r.id]);
+                            router.refresh();
+                          } catch (err) {
+                            console.error("Delete error:", err);
+                          }
+                        });
+                      }}
+                      deleteWarning={r.usage_count > 0 ? `This resource is linked to ${r.usage_count} lesson${r.usage_count === 1 ? "" : "s"}. It will be unlinked.` : undefined}
+                      disabled={isPending}
+                    />
                   </td>
                 </tr>
               ))}

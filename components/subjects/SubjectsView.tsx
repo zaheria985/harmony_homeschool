@@ -3,6 +3,8 @@ import { useState, useCallback, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import ViewToggle from "@/components/ui/ViewToggle";
 import EditableCell from "@/components/ui/EditableCell";
+import RowActions from "@/components/ui/RowActions";
+import BulkSelectBar from "@/components/ui/BulkSelectBar";
 import { updateSubject, deleteSubject } from "@/lib/actions/lessons";
 type Subject = {
   id: string;
@@ -27,23 +29,9 @@ export default function SubjectsView({
   const [childFilter, setChildFilter] = useState("");
   const [search, setSearch] = useState("");
   const [isPending, startTransition] = useTransition();
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const handleDeleteSubject = useCallback(
-    (subject: Subject) => (e: React.MouseEvent) => {
-      e.stopPropagation();
-      if (
-        !confirm(
-          "Delete this subject? This will also remove associated curricula.",
-        )
-      )
-        return;
-      startTransition(async () => {
-        await deleteSubject(subject.id);
-        router.refresh();
-      });
-    },
-    [router],
-  );
   const filteredSubjects = subjects
     .filter((subject) => {
       if (!childFilter) return true;
@@ -54,6 +42,34 @@ export default function SubjectsView({
       const q = search.trim().toLowerCase();
       return subject.name.toLowerCase().includes(q);
     });
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds((prev) => {
+      if (prev.size === filteredSubjects.length) return new Set();
+      return new Set(filteredSubjects.map((s) => s.id));
+    });
+  }, [filteredSubjects]);
+
+  async function handleBulkDelete() {
+    if (selectedIds.size === 0) return;
+    setIsDeleting(true);
+    for (const id of selectedIds) {
+      await deleteSubject(id);
+    }
+    setIsDeleting(false);
+    setSelectedIds(new Set());
+    router.refresh();
+  }
+
   const saveSubjectField = useCallback(
     (subject: Subject, field: "name" | "color" | "thumbnail_url") =>
       async (value: string) => {
@@ -124,6 +140,15 @@ export default function SubjectsView({
           <p className="mt-1">Add a subject from Admin to get started.</p>{" "}
         </div>
       )}{" "}
+      {filteredSubjects.length > 0 && (
+        <BulkSelectBar
+          selectedCount={selectedIds.size}
+          totalCount={filteredSubjects.length}
+          onToggleSelectAll={toggleSelectAll}
+          onBulkDelete={handleBulkDelete}
+          isDeleting={isDeleting}
+        />
+      )}
       {/* Gallery View */}{" "}
       {view === "gallery" && filteredSubjects.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -141,14 +166,6 @@ export default function SubjectsView({
                 onClick={() => router.push(`/subjects/${subject.id}`)}
                 className="group relative cursor-pointer rounded-2xl border border-light bg-surface shadow-warm transition-shadow hover:shadow-warm-md"
               >
-                {" "}
-                <button
-                  onClick={handleDeleteSubject(subject)}
-                  disabled={isPending}
-                  className="absolute right-2 top-4 z-10 rounded border border-[var(--error-border)] px-2 py-1 text-xs text-red-600 opacity-0 transition-opacity hover:bg-[var(--error-bg)] group-hover:opacity-100 dark:border-red-800/60 dark:text-red-300 dark:hover:bg-red-900/30"
-                >
-                  Delete
-                </button>
                 {/* Color bar */}{" "}
                 <div
                   className="h-2 rounded-t-2xl"
@@ -167,18 +184,22 @@ export default function SubjectsView({
                 )}{" "}
                 <div className="p-5">
                   {" "}
-                  <div className="mb-2 flex items-start justify-between">
-                    {" "}
-                    <h3 className="font-semibold text-primary">
-                      {subject.name}
-                    </h3>{" "}
-                    <span
-                      className="ml-2 h-3 w-3 shrink-0 rounded-full"
-                      style={{ backgroundColor: subject.color || "#6366f1" }}
-                    />{" "}
-                    <span className="sr-only">
-                      Subject color indicator
-                    </span>{" "}
+                  <div className="flex items-start justify-between">
+                    <h3 className="font-semibold text-primary">{subject.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: subject.color || "#6366f1" }} />
+                      <RowActions
+                        onView={() => router.push(`/subjects/${subject.id}`)}
+                        onDelete={() => {
+                          startTransition(async () => {
+                            await deleteSubject(subject.id);
+                            router.refresh();
+                          });
+                        }}
+                        deleteWarning={`Delete "${subject.name}"? This subject has ${subject.curriculum_count} course${subject.curriculum_count === 1 ? "" : "s"}. Deleting will remove them.`}
+                        disabled={isPending}
+                      />
+                    </div>
                   </div>{" "}
                   <div className="flex items-center justify-between text-sm">
                     {" "}
@@ -233,13 +254,17 @@ export default function SubjectsView({
                       onSave={saveSubjectField(subject, "name")}
                     />{" "}
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={handleDeleteSubject(subject)}
+                      <RowActions
+                        onView={() => router.push(`/subjects/${subject.id}`)}
+                        onDelete={() => {
+                          startTransition(async () => {
+                            await deleteSubject(subject.id);
+                            router.refresh();
+                          });
+                        }}
+                        deleteWarning={`Delete "${subject.name}"? This subject has ${subject.curriculum_count} course${subject.curriculum_count === 1 ? "" : "s"}. Deleting will remove them.`}
                         disabled={isPending}
-                        className="rounded border border-[var(--error-border)] px-2 py-1 text-xs text-red-600 hover:bg-[var(--error-bg)] dark:border-red-800/60 dark:text-red-300 dark:hover:bg-red-900/30"
-                      >
-                        Delete
-                      </button>
+                      />
                       <span
                         className="inline-block h-4 w-4 rounded-full"
                         style={{ backgroundColor: subject.color || "#6366f1" }}
@@ -272,6 +297,7 @@ export default function SubjectsView({
                 {" "}
                 <tr>
                   {" "}
+                  <th className="w-10 px-4 py-3"><input type="checkbox" checked={selectedIds.size === filteredSubjects.length && filteredSubjects.length > 0} onChange={toggleSelectAll} className="rounded border-gray-300" aria-label="Select all" /></th>{" "}
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">
                     {" "}
                     Subject{" "}
@@ -317,6 +343,7 @@ export default function SubjectsView({
                       className="hover:bg-surface-muted"
                     >
                       {" "}
+                      <td className="px-4 py-3"><input type="checkbox" checked={selectedIds.has(subject.id)} onChange={() => toggleSelect(subject.id)} className="rounded border-gray-300" aria-label={`Select ${subject.name}`} /></td>{" "}
                       <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-primary">
                         {" "}
                         <EditableCell
@@ -399,13 +426,17 @@ export default function SubjectsView({
                         </div>{" "}
                       </td>{" "}
                       <td className="whitespace-nowrap px-4 py-3 text-sm">
-                        <button
-                          onClick={handleDeleteSubject(subject)}
+                        <RowActions
+                          onView={() => router.push(`/subjects/${subject.id}`)}
+                          onDelete={() => {
+                            startTransition(async () => {
+                              await deleteSubject(subject.id);
+                              router.refresh();
+                            });
+                          }}
+                          deleteWarning={`Delete "${subject.name}"? This subject has ${subject.curriculum_count} course${subject.curriculum_count === 1 ? "" : "s"}. Deleting will remove them.`}
                           disabled={isPending}
-                          className="rounded border border-[var(--error-border)] px-2 py-1 text-xs text-red-600 hover:bg-[var(--error-bg)] dark:border-red-800/60 dark:text-red-300 dark:hover:bg-red-900/30"
-                        >
-                          Delete
-                        </button>
+                        />
                       </td>{" "}
                     </tr>
                   );

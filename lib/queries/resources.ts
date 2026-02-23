@@ -140,10 +140,10 @@ export async function getResourcesByType(type: string) {
 
 export async function getAllResourceTags() {
   const res = await pool.query(
-    `SELECT t.name, COUNT(rt.resource_id)::int AS resource_count
+    `SELECT t.id, t.name, COUNT(rt.resource_id)::int AS resource_count
      FROM tags t
-     JOIN resource_tags rt ON rt.tag_id = t.id
-     GROUP BY t.name
+     LEFT JOIN resource_tags rt ON rt.tag_id = t.id
+     GROUP BY t.id, t.name
      ORDER BY t.name`
   );
   return res.rows;

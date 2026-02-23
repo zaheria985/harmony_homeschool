@@ -30,25 +30,25 @@ export default function BookCard({
     <div
       draggable={draggable}
       onDragStart={() => onDragStart?.(book.id)}
-      className="h-full rounded-lg border border-slate bg-surface shadow-sm transition-all duration-200 hover:border-interactive-border hover:shadow-md dark:hover:border-primary-600"
+      className="rounded-xl border-2 bg-surface overflow-hidden border-light"
     >
       {" "}
-      <Link href={`/resources/${book.id}`} className="block h-full">
+      <Link href={`/resources/${book.id}`} className="block">
         {" "}
-        <div className="flex h-full flex-col">
+        <div className="flex flex-col">
           {" "}
           {book.thumbnail_url ? (
-            <div className="overflow-hidden rounded-t-lg border-b border-slate">
+            <div>
               {" "}
               {/* eslint-disable-next-line @next/next/no-img-element */}{" "}
               <img
                 src={book.thumbnail_url}
                 alt={book.title}
-                className="aspect-[3/4] w-full bg-transparent object-contain p-2"
+                className="w-full"
               />{" "}
             </div>
           ) : (
-            <div className="flex aspect-[3/4] w-full items-center justify-center rounded-t-lg border-b border-slate text-3xl">
+            <div className="flex w-full items-center justify-center py-8 text-3xl">
               {" "}
               📕{" "}
             </div>

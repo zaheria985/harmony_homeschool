@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Badge from "@/components/ui/Badge";
 import ViewToggle from "@/components/ui/ViewToggle";
 import EditableCell from "@/components/ui/EditableCell";
+import RowActions from "@/components/ui/RowActions";
+import BulkSelectBar from "@/components/ui/BulkSelectBar";
 import { updateCurriculum, deleteCurriculum } from "@/lib/actions/lessons";
 import { canEdit } from "@/lib/permissions";
 
@@ -47,23 +49,8 @@ export default function CurriculaView({
   const [childFilter, setChildFilter] = useState("");
   const [subjectFilter, setSubjectFilter] = useState("");
   const [isPending, startTransition] = useTransition();
-
-  const handleDeleteCurriculum = useCallback(
-    (curriculum: Curriculum) => (e: React.MouseEvent) => {
-      e.stopPropagation();
-      if (
-        !confirm(
-          "Delete this curriculum? This will also remove all its lessons.",
-        )
-      )
-        return;
-      startTransition(async () => {
-        await deleteCurriculum(curriculum.id);
-        router.refresh();
-      });
-    },
-    [router],
-  );
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [timelineFilter, setTimelineFilter] = useState<
     "due-12mo" | "completed" | "future-12mo"
@@ -173,6 +160,33 @@ export default function CurriculaView({
     );
   }, [timelineFiltered]);
 
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds((prev) => {
+      if (prev.size === timelineFiltered.length) return new Set();
+      return new Set(timelineFiltered.map((c) => c.id));
+    });
+  }, [timelineFiltered]);
+
+  async function handleBulkDelete() {
+    if (selectedIds.size === 0) return;
+    setIsDeleting(true);
+    for (const id of selectedIds) {
+      await deleteCurriculum(id);
+    }
+    setIsDeleting(false);
+    setSelectedIds(new Set());
+    router.refresh();
+  }
+
   return (
     <>
       {/* Toolbar */}
@@ -238,6 +252,16 @@ export default function CurriculaView({
         </div>
       </div>
 
+      {timelineFiltered.length > 0 && hasEditPermission && (
+        <BulkSelectBar
+          selectedCount={selectedIds.size}
+          totalCount={timelineFiltered.length}
+          onToggleSelectAll={toggleSelectAll}
+          onBulkDelete={handleBulkDelete}
+          isDeleting={isDeleting}
+        />
+      )}
+
       {view === "table" && timelineFiltered.length === 0 && (
         <p className="py-12 text-center text-sm text-muted">
           No courses match the selected filters.
@@ -272,13 +296,6 @@ export default function CurriculaView({
                 onClick={() => router.push(`/curricula/${curriculum.id}`)}
                 className="group relative cursor-pointer rounded-xl border bg-surface shadow-warm transition-shadow hover:shadow-warm-md overflow-hidden"
               >
-                <button
-                  onClick={handleDeleteCurriculum(curriculum)}
-                  disabled={isPending}
-                  className="absolute right-1 top-1 z-10 rounded border border-[var(--error-border)] bg-surface/90 px-2 py-1 text-xs text-red-600 opacity-0 transition-opacity hover:bg-[var(--error-bg)] group-hover:opacity-100 dark:border-red-800/60 dark:text-red-300 dark:hover:bg-red-900/30"
-                >
-                  Delete
-                </button>
                 {/* Cover image or color placeholder */}
                 {curriculum.cover_image ? (
                   <div className="aspect-[3/4] overflow-hidden">
@@ -324,6 +341,21 @@ export default function CurriculaView({
                       style={{ width: `${pct}%` }}
                     />
                   </div>
+                  {hasEditPermission && (
+                    <div className="mt-2">
+                      <RowActions
+                        onView={() => router.push(`/curricula/${curriculum.id}`)}
+                        onDelete={() => {
+                          startTransition(async () => {
+                            await deleteCurriculum(curriculum.id);
+                            router.refresh();
+                          });
+                        }}
+                        deleteWarning={`Delete "${curriculum.name}"? This course has ${curriculum.lesson_count} lesson${curriculum.lesson_count === 1 ? "" : "s"}. Deleting will remove them.`}
+                        disabled={isPending}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -374,13 +406,6 @@ export default function CurriculaView({
                         onClick={() => router.push(`/curricula/${curriculum.id}`)}
                         className="group/card relative cursor-pointer rounded-lg border bg-surface shadow-sm hover:shadow-md transition-shadow overflow-hidden"
                       >
-                        <button
-                          onClick={handleDeleteCurriculum(curriculum)}
-                          disabled={isPending}
-                          className="absolute right-1 top-1 z-10 rounded border border-[var(--error-border)] bg-surface/90 px-1.5 py-0.5 text-xs text-red-600 opacity-0 transition-opacity hover:bg-[var(--error-bg)] group-hover/card:opacity-100 dark:border-red-800/60 dark:text-red-300 dark:hover:bg-red-900/30"
-                        >
-                          Delete
-                        </button>
                         {curriculum.cover_image ? (
                           <div className="aspect-[3/4] overflow-hidden">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -416,6 +441,21 @@ export default function CurriculaView({
                               style={{ width: `${pct}%` }}
                             />
                           </div>
+                          {hasEditPermission && (
+                            <div className="mt-1.5">
+                              <RowActions
+                                onView={() => router.push(`/curricula/${curriculum.id}`)}
+                                onDelete={() => {
+                                  startTransition(async () => {
+                                    await deleteCurriculum(curriculum.id);
+                                    router.refresh();
+                                  });
+                                }}
+                                deleteWarning={`Delete "${curriculum.name}"? This course has ${curriculum.lesson_count} lesson${curriculum.lesson_count === 1 ? "" : "s"}. Deleting will remove them.`}
+                                disabled={isPending}
+                              />
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -433,6 +473,7 @@ export default function CurriculaView({
           <table className="min-w-full divide-y divide-border">
             <thead className="bg-surface-muted">
               <tr>
+                <th className="w-10 px-4 py-3"><input type="checkbox" checked={selectedIds.size === timelineFiltered.length && timelineFiltered.length > 0} onChange={toggleSelectAll} className="rounded border-gray-300" aria-label="Select all" /></th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">
                   Course
                 </th>
@@ -474,6 +515,7 @@ export default function CurriculaView({
                     : 0;
                 return (
                   <tr key={curriculum.id} className="hover:bg-surface-muted">
+                    <td className="px-4 py-3"><input type="checkbox" checked={selectedIds.has(curriculum.id)} onChange={() => toggleSelect(curriculum.id)} className="rounded border-gray-300" aria-label={`Select ${curriculum.name}`} /></td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-primary">
                       <EditableCell
                         value={curriculum.name}
@@ -571,16 +613,17 @@ export default function CurriculaView({
                     </td>
                     {hasEditPermission && (
                       <td className="whitespace-nowrap px-4 py-3 text-sm">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteCurriculum(curriculum)(e);
+                        <RowActions
+                          onView={() => router.push(`/curricula/${curriculum.id}`)}
+                          onDelete={() => {
+                            startTransition(async () => {
+                              await deleteCurriculum(curriculum.id);
+                              router.refresh();
+                            });
                           }}
+                          deleteWarning={`Delete "${curriculum.name}"? This course has ${curriculum.lesson_count} lesson${curriculum.lesson_count === 1 ? "" : "s"}. Deleting will remove them.`}
                           disabled={isPending}
-                          className="rounded border border-[var(--error-border)] px-2 py-1 text-xs text-red-600 hover:bg-[var(--error-bg)] dark:border-red-800/60 dark:text-red-300 dark:hover:bg-red-900/30"
-                        >
-                          Delete
-                        </button>
+                        />
                       </td>
                     )}
                   </tr>
