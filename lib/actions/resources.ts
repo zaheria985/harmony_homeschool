@@ -432,23 +432,32 @@ export async function deleteGlobalResource(resourceId: string) {
 
 export async function bulkDeleteResources(ids: string[]) {
   const parsed = z.array(z.string().uuid()).min(1).safeParse(ids);
-  if (!parsed.success) return { error: "Invalid input" };
+  if (!parsed.success) {
+    console.error("[bulkDeleteResources] Zod validation failed:", parsed.error.issues);
+    return { error: "Invalid input" };
+  }
 
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
     for (const id of parsed.data) {
-      await client.query(
+      // Unlink from lesson_resources (also handled by ON DELETE SET NULL, but explicit)
+      const unlinkResult = await client.query(
         "UPDATE lesson_resources SET resource_id = NULL WHERE resource_id = $1",
         [id]
       );
-      await client.query("DELETE FROM resources WHERE id = $1", [id]);
+      // Delete the resource (cascades to resource_tags, booklist_resources, curriculum_resources)
+      const deleteResult = await client.query("DELETE FROM resources WHERE id = $1", [id]);
+      console.log(`[bulkDeleteResources] id=${id} unlinked=${unlinkResult.rowCount} deleted=${deleteResult.rowCount}`);
+      if (deleteResult.rowCount === 0) {
+        console.warn(`[bulkDeleteResources] Resource ${id} not found in DB — may already be deleted`);
+      }
     }
     await client.query("COMMIT");
   } catch (err) {
     await client.query("ROLLBACK");
-    console.error("Failed to bulk delete resources", {
-      count: parsed.data.length,
+    console.error("[bulkDeleteResources] Transaction failed:", {
+      ids: parsed.data,
       error: err instanceof Error ? err.message : String(err),
     });
     return { error: "Failed to delete resources" };
@@ -458,6 +467,7 @@ export async function bulkDeleteResources(ids: string[]) {
 
   revalidatePath("/resources");
   revalidatePath("/lessons");
+  revalidatePath("/booklists");
   return { success: true, deleted: parsed.data.length };
 }
 

@@ -99,20 +99,32 @@ export default function ResourcesClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtered.length, filtered]);
 
+  async function handleDeleteResource(id: string) {
+    setError("");
+    startTransition(async () => {
+      const result = await bulkDeleteResources([id]);
+      if ("error" in result && result.error) {
+        setError(result.error);
+      }
+      router.refresh();
+    });
+  }
+
   async function handleBulkDelete() {
     if (selectedIds.size === 0) return;
     const count = selectedIds.size;
     if (!confirm(`Delete ${count} selected resource${count === 1 ? "" : "s"}? This cannot be undone.`)) return;
+    setError("");
     setIsDeleting(true);
     try {
       const result = await bulkDeleteResources(Array.from(selectedIds));
       if ("error" in result && result.error) {
-        alert(result.error);
+        setError(result.error);
       } else {
         setSelectedIds(new Set());
       }
     } catch (err) {
-      alert("Failed to delete resources. Please try again.");
+      setError("Failed to delete resources. Please try again.");
       console.error("Bulk delete error:", err);
     } finally {
       setIsDeleting(false);
@@ -182,6 +194,10 @@ export default function ResourcesClient({
           </button>
         </div>
       </div>
+
+      {error && (
+        <p className="mb-3 rounded-lg bg-[var(--error-bg)] px-3 py-2 text-sm text-red-600 dark:text-red-400">{error}</p>
+      )}
 
       {/* Bulk actions bar */}
       {filtered.length > 0 && (
@@ -276,16 +292,7 @@ export default function ResourcesClient({
                   <td className="px-4 py-3">
                     <RowActions
                       onView={() => router.push(`/resources/${r.id}`)}
-                      onDelete={() => {
-                        startTransition(async () => {
-                          try {
-                            await bulkDeleteResources([r.id]);
-                            router.refresh();
-                          } catch (err) {
-                            console.error("Delete error:", err);
-                          }
-                        });
-                      }}
+                      onDelete={() => handleDeleteResource(r.id)}
                       deleteWarning={r.usage_count > 0 ? `This resource is linked to ${r.usage_count} lesson${r.usage_count === 1 ? "" : "s"}. It will be unlinked.` : undefined}
                       disabled={isPending}
                     />
