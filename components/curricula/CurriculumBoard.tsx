@@ -122,9 +122,10 @@ function ResourceMiniCard({
   const youtubeId =
     type === "youtube" || type === "video" ? extractYoutubeId(url) : null;
 
+  const isImageUrl = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(url);
   const thumbnail = youtubeId
     ? `https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`
-    : thumbnailUrl;
+    : thumbnailUrl || (isImageUrl ? url : null);
 
   return (
     <a
@@ -231,6 +232,7 @@ function LessonMiniCard({
       if (ytId) return `https://img.youtube.com/vi/${ytId}/mqdefault.jpg`;
       const thumb = r.global_thumbnail_url || r.thumbnail_url;
       if (thumb) return thumb;
+      if (/\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(r.url)) return r.url;
       return null;
     })
     .filter(Boolean) as string[];
