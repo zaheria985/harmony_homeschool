@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Badge from "@/components/ui/Badge";
@@ -211,6 +211,7 @@ function LessonMiniCard({
   isPending: boolean;
   onCompletionToggle: (lessonId: string, childId: string, shouldComplete: boolean) => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const completedChildIds = new Set(lesson.completions.map((c) => c.child_id));
   const allCompleted =
     assignedChildren.length > 0 &&
@@ -218,6 +219,8 @@ function LessonMiniCard({
   const borderColor = allCompleted
     ? "border-success-400"
     : statusColors[lesson.status] || "border-light";
+
+  const hasDetails = lesson.description || lesson.resources.length > 0;
 
   return (
     <div className={`rounded-xl border-2 bg-surface p-3 ${borderColor}`}>
@@ -241,11 +244,44 @@ function LessonMiniCard({
           </span>
         )}
       </div>
-      {lesson.resources.length > 0 && (
-        <p className="mt-1 text-[10px] text-muted">
-          {lesson.resources.length} resource
-          {lesson.resources.length !== 1 ? "s" : ""}
-        </p>
+      {hasDetails && !expanded && (
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="mt-1 text-[10px] text-muted hover:text-interactive"
+        >
+          {lesson.resources.length > 0
+            ? `${lesson.resources.length} resource${lesson.resources.length !== 1 ? "s" : ""}${lesson.description ? " + details" : ""}`
+            : "Show details"}
+          {" \u25BC"}
+        </button>
+      )}
+      {expanded && (
+        <div className="mt-2 space-y-2">
+          {lesson.description && (
+            <p className="text-xs text-muted">{lesson.description}</p>
+          )}
+          {lesson.resources.length > 0 && (
+            <div className="space-y-1.5">
+              {lesson.resources.map((r) => (
+                <ResourceMiniCard
+                  key={r.id}
+                  type={r.global_type || r.type}
+                  url={r.url}
+                  title={r.title}
+                  thumbnailUrl={r.global_thumbnail_url || r.thumbnail_url}
+                />
+              ))}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setExpanded(false)}
+            className="text-[10px] text-muted hover:text-interactive"
+          >
+            {"\u25B2 Collapse"}
+          </button>
+        </div>
       )}
       {assignedChildren.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">

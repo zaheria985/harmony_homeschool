@@ -558,6 +558,7 @@ const bulkLessonResourceSchema = z.object({
       type: z.enum(["youtube", "pdf", "url"]),
       url: z.string().url(),
       title: z.string().optional(),
+      thumbnailUrl: z.string().optional(),
     })
   ),
 });
@@ -565,7 +566,7 @@ const bulkLessonResourceSchema = z.object({
 export async function bulkCreateLessonResources(
   items: Array<{
     lessonId: string;
-    resources: Array<{ type: "youtube" | "pdf" | "url"; url: string; title?: string }>;
+    resources: Array<{ type: "youtube" | "pdf" | "url"; url: string; title?: string; thumbnailUrl?: string }>;
   }>
 ) {
   const parsed = z.array(bulkLessonResourceSchema).safeParse(items);
@@ -581,10 +582,15 @@ export async function bulkCreateLessonResources(
 
     for (const item of parsed.data) {
       for (const resource of item.resources) {
+        const youtubeMeta =
+          resource.type === "youtube" ? await fetchYouTubeMeta(resource.url) : null;
+        const finalTitle = resource.title || youtubeMeta?.title || null;
+        const finalThumbnail = resource.thumbnailUrl || youtubeMeta?.thumbnail_url || null;
+
         await client.query(
-          `INSERT INTO lesson_resources (lesson_id, type, url, title)
-           VALUES ($1, $2, $3, $4)`,
-          [item.lessonId, resource.type, resource.url, resource.title || null]
+          `INSERT INTO lesson_resources (lesson_id, type, url, title, thumbnail_url)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [item.lessonId, resource.type, resource.url, finalTitle, finalThumbnail]
         );
         created++;
       }

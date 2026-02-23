@@ -56,6 +56,7 @@ type ExtractedResource = {
   type: "youtube" | "pdf" | "url";
   url: string;
   title: string;
+  thumbnailUrl?: string;
 };
 
 type LessonDraft = {
@@ -84,6 +85,8 @@ function extractResources(card: TrelloCard): ExtractedResource[] {
       att.url.endsWith(".pdf")
     ) {
       resources.push({ type: "pdf", url: att.url, title: att.name });
+    } else if (att.mimeType?.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp)$/i.test(att.url)) {
+      resources.push({ type: "url", url: att.url, title: att.name, thumbnailUrl: att.url });
     } else if (att.url.startsWith("http")) {
       resources.push({ type: "url", url: att.url, title: att.name });
     }
@@ -204,7 +207,7 @@ export default function TrelloImportClient({
   const [existingCurriculumId, setExistingCurriculumId] = useState("");
   const [newCurriculumName, setNewCurriculumName] = useState("");
   const [subjectId, setSubjectId] = useState("");
-  const [prefixWithListName, setPrefixWithListName] = useState(true);
+  const [prefixWithListName, setPrefixWithListName] = useState(false);
   const [importCompleted, setImportCompleted] = useState(false);
   const [selectedChildIds, setSelectedChildIds] = useState<string[]>([]);
   const [schoolYearId, setSchoolYearId] = useState("");
