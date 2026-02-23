@@ -520,7 +520,7 @@ const bulkLessonItemSchema = z.object({
   section: z.string().optional(),
 });
 
-const bulkCreateLessonsSchema = z.array(bulkLessonItemSchema).min(1).max(500);
+const bulkCreateLessonsSchema = z.array(bulkLessonItemSchema).min(1).max(2000);
 const bulkCreateOptionsSchema = z.object({
   childIds: z.array(z.string().uuid()).optional().default([]),
   schoolYearId: z.string().uuid().optional(),
