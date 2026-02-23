@@ -25,7 +25,7 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.email || !credentials?.password) return null;
 
         const result = await pool.query(
-          "SELECT id, name, email, password_hash, role, child_id FROM users WHERE email = $1",
+          "SELECT id, name, email, password_hash, role, child_id, permission_level FROM users WHERE email = $1",
           [credentials.email]
         );
 
@@ -41,6 +41,7 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           role: user.role,
           child_id: user.child_id,
+          permission_level: user.permission_level,
         };
       },
     }),
@@ -55,6 +56,7 @@ export const authOptions: NextAuthOptions = {
         token.role = readStringField(userRecord.role) || undefined;
         token.id = readStringField(userRecord.id) || undefined;
         token.child_id = readNullableStringField(userRecord.child_id);
+        token.permission_level = readStringField(userRecord.permission_level) || "full";
       }
       return token;
     },
@@ -64,10 +66,12 @@ export const authOptions: NextAuthOptions = {
           id?: string;
           role?: string;
           child_id?: string | null;
+          permission_level?: string;
         };
         sessionUser.id = readStringField(token.id) || "";
         sessionUser.role = readStringField(token.role) || "parent";
         sessionUser.child_id = readNullableStringField(token.child_id);
+        sessionUser.permission_level = readStringField(token.permission_level) || "full";
       }
       return session;
     },

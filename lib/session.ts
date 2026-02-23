@@ -16,6 +16,7 @@ export async function getCurrentUser() {
     childId: readString(user?.child_id) || null,
     email: readString(user?.email) || null,
     name: readString(user?.name) || null,
+    permissionLevel: readString(user?.permission_level) || "full",
   };
 }
 

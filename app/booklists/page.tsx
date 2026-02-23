@@ -26,6 +26,7 @@ export default async function BooklistsPage() {
         books={books}
         userRole={user.role}
         userChildId={user.childId || ""}
+        permissionLevel={user.permissionLevel}
       />{" "}
     </div>
   );

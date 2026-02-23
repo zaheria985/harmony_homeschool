@@ -6,6 +6,7 @@ import Link from "next/link";
 import Badge from "@/components/ui/Badge";
 import { updateLessonStatus, createLesson } from "@/lib/actions/lessons";
 import { markLessonComplete } from "@/lib/actions/completions";
+import { canEdit, canMarkComplete } from "@/lib/permissions";
 
 // ============================================================================
 // Types
@@ -66,6 +67,7 @@ type BoardProps = {
   lessons: Lesson[];
   children: Child[];
   curriculumResources: CurriculumResource[];
+  permissionLevel?: string;
 };
 
 // ============================================================================
@@ -220,11 +222,13 @@ function LessonMiniCard({
   assignedChildren,
   isPending,
   onCompletionToggle,
+  showCompletions = true,
 }: {
   lesson: Lesson;
   assignedChildren: Child[];
   isPending: boolean;
   onCompletionToggle: (lessonId: string, childId: string, shouldComplete: boolean) => void;
+  showCompletions?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const completedChildIds = new Set(lesson.completions.map((c) => c.child_id));
@@ -367,7 +371,7 @@ function LessonMiniCard({
           </div>
         )}
 
-        {assignedChildren.length > 0 && (
+        {showCompletions && assignedChildren.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
             {assignedChildren.map((child) => {
               const completion = lesson.completions.find(
@@ -406,6 +410,8 @@ function SectionColumn({
   onSave,
   onCancel,
   isSaving,
+  showAddLesson = true,
+  showCompletions = true,
 }: {
   sectionName: string;
   lessons: Lesson[];
@@ -420,6 +426,8 @@ function SectionColumn({
   onSave: () => void;
   onCancel: () => void;
   isSaving: boolean;
+  showAddLesson?: boolean;
+  showCompletions?: boolean;
 }) {
   return (
     <div
@@ -445,11 +453,12 @@ function SectionColumn({
             assignedChildren={assignedChildren}
             isPending={isPending}
             onCompletionToggle={onCompletionToggle}
+            showCompletions={showCompletions}
           />
         ))}
 
         {/* Inline add form or button */}
-        {isAddingHere ? (
+        {showAddLesson && (isAddingHere ? (
           <div className="rounded-xl border border-light bg-surface p-3 space-y-2">
             <input
               type="text"
@@ -491,7 +500,7 @@ function SectionColumn({
           >
             + Add Lesson
           </button>
-        )}
+        ))}
       </div>
     </div>
   );
@@ -507,9 +516,12 @@ export default function CurriculumBoard({
   lessons,
   children: assignedChildren,
   curriculumResources,
+  permissionLevel = "full",
 }: BoardProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const showAddLesson = canEdit(permissionLevel);
+  const showCompletions = canMarkComplete(permissionLevel);
   const [addingToSection, setAddingToSection] = useState<string | null>(null);
   const [newLessonTitle, setNewLessonTitle] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -684,6 +696,8 @@ export default function CurriculumBoard({
               onSave={() => handleAddLesson(sectionName)}
               onCancel={() => { setAddingToSection(null); setNewLessonTitle(""); }}
               isSaving={isSaving}
+              showAddLesson={showAddLesson}
+              showCompletions={showCompletions}
             />
           ))}
 
@@ -703,6 +717,8 @@ export default function CurriculumBoard({
               onSave={() => handleAddLesson("Other")}
               onCancel={() => { setAddingToSection(null); setNewLessonTitle(""); }}
               isSaving={isSaving}
+              showAddLesson={showAddLesson}
+              showCompletions={showCompletions}
             />
           )}
 
@@ -888,7 +904,7 @@ export default function CurriculumBoard({
               )}
 
               {/* Completion checkboxes */}
-              {assignedChildren.length > 0 && (
+              {showCompletions && assignedChildren.length > 0 && (
                 <div className="border-t px-4 py-2.5">
                   <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
                     Completion

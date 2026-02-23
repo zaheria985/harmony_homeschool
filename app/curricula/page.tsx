@@ -39,6 +39,7 @@ export default async function CurriculaPage() {
         curricula={curricula}
         children={children}
         subjects={subjects}
+        permissionLevel={user.permissionLevel}
       />{" "}
     </div>
   );

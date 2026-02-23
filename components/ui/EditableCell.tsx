@@ -9,6 +9,7 @@ type EditableCellProps = {
   options?: { value: string; label: string }[];
   displayValue?: React.ReactNode;
   className?: string;
+  readOnly?: boolean;
 };
 
 export default function EditableCell({
@@ -18,6 +19,7 @@ export default function EditableCell({
   options,
   displayValue,
   className = "",
+  readOnly = false,
 }: EditableCellProps) {
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
@@ -155,6 +157,15 @@ export default function EditableCell({
           </span>
         )}
       </div>
+    );
+  }
+
+  if (readOnly) {
+    return (
+      <span className={`px-1 py-0.5 -mx-1 -my-0.5 ${className}`}>
+        {displayValue ??
+          (editValue || <span className="text-muted italic">—</span>)}
+      </span>
     );
   }
 

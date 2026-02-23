@@ -13,6 +13,7 @@ import {
 } from "@/lib/actions/booklists";
 import { createGlobalResource } from "@/lib/actions/resources";
 import { useRouter } from "next/navigation";
+import { canEdit } from "@/lib/permissions";
 type BookResource = {
   id: string;
   title: string;
@@ -33,11 +34,13 @@ export default function BooklistsClient({
   books,
   userRole,
   userChildId,
+  permissionLevel = "full",
 }: {
   booklists: Booklist[];
   books: BookResource[];
   userRole: string;
   userChildId: string;
+  permissionLevel?: string;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -64,6 +67,7 @@ export default function BooklistsClient({
   const fieldClass =
     "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary placeholder:text-muted focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus";
   const isKid = userRole === "kid";
+  const hasEditPermission = canEdit(permissionLevel);
   const personalBooklist =
     booklists.find((list) => list.owner_child_id === userChildId) || null;
   const unassignedBooks = useMemo(() => {
@@ -261,7 +265,7 @@ export default function BooklistsClient({
         <p className="text-sm text-muted">
           Drag books between booklists and build lists from tags.
         </p>{" "}
-        {!isKid && (
+        {!isKid && hasEditPermission && (
           <div className="flex gap-2">
             {" "}
             <button
@@ -367,7 +371,7 @@ export default function BooklistsClient({
                       {list.books.length === 1 ? "book" : "books"}{" "}
                     </p>{" "}
                   </div>{" "}
-                  {!isKid && (
+                  {!isKid && hasEditPermission && (
                     <div className="flex gap-1">
                       {" "}
                       <button

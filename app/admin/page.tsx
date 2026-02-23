@@ -3,308 +3,223 @@ import Link from "next/link";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import { getAdminStats } from "@/lib/queries/admin";
+
 const sections = [
   {
     href: "/admin/children",
-    label: "Children",
+    label: "Student Management",
     icon: "👨‍🎓",
     description: "Add and manage student profiles",
     statKey: "child_count" as const,
   },
-  {
-    href: "/admin/subjects",
-    label: "Subjects",
-    icon: "📖",
-    description: "Create subjects for each child and school year",
-    statKey: "subject_count" as const,
-  },
-  {
-    href: "/admin/curricula",
-    label: "Courses",
-    icon: "📋",
-    description: "Manage courses and unit studies within subjects",
-    statKey: "curriculum_count" as const,
-  },
 ];
+
 export default async function AdminPage() {
   const stats = await getAdminStats();
   return (
     <div>
-      {" "}
-      <PageHeader title="Admin" />{" "}
+      <PageHeader title="Admin" />
+
       <div className="mb-8 rounded-lg border border-primary-100 bg-interactive-light p-4 text-sm text-primary-800">
-        {" "}
-        <strong>Data hierarchy:</strong> Children → Subjects → Courses → Lessons
-        → Resources. Create items top-down — a child must exist before adding
-        subjects, subjects before courses, etc.{" "}
-      </div>{" "}
+        <strong>Configuration &amp; tools:</strong> Use this page for calendar
+        setup, imports, tag management, and reporting tools. Day-to-day content
+        management for subjects and curricula is available directly from the
+        sidebar.
+      </div>
+
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {" "}
         {sections.map((s) => (
           <Link key={s.href} href={s.href}>
-            {" "}
             <Card className="transition-shadow hover:shadow-md">
-              {" "}
               <div className="mb-3 flex items-center gap-3">
-                {" "}
-                <span className="text-2xl">{s.icon}</span>{" "}
+                <span className="text-2xl">{s.icon}</span>
                 <div>
-                  {" "}
-                  <h3 className="text-lg font-semibold">{s.label}</h3>{" "}
-                  <p className="text-sm text-muted">{s.description}</p>{" "}
-                </div>{" "}
-              </div>{" "}
+                  <h3 className="text-lg font-semibold">{s.label}</h3>
+                  <p className="text-sm text-muted">{s.description}</p>
+                </div>
+              </div>
               <div className="font-display text-2xl text-interactive">
-                {" "}
-                {stats[s.statKey]}{" "}
-              </div>{" "}
-            </Card>{" "}
+                {stats[s.statKey]}
+              </div>
+            </Card>
           </Link>
-        ))}{" "}
-      </div>{" "}
-      <div className="mt-6 space-y-4">
-        {" "}
-        <Link href="/admin/calendar">
-          {" "}
+        ))}
+
+        <Link href="/admin/users">
           <Card className="transition-shadow hover:shadow-md">
-            {" "}
-            <div className="flex items-center gap-3">
-              {" "}
-              <span className="text-2xl">📅</span>{" "}
+            <div className="mb-3 flex items-center gap-3">
+              <span className="text-2xl">🔑</span>
               <div>
-                {" "}
-                <h3 className="text-lg font-semibold">School Calendar</h3>{" "}
+                <h3 className="text-lg font-semibold">
+                  User &amp; Permission Management
+                </h3>
                 <p className="text-sm text-muted">
-                  {" "}
-                  Configure school years, school days, holidays, and make-up
-                  days{" "}
-                </p>{" "}
-              </div>{" "}
-            </div>{" "}
-          </Card>{" "}
-        </Link>{" "}
-        <Link href="/admin/external-events">
-          {" "}
+                  Manage user accounts and permission levels
+                </p>
+              </div>
+            </div>
+          </Card>
+        </Link>
+      </div>
+
+      <div className="mt-6 space-y-4">
+        <Link href="/admin/calendar">
           <Card className="transition-shadow hover:shadow-md">
-            {" "}
             <div className="flex items-center gap-3">
-              {" "}
-              <span className="text-2xl">🏫</span>{" "}
+              <span className="text-2xl">📅</span>
               <div>
-                {" "}
+                <h3 className="text-lg font-semibold">School Calendar</h3>
+                <p className="text-sm text-muted">
+                  Configure school years, school days, holidays, and make-up
+                  days
+                </p>
+              </div>
+            </div>
+          </Card>
+        </Link>
+
+        <Link href="/admin/external-events">
+          <Card className="transition-shadow hover:shadow-md">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🏫</span>
+              <div>
                 <h3 className="text-lg font-semibold">
                   External School Events
-                </h3>{" "}
+                </h3>
                 <p className="text-sm text-muted">
-                  {" "}
                   Import and manage recurring external program dates for
-                  calendar visibility{" "}
-                </p>{" "}
-              </div>{" "}
-            </div>{" "}
-          </Card>{" "}
-        </Link>{" "}
-        <Link href="/lessons/table">
-          {" "}
-          <Card className="transition-shadow hover:shadow-md">
-            {" "}
-            <div className="flex items-center gap-3">
-              {" "}
-              <span className="text-2xl">🧾</span>{" "}
-              <div>
-                {" "}
-                <h3 className="text-lg font-semibold">Lessons</h3>{" "}
-                <p className="text-sm text-muted">
-                  {" "}
-                  Open the lessons table to review, edit, and manage all
-                  lessons{" "}
-                </p>{" "}
-              </div>{" "}
-            </div>{" "}
-          </Card>{" "}
-        </Link>{" "}
+                  calendar visibility
+                </p>
+              </div>
+            </div>
+          </Card>
+        </Link>
+
         <Link href="/admin/lessons">
-          {" "}
           <Card className="transition-shadow hover:shadow-md">
-            {" "}
             <div className="flex items-center gap-3">
-              {" "}
-              <span className="text-2xl">📥</span>{" "}
+              <span className="text-2xl">📥</span>
               <div>
-                {" "}
                 <h3 className="text-lg font-semibold">
                   Bulk Import Lessons
-                </h3>{" "}
+                </h3>
                 <p className="text-sm text-muted">
-                  {" "}
-                  Paste lessons from a spreadsheet to create many at once{" "}
-                </p>{" "}
-              </div>{" "}
-            </div>{" "}
-          </Card>{" "}
-        </Link>{" "}
+                  Paste lessons from a spreadsheet to create many at once
+                </p>
+              </div>
+            </div>
+          </Card>
+        </Link>
+
         <Link href="/admin/trello">
-          {" "}
           <Card className="transition-shadow hover:shadow-md">
-            {" "}
             <div className="flex items-center gap-3">
-              {" "}
-              <span className="text-2xl">📋</span>{" "}
+              <span className="text-2xl">📋</span>
               <div>
-                {" "}
                 <h3 className="text-lg font-semibold">
                   Import from Trello
-                </h3>{" "}
+                </h3>
                 <p className="text-sm text-muted">
-                  {" "}
                   Import a Trello board as a curriculum with chapters, lessons,
-                  and resources{" "}
-                </p>{" "}
-              </div>{" "}
-            </div>{" "}
-          </Card>{" "}
-        </Link>{" "}
+                  and resources
+                </p>
+              </div>
+            </div>
+          </Card>
+        </Link>
+
         <Link href="/admin/tags">
-          {" "}
           <Card className="transition-shadow hover:shadow-md">
-            {" "}
             <div className="flex items-center gap-3">
-              {" "}
-              <span className="text-2xl">🏷️</span>{" "}
+              <span className="text-2xl">🏷️</span>
               <div>
-                {" "}
-                <h3 className="text-lg font-semibold">Tag Management</h3>{" "}
+                <h3 className="text-lg font-semibold">Tag Management</h3>
                 <p className="text-sm text-muted">
-                  {" "}
                   Rename, merge, and delete tags used in the resource
-                  library{" "}
-                </p>{" "}
-              </div>{" "}
-            </div>{" "}
-          </Card>{" "}
-        </Link>{" "}
+                  library
+                </p>
+              </div>
+            </div>
+          </Card>
+        </Link>
+
         <Link href="/completed">
-          {" "}
           <Card className="transition-shadow hover:shadow-md">
-            {" "}
             <div className="flex items-center gap-3">
-              {" "}
-              <span className="text-2xl">✅</span>{" "}
+              <span className="text-2xl">✅</span>
               <div>
-                {" "}
                 <h3 className="text-lg font-semibold">
                   Completed Reports
-                </h3>{" "}
+                </h3>
                 <p className="text-sm text-muted">
-                  {" "}
                   Review completed lessons by student, subject, date range, and
-                  school year{" "}
-                </p>{" "}
-              </div>{" "}
-            </div>{" "}
-          </Card>{" "}
-        </Link>{" "}
+                  school year
+                </p>
+              </div>
+            </div>
+          </Card>
+        </Link>
+
         <Link href="/grades">
-          {" "}
           <Card className="transition-shadow hover:shadow-md">
-            {" "}
             <div className="flex items-center gap-3">
-              {" "}
-              <span className="text-2xl">📝</span>{" "}
+              <span className="text-2xl">📝</span>
               <div>
-                {" "}
-                <h3 className="text-lg font-semibold">Grades</h3>{" "}
+                <h3 className="text-lg font-semibold">Grades</h3>
                 <p className="text-sm text-muted">
-                  {" "}
-                  View and manage gradebook records for completed lessons{" "}
-                </p>{" "}
-              </div>{" "}
-            </div>{" "}
-          </Card>{" "}
-        </Link>{" "}
+                  View and manage gradebook records for completed lessons
+                </p>
+              </div>
+            </div>
+          </Card>
+        </Link>
+
         <Card>
-          {" "}
-          <div className="flex items-center gap-3">
-            {" "}
-            <span className="text-2xl">📝</span>{" "}
-            <div>
-              {" "}
-              <h3 className="text-lg font-semibold">Lessons</h3>{" "}
-              <p className="text-sm text-muted">
-                {" "}
-                {stats.lesson_count} lessons total — manage lessons from the{""}{" "}
-                <Link
-                  href="/lessons/table"
-                  className="text-interactive underline hover:text-interactive-hover"
-                >
-                  {" "}
-                  Lessons{" "}
-                </Link>
-                {""} page or{""}{" "}
-                <Link
-                  href="/week"
-                  className="text-interactive underline hover:text-interactive-hover"
-                >
-                  {" "}
-                  Weekly Planner{" "}
-                </Link>{" "}
-              </p>{" "}
-            </div>{" "}
-          </div>{" "}
-        </Card>{" "}
-        <Card>
-          {" "}
-          <h3 className="mb-2 text-lg font-semibold">Field Coverage</h3>{" "}
-          <ul className="space-y-1 text-sm text-tertiary">
-            {" "}
+          <h3 className="mb-2 text-lg font-semibold">Moved to Sidebar</h3>
+          <p className="text-sm text-muted">
+            The following are now managed directly from their sidebar pages:
+          </p>
+          <ul className="mt-2 space-y-1 text-sm text-tertiary">
             <li>
-              {" "}
-              <strong>Children:</strong> name, emoji, banner image editable in{" "}
+              <strong>Subjects:</strong> Manage subjects from the{" "}
               <Link
-                href="/admin/children"
-                className="text-interactive underline"
-              >
-                Children
-              </Link>
-              .{" "}
-            </li>{" "}
-            <li>
-              {" "}
-              <strong>Subjects:</strong> name, color, thumbnail editable in{" "}
-              <Link
-                href="/admin/subjects"
-                className="text-interactive underline"
+                href="/subjects"
+                className="text-interactive underline hover:text-interactive-hover"
               >
                 Subjects
-              </Link>
-              .{" "}
-            </li>{" "}
+              </Link>{" "}
+              page.
+            </li>
             <li>
-              {" "}
-              <strong>Courses:</strong> name, description, subject, type,
-              status, dates, notes, cover image editable in{" "}
+              <strong>Courses:</strong> Manage courses from the{" "}
               <Link
-                href="/admin/curricula"
-                className="text-interactive underline"
+                href="/curricula"
+                className="text-interactive underline hover:text-interactive-hover"
               >
-                Courses
-              </Link>
-              .{" "}
-            </li>{" "}
+                Curricula
+              </Link>{" "}
+              page.
+            </li>
             <li>
-              {" "}
-              <strong>Lessons:</strong> title, due date, status editable in{" "}
+              <strong>Lessons:</strong> Manage lessons from the{" "}
               <Link
                 href="/lessons/table"
-                className="text-interactive underline"
+                className="text-interactive underline hover:text-interactive-hover"
               >
                 Lessons Table
+              </Link>{" "}
+              or{" "}
+              <Link
+                href="/week"
+                className="text-interactive underline hover:text-interactive-hover"
+              >
+                Weekly Planner
               </Link>
-              ; order index and timestamps are system-managed.{" "}
-            </li>{" "}
-          </ul>{" "}
-        </Card>{" "}
-      </div>{" "}
+              .
+            </li>
+          </ul>
+        </Card>
+      </div>
     </div>
   );
 }

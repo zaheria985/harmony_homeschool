@@ -5,12 +5,16 @@ import Link from "next/link";
 import CurriculumBoard from "@/components/curricula/CurriculumBoard";
 import { CurriculumViewToggle } from "@/components/curricula/CurriculumViewToggle";
 import { getCurriculumBoardData } from "@/lib/queries/curricula";
+import { getCurrentUser } from "@/lib/session";
 export default async function CurriculumBoardPage({
   params,
 }: {
   params: { id: string };
 }) {
-  const data = await getCurriculumBoardData(params.id);
+  const [data, user] = await Promise.all([
+    getCurriculumBoardData(params.id),
+    getCurrentUser(),
+  ]);
   if (!data) notFound();
   return (
     <div>
@@ -73,6 +77,7 @@ export default async function CurriculumBoardPage({
         lessons={data.lessons}
         children={data.children}
         curriculumResources={data.curriculumResources}
+        permissionLevel={user.permissionLevel}
       />{" "}
     </div>
   );

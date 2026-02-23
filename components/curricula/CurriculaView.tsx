@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Badge from "@/components/ui/Badge";
 import ViewToggle from "@/components/ui/ViewToggle";
 import EditableCell from "@/components/ui/EditableCell";
-import { updateCurriculum } from "@/lib/actions/lessons";
+import { updateCurriculum, deleteCurriculum } from "@/lib/actions/lessons";
+import { canEdit } from "@/lib/permissions";
 
 type Curriculum = {
   id: string;
@@ -33,15 +34,37 @@ export default function CurriculaView({
   curricula,
   children,
   subjects,
+  permissionLevel = "full",
 }: {
   curricula: Curriculum[];
   children: Child[];
   subjects: SubjectOption[];
+  permissionLevel?: string;
 }) {
+  const hasEditPermission = canEdit(permissionLevel);
   const router = useRouter();
   const [view, setView] = useState("gallery");
   const [childFilter, setChildFilter] = useState("");
   const [subjectFilter, setSubjectFilter] = useState("");
+  const [isPending, startTransition] = useTransition();
+
+  const handleDeleteCurriculum = useCallback(
+    (curriculum: Curriculum) => (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (
+        !confirm(
+          "Delete this curriculum? This will also remove all its lessons.",
+        )
+      )
+        return;
+      startTransition(async () => {
+        await deleteCurriculum(curriculum.id);
+        router.refresh();
+      });
+    },
+    [router],
+  );
+
   const [timelineFilter, setTimelineFilter] = useState<
     "due-12mo" | "completed" | "future-12mo"
   >("due-12mo");
@@ -247,8 +270,15 @@ export default function CurriculaView({
               <div
                 key={curriculum.id}
                 onClick={() => router.push(`/curricula/${curriculum.id}`)}
-                className="cursor-pointer rounded-xl border bg-surface shadow-warm transition-shadow hover:shadow-warm-md overflow-hidden"
+                className="group relative cursor-pointer rounded-xl border bg-surface shadow-warm transition-shadow hover:shadow-warm-md overflow-hidden"
               >
+                <button
+                  onClick={handleDeleteCurriculum(curriculum)}
+                  disabled={isPending}
+                  className="absolute right-1 top-1 z-10 rounded border border-[var(--error-border)] bg-surface/90 px-2 py-1 text-xs text-red-600 opacity-0 transition-opacity hover:bg-[var(--error-bg)] group-hover:opacity-100 dark:border-red-800/60 dark:text-red-300 dark:hover:bg-red-900/30"
+                >
+                  Delete
+                </button>
                 {/* Cover image or color placeholder */}
                 {curriculum.cover_image ? (
                   <div className="aspect-[3/4] overflow-hidden">
@@ -342,8 +372,15 @@ export default function CurriculaView({
                       <div
                         key={curriculum.id}
                         onClick={() => router.push(`/curricula/${curriculum.id}`)}
-                        className="cursor-pointer rounded-lg border bg-surface shadow-sm hover:shadow-md transition-shadow overflow-hidden"
+                        className="group/card relative cursor-pointer rounded-lg border bg-surface shadow-sm hover:shadow-md transition-shadow overflow-hidden"
                       >
+                        <button
+                          onClick={handleDeleteCurriculum(curriculum)}
+                          disabled={isPending}
+                          className="absolute right-1 top-1 z-10 rounded border border-[var(--error-border)] bg-surface/90 px-1.5 py-0.5 text-xs text-red-600 opacity-0 transition-opacity hover:bg-[var(--error-bg)] group-hover/card:opacity-100 dark:border-red-800/60 dark:text-red-300 dark:hover:bg-red-900/30"
+                        >
+                          Delete
+                        </button>
                         {curriculum.cover_image ? (
                           <div className="aspect-[3/4] overflow-hidden">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -420,6 +457,10 @@ export default function CurriculaView({
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">
                   Progress
                 </th>
+                {hasEditPermission && (
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -437,6 +478,7 @@ export default function CurriculaView({
                       <EditableCell
                         value={curriculum.name}
                         onSave={saveCurriculumField(curriculum, "name")}
+                        readOnly={!hasEditPermission}
                       />
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-tertiary">
@@ -453,6 +495,7 @@ export default function CurriculaView({
                             {curriculum.course_type.replace("_", " ")}
                           </span>
                         }
+                        readOnly={!hasEditPermission}
                       />
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm">
@@ -473,6 +516,7 @@ export default function CurriculaView({
                             {curriculum.subject_name}
                           </div>
                         }
+                        readOnly={!hasEditPermission}
                       />
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-tertiary">
@@ -482,6 +526,7 @@ export default function CurriculaView({
                       <EditableCell
                         value={curriculum.description || ""}
                         onSave={saveCurriculumField(curriculum, "description")}
+                        readOnly={!hasEditPermission}
                       />
                     </td>
                     <td className="max-w-xs px-4 py-3 text-sm text-tertiary">
@@ -507,6 +552,7 @@ export default function CurriculaView({
                             </span>
                           )
                         }
+                        readOnly={!hasEditPermission}
                       />
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-tertiary">
@@ -523,6 +569,20 @@ export default function CurriculaView({
                         <span className="text-xs text-muted">{pct}%</span>
                       </div>
                     </td>
+                    {hasEditPermission && (
+                      <td className="whitespace-nowrap px-4 py-3 text-sm">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteCurriculum(curriculum)(e);
+                          }}
+                          disabled={isPending}
+                          className="rounded border border-[var(--error-border)] px-2 py-1 text-xs text-red-600 hover:bg-[var(--error-bg)] dark:border-red-800/60 dark:text-red-300 dark:hover:bg-red-900/30"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 );
               })}
