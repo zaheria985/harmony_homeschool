@@ -333,6 +333,12 @@ export async function shiftLessonsAfterCompletion(lessonId: string, childId: str
 
   const { curriculum_id, planned_date } = lessonRes.rows[0];
 
+  // If the lesson being completed is for today, don't shift subsequent lessons.
+  // Shifting should only happen when completing a FUTURE lesson early (to fill
+  // the gap). Completing today's work shouldn't pull tomorrow's lessons forward.
+  const today = formatDateKey(new Date());
+  if (planned_date <= today) return { success: true, shifted: 0 };
+
   // Get the curriculum assignment for this child to find weekday constraints
   const assignmentRes = await pool.query(
     `SELECT
