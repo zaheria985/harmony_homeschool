@@ -4,7 +4,9 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Badge from "@/components/ui/Badge";
-import { updateLessonStatus, createLesson } from "@/lib/actions/lessons";
+import RowActions from "@/components/ui/RowActions";
+import LessonFormModal from "@/components/lessons/LessonFormModal";
+import { updateLessonStatus, createLesson, deleteLesson } from "@/lib/actions/lessons";
 import { markLessonComplete } from "@/lib/actions/completions";
 import { canEdit, canMarkComplete } from "@/lib/permissions";
 
@@ -223,12 +225,20 @@ function LessonMiniCard({
   isPending,
   onCompletionToggle,
   showCompletions = true,
+  onView,
+  onEdit,
+  onDeleteLesson,
+  showActions = false,
 }: {
   lesson: Lesson;
   assignedChildren: Child[];
   isPending: boolean;
   onCompletionToggle: (lessonId: string, childId: string, shouldComplete: boolean) => void;
   showCompletions?: boolean;
+  onView?: () => void;
+  onEdit?: () => void;
+  onDeleteLesson?: () => void;
+  showActions?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const completedChildIds = new Set(lesson.completions.map((c) => c.child_id));
@@ -269,11 +279,20 @@ function LessonMiniCard({
       )}
 
       <div className="p-3">
-        <Link href={`/lessons/${lesson.id}`} className="block hover:text-interactive">
-          <h4 className="text-sm font-medium text-primary line-clamp-2">
-            {lesson.title}
-          </h4>
-        </Link>
+        <div className="flex items-start justify-between gap-1">
+          <Link href={`/lessons/${lesson.id}`} className="block hover:text-interactive min-w-0 flex-1">
+            <h4 className="text-sm font-medium text-primary line-clamp-2">
+              {lesson.title}
+            </h4>
+          </Link>
+          {showActions && (
+            <RowActions
+              onView={onView}
+              onEdit={onEdit}
+              onDelete={onDeleteLesson}
+            />
+          )}
+        </div>
         <div className="mt-1.5 flex items-center gap-2">
           <Badge variant={statusBadge[lesson.status] || "default"}>
             {lesson.status === "in_progress"
@@ -412,6 +431,10 @@ function SectionColumn({
   isSaving,
   showAddLesson = true,
   showCompletions = true,
+  showActions = false,
+  onViewLesson,
+  onEditLesson,
+  onDeleteLesson,
 }: {
   sectionName: string;
   lessons: Lesson[];
@@ -428,6 +451,10 @@ function SectionColumn({
   isSaving: boolean;
   showAddLesson?: boolean;
   showCompletions?: boolean;
+  showActions?: boolean;
+  onViewLesson?: (lessonId: string) => void;
+  onEditLesson?: (lesson: Lesson) => void;
+  onDeleteLesson?: (lessonId: string) => void;
 }) {
   return (
     <div
@@ -454,6 +481,10 @@ function SectionColumn({
             isPending={isPending}
             onCompletionToggle={onCompletionToggle}
             showCompletions={showCompletions}
+            showActions={showActions}
+            onView={onViewLesson ? () => onViewLesson(lesson.id) : undefined}
+            onEdit={onEditLesson ? () => onEditLesson(lesson) : undefined}
+            onDeleteLesson={onDeleteLesson ? () => onDeleteLesson(lesson.id) : undefined}
           />
         ))}
 
@@ -567,6 +598,8 @@ export default function CurriculumBoard({
   const [newLessonTitle, setNewLessonTitle] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [statusFilter, setStatusFilter] = useState<FilterOption>("all");
+  const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
+  const showRowActions = canEdit(permissionLevel);
 
   const completedCount = lessons.filter((l) => {
     const completedChildIds = new Set(l.completions.map((c) => c.child_id));
@@ -620,6 +653,15 @@ export default function CurriculumBoard({
       }
       router.refresh();
     });
+  }
+
+  function handleViewLesson(lessonId: string) {
+    router.push(`/lessons/${lessonId}`);
+  }
+
+  async function handleDeleteLesson(lessonId: string) {
+    await deleteLesson(lessonId);
+    router.refresh();
   }
 
   // Group curriculum resources by type
@@ -767,6 +809,10 @@ export default function CurriculumBoard({
               isSaving={isSaving}
               showAddLesson={showAddLesson}
               showCompletions={showCompletions}
+              showActions={showRowActions}
+              onViewLesson={handleViewLesson}
+              onEditLesson={setEditingLesson}
+              onDeleteLesson={handleDeleteLesson}
             />
           ))}
 
@@ -788,6 +834,10 @@ export default function CurriculumBoard({
               isSaving={isSaving}
               showAddLesson={showAddLesson}
               showCompletions={showCompletions}
+              showActions={showRowActions}
+              onViewLesson={handleViewLesson}
+              onEditLesson={setEditingLesson}
+              onDeleteLesson={handleDeleteLesson}
             />
           )}
 
@@ -798,6 +848,23 @@ export default function CurriculumBoard({
             </div>
           )}
         </div>
+
+        <LessonFormModal
+          open={!!editingLesson}
+          onClose={() => setEditingLesson(null)}
+          lesson={
+            editingLesson
+              ? {
+                  id: editingLesson.id,
+                  title: editingLesson.title,
+                  description: editingLesson.description,
+                  planned_date: editingLesson.planned_date,
+                  curriculum_id: curriculumId,
+                }
+              : null
+          }
+          children={assignedChildren}
+        />
       </div>
     );
   }
@@ -920,12 +987,21 @@ export default function CurriculumBoard({
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-muted">
                     Lesson {idx + 1}
                   </span>
-                  <Badge variant={statusBadge[lesson.status] || "default"}>
-                    {lesson.status === "in_progress"
-                      ? "In Progress"
-                      : lesson.status.charAt(0).toUpperCase() +
-                        lesson.status.slice(1)}
-                  </Badge>
+                  <div className="flex items-center gap-1">
+                    <Badge variant={statusBadge[lesson.status] || "default"}>
+                      {lesson.status === "in_progress"
+                        ? "In Progress"
+                        : lesson.status.charAt(0).toUpperCase() +
+                          lesson.status.slice(1)}
+                    </Badge>
+                    {showRowActions && (
+                      <RowActions
+                        onView={() => handleViewLesson(lesson.id)}
+                        onEdit={() => setEditingLesson(lesson)}
+                        onDelete={() => handleDeleteLesson(lesson.id)}
+                      />
+                    )}
+                  </div>
                 </div>
                 {lesson.planned_date && (
                   <p className="mt-0.5 text-xs text-muted">
@@ -1017,6 +1093,23 @@ export default function CurriculumBoard({
           </div>
         )}
       </div>
+
+      <LessonFormModal
+        open={!!editingLesson}
+        onClose={() => setEditingLesson(null)}
+        lesson={
+          editingLesson
+            ? {
+                id: editingLesson.id,
+                title: editingLesson.title,
+                description: editingLesson.description,
+                planned_date: editingLesson.planned_date,
+                curriculum_id: curriculumId,
+              }
+            : null
+        }
+        children={assignedChildren}
+      />
     </div>
   );
 }

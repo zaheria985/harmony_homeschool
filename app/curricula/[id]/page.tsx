@@ -151,6 +151,8 @@ export default async function CurriculumDetailPage({
               }),
             )}
             childId={curriculum.child_id}
+            children={[{ id: curriculum.child_id, name: curriculum.child_name }]}
+            curriculumId={params.id}
           />
         )}{" "}
       </Card>{" "}
