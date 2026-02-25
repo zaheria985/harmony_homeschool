@@ -9,6 +9,7 @@ import { updateLessonStatus, createLesson, deleteLesson, reorderLessons } from "
 import { markLessonComplete } from "@/lib/actions/completions";
 import { canEdit, canMarkComplete } from "@/lib/permissions";
 import CardViewModal from "@/components/curricula/CardViewModal";
+import ResourcePreviewModal from "@/components/ui/ResourcePreviewModal";
 import {
   DndContext,
   DragOverlay,
@@ -132,11 +133,13 @@ function ResourceMiniCard({
   url,
   title,
   thumbnailUrl,
+  onPreview,
 }: {
   type: string;
   url: string;
   title: string | null;
   thumbnailUrl: string | null;
+  onPreview?: () => void;
 }) {
   const cfg = typeConfig[type] || typeConfig.url;
   const displayTitle = title || "Untitled";
@@ -147,14 +150,8 @@ function ResourceMiniCard({
     ? `https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`
     : thumbnailUrl || (isImageUrl ? url : null);
 
-  return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group flex items-center gap-2 rounded-lg border border-light bg-surface p-2 text-xs transition-colors hover:border-primary-200 hover:bg-interactive-light/30"
-      onClick={(e) => e.stopPropagation()}
-    >
+  const inner = (
+    <>
       {thumbnail ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -172,6 +169,30 @@ function ResourceMiniCard({
       <span className="min-w-0 truncate text-secondary group-hover:text-interactive">
         {displayTitle}
       </span>
+    </>
+  );
+
+  if (onPreview) {
+    return (
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onPreview(); }}
+        className="group flex w-full items-center gap-2 rounded-lg border border-light bg-surface p-2 text-xs text-left transition-colors hover:border-primary-200 hover:bg-interactive-light/30"
+      >
+        {inner}
+      </button>
+    );
+  }
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group flex items-center gap-2 rounded-lg border border-light bg-surface p-2 text-xs transition-colors hover:border-primary-200 hover:bg-interactive-light/30"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {inner}
     </a>
   );
 }
@@ -246,6 +267,7 @@ function LessonMiniCard({
   onDeleteLesson,
   showActions = false,
   onTitleClick,
+  onResourcePreview,
 }: {
   lesson: Lesson;
   assignedChildren: Child[];
@@ -257,6 +279,7 @@ function LessonMiniCard({
   onDeleteLesson?: () => void;
   showActions?: boolean;
   onTitleClick?: () => void;
+  onResourcePreview?: (resource: { title: string; type: string; url: string; thumbnailUrl: string | null }) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const completedChildIds = new Set(lesson.completions.map((c) => c.child_id));
@@ -357,15 +380,23 @@ function LessonMiniCard({
         {/* Non-image resources — compact cards, always visible */}
         {nonImageResources.length > 0 && (
           <div className="mt-2 space-y-1.5">
-            {nonImageResources.slice(0, expanded ? undefined : 2).map((r) => (
-              <ResourceMiniCard
-                key={r.id}
-                type={r.global_type || r.type}
-                url={r.url}
-                title={r.title}
-                thumbnailUrl={r.global_thumbnail_url || r.thumbnail_url}
-              />
-            ))}
+            {nonImageResources.slice(0, expanded ? undefined : 2).map((r) => {
+              const rType = r.global_type || r.type;
+              const isVideo = rType === "youtube" || rType === "video";
+              return (
+                <ResourceMiniCard
+                  key={r.id}
+                  type={rType}
+                  url={r.url}
+                  title={r.title}
+                  thumbnailUrl={r.global_thumbnail_url || r.thumbnail_url}
+                  onPreview={isVideo && onResourcePreview ? () => onResourcePreview({
+                    title: r.title || "Untitled", type: rType, url: r.url,
+                    thumbnailUrl: r.global_thumbnail_url || r.thumbnail_url,
+                  }) : undefined}
+                />
+              );
+            })}
           </div>
         )}
 
@@ -391,15 +422,23 @@ function LessonMiniCard({
             )}
             {nonImageResources.length > 2 && (
               <div className="space-y-1.5">
-                {nonImageResources.slice(2).map((r) => (
-                  <ResourceMiniCard
-                    key={r.id}
-                    type={r.global_type || r.type}
-                    url={r.url}
-                    title={r.title}
-                    thumbnailUrl={r.global_thumbnail_url || r.thumbnail_url}
-                  />
-                ))}
+                {nonImageResources.slice(2).map((r) => {
+                  const rType = r.global_type || r.type;
+                  const isVideo = rType === "youtube" || rType === "video";
+                  return (
+                    <ResourceMiniCard
+                      key={r.id}
+                      type={rType}
+                      url={r.url}
+                      title={r.title}
+                      thumbnailUrl={r.global_thumbnail_url || r.thumbnail_url}
+                      onPreview={isVideo && onResourcePreview ? () => onResourcePreview({
+                        title: r.title || "Untitled", type: rType, url: r.url,
+                        thumbnailUrl: r.global_thumbnail_url || r.thumbnail_url,
+                      }) : undefined}
+                    />
+                  );
+                })}
               </div>
             )}
             <button
@@ -485,6 +524,7 @@ function SectionColumn({
   onEditLesson,
   onDeleteLesson,
   onTitleClick,
+  onResourcePreview,
 }: {
   sectionName: string;
   lessons: Lesson[];
@@ -506,6 +546,7 @@ function SectionColumn({
   onEditLesson?: (lesson: Lesson) => void;
   onDeleteLesson?: (lessonId: string) => void;
   onTitleClick?: (lesson: Lesson) => void;
+  onResourcePreview?: (resource: { title: string; type: string; url: string; thumbnailUrl: string | null }) => void;
 }) {
   return (
     <div
@@ -538,6 +579,7 @@ function SectionColumn({
                 onEdit={onEditLesson ? () => onEditLesson(lesson) : undefined}
                 onDeleteLesson={onDeleteLesson ? () => onDeleteLesson(lesson.id) : undefined}
                 onTitleClick={onTitleClick ? () => onTitleClick(lesson) : undefined}
+                onResourcePreview={onResourcePreview}
               />
             </SortableLessonCard>
           ))}
@@ -660,6 +702,9 @@ export default function CurriculumBoard({
   const [viewingLesson, setViewingLesson] = useState<Lesson | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [localLessons, setLocalLessons] = useState<Lesson[]>(lessons);
+  const [previewResource, setPreviewResource] = useState<{
+    title: string; type: string; url: string; thumbnailUrl: string | null;
+  } | null>(null);
   const showRowActions = canEdit(permissionLevel);
 
   // Sync localLessons when server data changes
@@ -988,6 +1033,7 @@ export default function CurriculumBoard({
                 onEditLesson={setEditingLesson}
                 onDeleteLesson={handleDeleteLesson}
                 onTitleClick={setViewingLesson}
+                onResourcePreview={setPreviewResource}
               />
             ))}
 
@@ -1014,6 +1060,7 @@ export default function CurriculumBoard({
                 onEditLesson={setEditingLesson}
                 onDeleteLesson={handleDeleteLesson}
                 onTitleClick={setViewingLesson}
+                onResourcePreview={setPreviewResource}
               />
             )}
 
@@ -1061,6 +1108,15 @@ export default function CurriculumBoard({
         <CardViewModal
           lesson={viewingLesson}
           onClose={() => setViewingLesson(null)}
+        />
+
+        <ResourcePreviewModal
+          open={!!previewResource}
+          onClose={() => setPreviewResource(null)}
+          title={previewResource?.title || ""}
+          type={previewResource?.type || ""}
+          url={previewResource?.url || null}
+          thumbnailUrl={previewResource?.thumbnailUrl}
         />
       </div>
     );
@@ -1312,6 +1368,15 @@ export default function CurriculumBoard({
       <CardViewModal
         lesson={viewingLesson}
         onClose={() => setViewingLesson(null)}
+      />
+
+      <ResourcePreviewModal
+        open={!!previewResource}
+        onClose={() => setPreviewResource(null)}
+        title={previewResource?.title || ""}
+        type={previewResource?.type || ""}
+        url={previewResource?.url || null}
+        thumbnailUrl={previewResource?.thumbnailUrl}
       />
     </div>
   );

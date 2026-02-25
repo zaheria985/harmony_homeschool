@@ -29,7 +29,13 @@ function dayKeyFromDate(date: Date): string {
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ days?: string }>;
+}) {
+  const params = await searchParams;
+  const daysAhead = params.days === "7" ? 7 : 3;
   const user = await getCurrentUser();
   const scopedChildId =
     user.role === "kid" ? user.childId || undefined : undefined;
@@ -37,13 +43,13 @@ export default async function DashboardPage() {
   const isParent = user.role === "parent" || user.permissionLevel === "full";
   const [stats, upcoming, children, pendingCompletions] = await Promise.all([
     getDashboardStats(parentId),
-    getUpcomingDueLessons(3, scopedChildId, parentId),
+    getUpcomingDueLessons(daysAhead, scopedChildId, parentId),
     getAllChildren(parentId),
     isParent ? getPendingCompletions() : Promise.resolve([]),
   ]);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const nextThreeDays: GroupedDay[] = Array.from({ length: 3 }, (_, offset) => {
+  const nextDays: GroupedDay[] = Array.from({ length: daysAhead }, (_, offset) => {
     const date = new Date(today);
     date.setDate(today.getDate() + offset);
     const dayKey = dayKeyFromDate(date);
@@ -61,7 +67,7 @@ export default async function DashboardPage() {
     childrenById.set(child.id, child.name);
   }
   const rangeStart = dayKeyFromDate(today);
-  const rangeEnd = nextThreeDays[nextThreeDays.length - 1]?.dayKey || rangeStart;
+  const rangeEnd = nextDays[nextDays.length - 1]?.dayKey || rangeStart;
   const externalEvents = (await getExternalEventOccurrencesForRange(
     rangeStart,
     rangeEnd,
@@ -142,14 +148,27 @@ export default async function DashboardPage() {
           <PendingApprovalsWidget pendingCompletions={pendingCompletions} />
         </div>
       )}
-      <Card title="Due in the Next 3 Days">
+      <Card title="">
+        <div className="flex items-center justify-between -mt-2 mb-4">
+          <h3 className="text-sm font-semibold text-primary">Due in the Next {daysAhead} Days</h3>
+          <div className="flex gap-1 rounded-lg bg-surface-muted p-1">
+            <Link href="/dashboard?days=3"
+              className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${daysAhead === 3 ? "bg-surface text-primary shadow-sm" : "text-muted hover:text-primary"}`}>
+              3 Days
+            </Link>
+            <Link href="/dashboard?days=7"
+              className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${daysAhead === 7 ? "bg-surface text-primary shadow-sm" : "text-muted hover:text-primary"}`}>
+              7 Days
+            </Link>
+          </div>
+        </div>
         {" "}
         <div className="space-y-5">
           {" "}
           {childrenList.map((child) => {
             const childMap = grouped.get(child.id) || new Map();
             const childEvents = eventsGrouped.get(child.id) || new Map();
-            const hasAnythingDue = nextThreeDays.some(
+            const hasAnythingDue = nextDays.some(
               (day) =>
                 (childMap.get(day.dayKey)?.size || 0) > 0 ||
                 (childEvents.get(day.dayKey)?.length || 0) > 0,
@@ -182,9 +201,9 @@ export default async function DashboardPage() {
                     Nothing due{" "}
                   </p>
                 ) : (
-                  <div className="grid gap-4 lg:grid-cols-3">
+                  <div className={`grid gap-4 ${daysAhead === 7 ? "grid-cols-2 md:grid-cols-4 lg:grid-cols-7" : "lg:grid-cols-3"}`}>
                     {" "}
-                    {nextThreeDays.map((day) => {
+                    {nextDays.map((day) => {
                       const subjectMap =
                         (childMap.get(day.dayKey) as
                           | Map<string, Map<string, UpcomingItem[]>>
@@ -264,9 +283,13 @@ export default async function DashboardPage() {
                                             key={`${child.id}-${day.dayKey}-${subjectName}-${courseName}`}
                                           >
                                             {" "}
-                                            <p className="text-[11px] text-muted">
+                                            <Link
+                                              href={`/curricula/${items[0]?.curriculum_id}`}
+                                              className="text-[11px] text-interactive hover:underline"
+                                              onClick={(e) => e.stopPropagation()}
+                                            >
                                               {courseName}
-                                            </p>{" "}
+                                            </Link>{" "}
                                             <ul className="mt-1 space-y-1">
                                               {" "}
                                               {items.map(

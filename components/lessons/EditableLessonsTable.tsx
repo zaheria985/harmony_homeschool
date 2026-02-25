@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect, useTransition } from "react";
+import { useState, useRef, useCallback, useEffect, useTransition, useMemo } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -306,6 +306,12 @@ export default function EditableLessonsTable({
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [globalFilter, setGlobalFilter] = useState("");
+  const [childFilter, setChildFilter] = useState("");
+  const [subjectFilter, setSubjectFilter] = useState("");
+  const [curriculumFilter, setCurriculumFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [showAttachModal, setShowAttachModal] = useState(false);
   const [showBulkDateModal, setShowBulkDateModal] = useState(false);
   const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
@@ -331,6 +337,46 @@ export default function EditableLessonsTable({
       return () => clearTimeout(t);
     }
   }, [toast]);
+
+  // ============================================================================
+  // Filter options & filtered data
+  // ============================================================================
+
+  const childOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const l of initialLessons) map.set(l.child_id, l.child_name);
+    return Array.from(map, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [initialLessons]);
+
+  const subjectOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const l of initialLessons) map.set(l.subject_id, l.subject_name);
+    return Array.from(map, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [initialLessons]);
+
+  const curriculumOptions = useMemo(() => {
+    const map = new Map<string, { name: string; subject_id: string }>();
+    for (const l of initialLessons) map.set(l.curriculum_id, { name: l.curriculum_name, subject_id: l.subject_id });
+    let opts = Array.from(map, ([id, v]) => ({ id, name: v.name, subject_id: v.subject_id }));
+    if (subjectFilter) opts = opts.filter(o => o.subject_id === subjectFilter);
+    return opts.sort((a, b) => a.name.localeCompare(b.name));
+  }, [initialLessons, subjectFilter]);
+
+  const filteredLessons = useMemo(() => {
+    let result = lessons;
+    if (childFilter) result = result.filter(l => l.child_id === childFilter);
+    if (subjectFilter) result = result.filter(l => l.subject_id === subjectFilter);
+    if (curriculumFilter) result = result.filter(l => l.curriculum_id === curriculumFilter);
+    if (statusFilter) result = result.filter(l => l.status === statusFilter);
+    if (dateFrom) result = result.filter(l => l.planned_date && l.planned_date >= dateFrom);
+    if (dateTo) result = result.filter(l => l.planned_date && l.planned_date <= dateTo);
+    return result;
+  }, [lessons, childFilter, subjectFilter, curriculumFilter, statusFilter, dateFrom, dateTo]);
+
+  // Reset row selection when filters change
+  useEffect(() => {
+    setRowSelection({});
+  }, [childFilter, subjectFilter, curriculumFilter, statusFilter, dateFrom, dateTo]);
 
   // ============================================================================
   // Cell navigation
@@ -418,7 +464,7 @@ export default function EditableLessonsTable({
 
   const selectedIds = Object.keys(rowSelection)
     .filter((k) => rowSelection[k])
-    .map((idx) => lessons[parseInt(idx)]?.id)
+    .map((idx) => filteredLessons[parseInt(idx)]?.id)
     .filter(Boolean) as string[];
 
   function handleBulkAttach() {
@@ -674,7 +720,7 @@ export default function EditableLessonsTable({
   // ============================================================================
 
   const table = useReactTable({
-    data: lessons,
+    data: filteredLessons,
     columns,
     state: { sorting, rowSelection, globalFilter },
     onSortingChange: setSorting,
@@ -709,6 +755,40 @@ export default function EditableLessonsTable({
     <>
       {/* Toolbar */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
+        <select value={childFilter} onChange={(e) => setChildFilter(e.target.value)}
+          className="rounded-lg border border-light bg-surface px-3 py-2 text-sm">
+          <option value="">All Students</option>
+          {childOptions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <select value={subjectFilter} onChange={(e) => { setSubjectFilter(e.target.value); setCurriculumFilter(""); }}
+          className="rounded-lg border border-light bg-surface px-3 py-2 text-sm">
+          <option value="">All Subjects</option>
+          {subjectOptions.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+        <select value={curriculumFilter} onChange={(e) => setCurriculumFilter(e.target.value)}
+          className="rounded-lg border border-light bg-surface px-3 py-2 text-sm">
+          <option value="">All Courses</option>
+          {curriculumOptions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
+          className="rounded-lg border border-light bg-surface px-3 py-2 text-sm">
+          <option value="">All Statuses</option>
+          <option value="planned">Planned</option>
+          <option value="in_progress">In Progress</option>
+          <option value="completed">Completed</option>
+        </select>
+        <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+          title="From date"
+          className="rounded-lg border border-light bg-surface px-3 py-2 text-sm" />
+        <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+          title="To date"
+          className="rounded-lg border border-light bg-surface px-3 py-2 text-sm" />
+        {(childFilter || subjectFilter || curriculumFilter || statusFilter || dateFrom || dateTo) && (
+          <button type="button" onClick={() => { setChildFilter(""); setSubjectFilter(""); setCurriculumFilter(""); setStatusFilter(""); setDateFrom(""); setDateTo(""); }}
+            className="text-xs font-medium text-interactive hover:underline">
+            Clear filters
+          </button>
+        )}
         <input
           type="text"
           placeholder="Search lessons..."

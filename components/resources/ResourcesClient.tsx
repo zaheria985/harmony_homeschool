@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useCallback } from "react";
+import { useState, useTransition, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Badge from "@/components/ui/Badge";
@@ -45,6 +45,11 @@ const typeBadgeVariant: Record<string, string> = {
   supply: "default",
 };
 
+function isImageUrl(url: string | null): boolean {
+  if (!url) return false;
+  return /\.(jpg|jpeg|png|gif|webp|svg|avif)(\?.*)?$/i.test(url);
+}
+
 export default function ResourcesClient({
   resources,
   initialTypeFilter = "",
@@ -59,7 +64,12 @@ export default function ResourcesClient({
 }) {
   const router = useRouter();
   const [search, setSearch] = useState(initialSearch);
-  const [typeFilter, setTypeFilter] = useState(initialTypeFilter);
+  const allTypes = useMemo(() => {
+    const types = new Set<string>();
+    for (const r of resources) types.add(r.type);
+    return Array.from(types).sort();
+  }, [resources]);
+  const [activeTypes, setActiveTypes] = useState<Set<string>>(() => new Set(allTypes));
   const [tagFilter, setTagFilter] = useState(initialTagFilter);
   const [view, setView] = useState("table");
   const [showCreate, setShowCreate] = useState(false);
@@ -78,8 +88,17 @@ export default function ResourcesClient({
     });
   }, []);
 
+  const toggleType = useCallback((type: string) => {
+    setActiveTypes(prev => {
+      const next = new Set(prev);
+      if (next.has(type)) next.delete(type);
+      else next.add(type);
+      return next;
+    });
+  }, []);
+
   const filtered = resources.filter((r) => {
-    if (typeFilter && r.type !== typeFilter) return false;
+    if (!activeTypes.has(r.type)) return false;
     if (tagFilter && !(r.tags || []).includes(tagFilter)) return false;
     if (
       search &&
@@ -155,18 +174,26 @@ export default function ResourcesClient({
           onChange={(e) => setSearch(e.target.value)}
           className="rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"
         />
-        <select
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-          className="rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"
-        >
-          <option value="">All types</option>
-          {RESOURCE_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t.charAt(0).toUpperCase() + t.slice(1)}
-            </option>
+        <div className="flex flex-wrap items-center gap-3">
+          {allTypes.map((type) => (
+            <label key={type} className="flex cursor-pointer items-center gap-1.5 text-sm">
+              <input
+                type="checkbox"
+                checked={activeTypes.has(type)}
+                onChange={() => toggleType(type)}
+                className="rounded border-border text-interactive focus:ring-focus"
+              />
+              {typeIcons[type] || "📎"} {type}
+            </label>
           ))}
-        </select>
+          <button
+            type="button"
+            onClick={() => setActiveTypes(prev => prev.size === allTypes.length ? new Set() : new Set(allTypes))}
+            className="text-xs text-interactive hover:underline"
+          >
+            {activeTypes.size === allTypes.length ? "Deselect all" : "Select all"}
+          </button>
+        </div>
 
         <input
           type="text"
@@ -272,6 +299,12 @@ export default function ResourcesClient({
                     >
                       {r.title}
                     </Link>
+                    {isImageUrl(r.url) && r.url && (
+                      <div className="mt-1">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={r.url} alt={r.title} className="h-16 w-auto rounded object-contain" />
+                      </div>
+                    )}
                     {r.description && (
                       <p className="mt-0.5 text-xs text-muted line-clamp-1">
                         {r.description}
@@ -327,6 +360,15 @@ export default function ResourcesClient({
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={r.thumbnail_url}
+                      alt={r.title}
+                      className="aspect-[3/4] w-full bg-transparent object-contain p-2"
+                    />
+                  </div>
+                ) : isImageUrl(r.url) && r.url ? (
+                  <div className="overflow-hidden rounded-t-2xl border-b border-light">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={r.url}
                       alt={r.title}
                       className="aspect-[3/4] w-full bg-transparent object-contain p-2"
                     />

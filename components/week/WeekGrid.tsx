@@ -147,15 +147,55 @@ export default function WeekGrid({
   const [isPending, startTransition] = useTransition();
   const suppressNextClick = useRef(false);
   const longPressTimerRef = useRef<number | null>(null);
+  const [subjectFilter, setSubjectFilter] = useState("");
+  const [courseFilter, setCourseFilter] = useState("");
   useEffect(() => {
     setLocalWeeks(weeks);
   }, [weeks]);
+  const allSubjects = useMemo(() => {
+    const set = new Set<string>();
+    for (const week of localWeeks)
+      for (const day of week.days)
+        for (const subject of day.subjects)
+          set.add(subject.subjectName);
+    return Array.from(set).sort();
+  }, [localWeeks]);
+
+  const allCourses = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const week of localWeeks)
+      for (const day of week.days)
+        for (const subject of day.subjects) {
+          if (subjectFilter && subject.subjectName !== subjectFilter) continue;
+          for (const lesson of subject.lessons)
+            map.set(lesson.curriculum_id, lesson.curriculum_name);
+        }
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [localWeeks, subjectFilter]);
+
+  const displayWeeks = useMemo(() => {
+    if (!subjectFilter && !courseFilter) return localWeeks;
+    return localWeeks.map(week => ({
+      ...week,
+      days: week.days.map(day => ({
+        ...day,
+        subjects: day.subjects
+          .filter(s => !subjectFilter || s.subjectName === subjectFilter)
+          .map(s => ({
+            ...s,
+            lessons: courseFilter ? s.lessons.filter(l => l.curriculum_id === courseFilter) : s.lessons,
+          }))
+          .filter(s => s.lessons.length > 0),
+      })),
+    }));
+  }, [localWeeks, subjectFilter, courseFilter]);
+
   const dayStats = useMemo(() => {
     const stats = new Map<
       string,
       { totalLessons: number; completedLessons: number }
     >();
-    for (const week of localWeeks) {
+    for (const week of displayWeeks) {
       for (const day of week.days) {
         let totalLessons = 0;
         let completedLessons = 0;
@@ -169,7 +209,7 @@ export default function WeekGrid({
       }
     }
     return stats;
-  }, [localWeeks]);
+  }, [displayWeeks]);
   function handleDayClick(day: DayData, totalLessons: number) {
     if (suppressNextClick.current) {
       suppressNextClick.current = false;
@@ -286,9 +326,30 @@ export default function WeekGrid({
           {bumpedCount === 1 ? "" : "s"} to upcoming school days.{" "}
         </div>
       )}{" "}
+      {(allSubjects.length > 1 || allCourses.length > 1) && (
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <select value={subjectFilter}
+            onChange={(e) => { setSubjectFilter(e.target.value); setCourseFilter(""); }}
+            className="rounded-lg border border-light bg-surface px-3 py-2 text-sm">
+            <option value="">All Subjects</option>
+            {allSubjects.map(name => <option key={name} value={name}>{name}</option>)}
+          </select>
+          <select value={courseFilter} onChange={(e) => setCourseFilter(e.target.value)}
+            className="rounded-lg border border-light bg-surface px-3 py-2 text-sm">
+            <option value="">All Courses</option>
+            {allCourses.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+          </select>
+          {(subjectFilter || courseFilter) && (
+            <button type="button" onClick={() => { setSubjectFilter(""); setCourseFilter(""); }}
+              className="text-xs font-medium text-interactive hover:underline">
+              Clear filters
+            </button>
+          )}
+        </div>
+      )}
       <div className="space-y-6">
         {" "}
-        {localWeeks.map((week) => (
+        {displayWeeks.map((week) => (
           <div key={week.weekStart}>
             {" "}
             <h3 className="mb-2 text-sm font-semibold text-tertiary">

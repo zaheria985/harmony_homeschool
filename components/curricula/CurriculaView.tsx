@@ -57,6 +57,11 @@ export default function CurriculaView({
     name: string;
     description: string | null;
     cover_image: string | null;
+    subject_id: string;
+    course_type: "curriculum" | "unit_study";
+    status: "active" | "archived" | "draft";
+    start_date: string | null;
+    end_date: string | null;
   } | null>(null);
 
   const [timelineFilter, setTimelineFilter] = useState<
@@ -478,6 +483,7 @@ export default function CurriculaView({
 
       <CurriculumEditModal
         curriculum={editingCurriculum}
+        subjects={subjects}
         onClose={() => setEditingCurriculum(null)}
       />
 

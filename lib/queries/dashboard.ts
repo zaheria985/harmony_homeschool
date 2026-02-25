@@ -64,7 +64,8 @@ export async function getUpcomingDueLessons(daysAhead = 3, childId?: string, par
         s.id AS subject_id,
         s.name AS subject_name,
         s.color AS subject_color,
-        cu.name AS curriculum_name
+        cu.name AS curriculum_name,
+        cu.id AS curriculum_id
      FROM lessons l
       JOIN curricula cu ON cu.id = l.curriculum_id
       JOIN subjects s ON s.id = cu.subject_id

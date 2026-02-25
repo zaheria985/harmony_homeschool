@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Modal from "@/components/ui/Modal";
 import MarkdownContent from "@/components/ui/MarkdownContent";
+import ResourcePreviewModal from "@/components/ui/ResourcePreviewModal";
 
 type CardViewModalProps = {
   lesson: {
@@ -44,11 +46,13 @@ function ResourceCard({
   url,
   title,
   thumbnailUrl,
+  onPreview,
 }: {
   type: string;
   url: string;
   title: string | null;
   thumbnailUrl: string | null;
+  onPreview?: () => void;
 }) {
   const cfg = typeConfig[type] || typeConfig.url;
   const displayTitle = title || "Untitled";
@@ -59,12 +63,40 @@ function ResourceCard({
     ? `https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`
     : thumbnailUrl || (isImageUrl ? url : null);
 
+  if (onPreview) {
+    return (
+      <button
+        type="button"
+        onClick={onPreview}
+        className="group flex w-full items-center gap-3 rounded-lg border border-light bg-surface p-3 text-sm text-left transition-colors hover:border-primary-200 hover:bg-interactive-light/30"
+      >
+        {thumbnail ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={thumbnail}
+            alt=""
+            className="h-10 w-16 flex-shrink-0 rounded object-cover"
+          />
+        ) : (
+          <span
+            className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded bg-gradient-to-br ${cfg.bg} text-base`}
+          >
+            {cfg.icon}
+          </span>
+        )}
+        <span className="min-w-0 truncate text-secondary group-hover:text-interactive">
+          {displayTitle}
+        </span>
+      </button>
+    );
+  }
+
   return (
     <a
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="group flex items-center gap-3 rounded-lg border border-light bg-surface p-3 text-sm transition-colors hover:border-primary-200 hover:bg-interactive-light/30"
+      className="group flex w-full items-center gap-3 rounded-lg border border-light bg-surface p-3 text-sm transition-colors hover:border-primary-200 hover:bg-interactive-light/30"
     >
       {thumbnail ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -88,6 +120,13 @@ function ResourceCard({
 }
 
 export default function CardViewModal({ lesson, onClose }: CardViewModalProps) {
+  const [previewResource, setPreviewResource] = useState<{
+    title: string;
+    type: string;
+    url: string;
+    thumbnailUrl: string | null;
+  } | null>(null);
+
   return (
     <Modal
       open={!!lesson}
@@ -114,20 +153,44 @@ export default function CardViewModal({ lesson, onClose }: CardViewModalProps) {
                 Resources ({lesson.resources.length})
               </h4>
               <div className="space-y-2">
-                {lesson.resources.map((r) => (
-                  <ResourceCard
-                    key={r.id}
-                    type={r.global_type || r.type}
-                    url={r.url}
-                    title={r.title}
-                    thumbnailUrl={r.global_thumbnail_url || r.thumbnail_url}
-                  />
-                ))}
+                {lesson.resources.map((r) => {
+                  const rType = r.global_type || r.type;
+                  const isVideo = rType === "youtube" || rType === "video";
+                  return (
+                    <ResourceCard
+                      key={r.id}
+                      type={rType}
+                      url={r.url}
+                      title={r.title}
+                      thumbnailUrl={r.global_thumbnail_url || r.thumbnail_url}
+                      onPreview={
+                        isVideo
+                          ? () =>
+                              setPreviewResource({
+                                title: r.title || "Untitled",
+                                type: rType,
+                                url: r.url,
+                                thumbnailUrl:
+                                  r.global_thumbnail_url || r.thumbnail_url,
+                              })
+                          : undefined
+                      }
+                    />
+                  );
+                })}
               </div>
             </div>
           )}
         </div>
       )}
+      <ResourcePreviewModal
+        open={!!previewResource}
+        onClose={() => setPreviewResource(null)}
+        title={previewResource?.title || ""}
+        type={previewResource?.type || ""}
+        url={previewResource?.url || null}
+        thumbnailUrl={previewResource?.thumbnailUrl}
+      />
     </Modal>
   );
 }
