@@ -285,7 +285,6 @@ export default async function DashboardPage({
                                             <Link
                                               href={`/curricula/${items[0]?.curriculum_id}`}
                                               className="text-[11px] text-interactive hover:underline"
-                                              onClick={(e) => e.stopPropagation()}
                                             >
                                               {courseName}
                                             </Link>{" "}
