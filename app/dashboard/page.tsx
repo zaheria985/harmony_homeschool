@@ -191,8 +191,6 @@ export default async function DashboardPage() {
                           | undefined) ||
                         new Map<string, Map<string, UpcomingItem[]>>();
                       const dayEvents = childEvents.get(day.dayKey) || [];
-                      if (subjectMap.size === 0 && dayEvents.length === 0)
-                        return null;
                       return (
                         <div
                           key={`${child.id}-${day.dayKey}`}
@@ -203,6 +201,9 @@ export default async function DashboardPage() {
                             {" "}
                             {day.dayLabel}{" "}
                           </h3>{" "}
+                          {subjectMap.size === 0 && dayEvents.length === 0 ? (
+                            <p className="py-2 text-sm text-muted">Nothing scheduled</p>
+                          ) : (
                           <div className="space-y-3">
                             {dayEvents.length > 0 && (
                               <div className="space-y-1">
@@ -304,7 +305,8 @@ export default async function DashboardPage() {
                                 );
                               },
                             )}{" "}
-                          </div>{" "}
+                          </div>
+                          )}{" "}
                         </div>
                       );
                     })}{" "}

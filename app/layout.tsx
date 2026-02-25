@@ -38,7 +38,7 @@ export default function RootLayout({
           <div className="flex min-h-screen">
             <Sidebar />
             <main className="flex-1 overflow-auto p-6 transition-colors md:p-10">
-              <div className="mx-auto max-w-7xl">{children}</div>
+              <div className="mx-auto">{children}</div>
             </main>
           </div>
         </Providers>

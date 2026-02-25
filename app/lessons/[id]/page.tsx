@@ -74,11 +74,11 @@ export default async function LessonDetailPage({
             />
           )}{" "}
           <Link
-            href="/lessons/table"
+            href={`/curricula/${lesson.curriculum_id}`}
             className="rounded-lg border border-border px-3 py-1.5 text-sm text-tertiary hover:bg-surface-muted"
           >
             {" "}
-            Back to Lessons{" "}
+            Back to Course{" "}
           </Link>{" "}
         </div>{" "}
       </PageHeader>{" "}
