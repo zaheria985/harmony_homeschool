@@ -1090,6 +1090,48 @@ export async function updateCurriculum(formData: FormData) {
   return { success: true };
 }
 
+export async function reorderLessons(
+  updates: { id: string; order_index: number; section: string | null }[]
+) {
+  const parsed = z
+    .array(
+      z.object({
+        id: z.string().uuid(),
+        order_index: z.number().int().min(0),
+        section: z.string().nullable(),
+      })
+    )
+    .min(1)
+    .max(2000)
+    .safeParse(updates);
+
+  if (!parsed.success) {
+    return { error: "Invalid input" };
+  }
+
+  const ids = parsed.data.map((u) => u.id);
+  const orderIndexes = parsed.data.map((u) => u.order_index);
+  const sections = parsed.data.map((u) => u.section);
+
+  try {
+    await pool.query(
+      `UPDATE lessons SET order_index = u.order_index, section = u.section
+       FROM (SELECT unnest($1::uuid[]) AS id, unnest($2::int[]) AS order_index, unnest($3::text[]) AS section) u
+       WHERE lessons.id = u.id`,
+      [ids, orderIndexes, sections]
+    );
+  } catch (err) {
+    console.error("Failed to reorder lessons", {
+      count: ids.length,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { error: "Failed to reorder lessons" };
+  }
+
+  revalidatePath("/curricula");
+  return { success: true };
+}
+
 export async function deleteCurriculum(curriculumId: string) {
   const parsed = z.string().uuid().safeParse(curriculumId);
   if (!parsed.success) return { error: "Invalid curriculum ID" };

@@ -1,14 +1,31 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Badge from "@/components/ui/Badge";
 import RowActions from "@/components/ui/RowActions";
 import LessonFormModal from "@/components/lessons/LessonFormModal";
-import { updateLessonStatus, createLesson, deleteLesson } from "@/lib/actions/lessons";
+import { updateLessonStatus, createLesson, deleteLesson, reorderLessons } from "@/lib/actions/lessons";
 import { markLessonComplete } from "@/lib/actions/completions";
 import { canEdit, canMarkComplete } from "@/lib/permissions";
 import CardViewModal from "@/components/curricula/CardViewModal";
+import {
+  DndContext,
+  DragOverlay,
+  closestCorners,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragStartEvent,
+  type DragOverEvent,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 // ============================================================================
 // Types
@@ -420,6 +437,33 @@ function LessonMiniCard({
   );
 }
 
+function SortableLessonCard({
+  id,
+  children,
+}: {
+  id: string;
+  children: React.ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      {children}
+    </div>
+  );
+}
+
 function SectionColumn({
   sectionName,
   lessons,
@@ -479,24 +523,30 @@ function SectionColumn({
         <p className="text-xs text-muted">{lessons.length} cards</p>
       </div>
       {/* Stacked lesson cards */}
-      <div className="space-y-2 overflow-y-auto p-3" style={{ maxHeight: "70vh" }}>
-        {lessons.map((lesson) => (
-          <LessonMiniCard
-            key={lesson.id}
-            lesson={lesson}
-            assignedChildren={assignedChildren}
-            isPending={isPending}
-            onCompletionToggle={onCompletionToggle}
-            showCompletions={showCompletions}
-            showActions={showActions}
-            onView={onViewLesson ? () => onViewLesson(lesson.id) : undefined}
-            onEdit={onEditLesson ? () => onEditLesson(lesson) : undefined}
-            onDeleteLesson={onDeleteLesson ? () => onDeleteLesson(lesson.id) : undefined}
-            onTitleClick={onTitleClick ? () => onTitleClick(lesson) : undefined}
-          />
-        ))}
+      <SortableContext items={lessons.map((l) => l.id)} strategy={verticalListSortingStrategy}>
+        <div className="space-y-2 overflow-y-auto p-3" style={{ maxHeight: "70vh" }}>
+          {lessons.map((lesson) => (
+            <SortableLessonCard key={lesson.id} id={lesson.id}>
+              <LessonMiniCard
+                lesson={lesson}
+                assignedChildren={assignedChildren}
+                isPending={isPending}
+                onCompletionToggle={onCompletionToggle}
+                showCompletions={showCompletions}
+                showActions={showActions}
+                onView={onViewLesson ? () => onViewLesson(lesson.id) : undefined}
+                onEdit={onEditLesson ? () => onEditLesson(lesson) : undefined}
+                onDeleteLesson={onDeleteLesson ? () => onDeleteLesson(lesson.id) : undefined}
+                onTitleClick={onTitleClick ? () => onTitleClick(lesson) : undefined}
+              />
+            </SortableLessonCard>
+          ))}
 
-        {/* Inline add form or button */}
+        </div>
+      </SortableContext>
+
+      {/* Inline add form or button — outside SortableContext */}
+      <div className="px-3 pb-3">
         {showAddLesson && (isAddingHere ? (
           <div className="rounded-xl border border-light bg-surface p-3 space-y-2">
             <input
@@ -608,7 +658,18 @@ export default function CurriculumBoard({
   const [statusFilter, setStatusFilter] = useState<FilterOption>("all");
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
   const [viewingLesson, setViewingLesson] = useState<Lesson | null>(null);
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [localLessons, setLocalLessons] = useState<Lesson[]>(lessons);
   const showRowActions = canEdit(permissionLevel);
+
+  // Sync localLessons when server data changes
+  useEffect(() => {
+    setLocalLessons(lessons);
+  }, [lessons]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
 
   const completedCount = lessons.filter((l) => {
     const completedChildIds = new Set(l.completions.map((c) => c.child_id));
@@ -673,6 +734,89 @@ export default function CurriculumBoard({
     router.refresh();
   }
 
+  // --- DnD handlers ---
+  function handleDragStart(event: DragStartEvent) {
+    setActiveDragId(event.active.id as string);
+  }
+
+  function handleDragOver(event: DragOverEvent) {
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    // Find which section the active and over items belong to
+    const activeLesson = localLessons.find((l) => l.id === activeId);
+    const overLesson = localLessons.find((l) => l.id === overId);
+
+    if (!activeLesson) return;
+
+    // Determine target section: if over a lesson, use that lesson's section; if over a section container, use that
+    const activeSection = activeLesson.section || "";
+    const overSection = overLesson ? (overLesson.section || "") : (overId.startsWith("section:") ? overId.slice(8) : activeSection);
+
+    if (activeSection === overSection) return;
+
+    // Move card to new section optimistically
+    setLocalLessons((prev) =>
+      prev.map((l) =>
+        l.id === activeId ? { ...l, section: overSection || null } : l
+      )
+    );
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    setActiveDragId(null);
+
+    if (!over) return;
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    // Compute final section assignments and order
+    const updated = [...localLessons];
+
+    // Find active lesson and determine its target section
+    const activeIdx = updated.findIndex((l) => l.id === activeId);
+    if (activeIdx === -1) return;
+
+    const overLesson = updated.find((l) => l.id === overId);
+    const targetSection = overLesson
+      ? (overLesson.section || "")
+      : updated[activeIdx].section || "";
+
+    // If dropping on a different lesson, reorder within that section
+    if (overLesson && activeId !== overId) {
+      const activeLesson = updated.splice(activeIdx, 1)[0];
+      activeLesson.section = targetSection || null;
+      const overIdx = updated.findIndex((l) => l.id === overId);
+      updated.splice(overIdx, 0, activeLesson);
+    }
+
+    setLocalLessons(updated);
+
+    // Build updates for server: only lessons that have sections
+    const sectionLessons = updated.filter((l) => l.section != null || lessons.some((orig) => orig.id === l.id && orig.section != null));
+    const updates = sectionLessons.map((l, i) => ({
+      id: l.id,
+      order_index: i,
+      section: l.section,
+    }));
+
+    if (updates.length > 0) {
+      startTransition(async () => {
+        await reorderLessons(updates);
+        router.refresh();
+      });
+    }
+  }
+
+  const activeDragLesson = activeDragId
+    ? localLessons.find((l) => l.id === activeDragId) || null
+    : null;
+
   // Group curriculum resources by type
   const resourcesByType = curriculumResources.reduce(
     (acc, r) => {
@@ -697,11 +841,25 @@ export default function CurriculumBoard({
   const hasSections = lessons.some((l) => l.section);
 
   if (hasSections) {
+    // Use localLessons for DnD optimistic state, applying the same status filter
+    const dndFilteredLessons =
+      statusFilter === "all"
+        ? localLessons
+        : statusFilter === "completed"
+          ? localLessons.filter((l) => {
+              const cIds = new Set(l.completions.map((c) => c.child_id));
+              return assignedChildren.length > 0 && assignedChildren.every((c) => cIds.has(c.id));
+            })
+          : localLessons.filter((l) => {
+              const cIds = new Set(l.completions.map((c) => c.child_id));
+              return !(assignedChildren.length > 0 && assignedChildren.every((c) => cIds.has(c.id)));
+            });
+
     const sectionOrder: string[] = [];
     const sectionMap = new Map<string, Lesson[]>();
     const unsectioned: Lesson[] = [];
 
-    for (const lesson of filteredLessons) {
+    for (const lesson of dndFilteredLessons) {
       const key = lesson.section || "";
       if (!key) {
         unsectioned.push(lesson);
@@ -730,135 +888,158 @@ export default function CurriculumBoard({
           incompleteCount={incompleteCount}
         />
 
-        <div
-          className="flex gap-4 overflow-x-auto pb-4"
-          style={{ scrollSnapType: "x mandatory" }}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
         >
-          {/* Resources Column */}
-          {hasResources && (
-            <div
-              className="w-64 flex-shrink-0 rounded-2xl border border-light bg-surface-muted shadow-warm"
-              style={{ scrollSnapAlign: "start" }}
-            >
-              <div className="border-b bg-surface px-4 py-3 rounded-t-2xl">
-                <h3 className="text-sm font-semibold text-primary">
-                  Curriculum Resources
-                </h3>
-                <p className="text-xs text-muted">
-                  {curriculumResources.length} shared
-                </p>
-              </div>
-              <div className="space-y-4 p-3">
-                {Object.entries(resourcesByType).map(([group, resources]) => (
-                  <div key={group}>
-                    <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
-                      {group}
-                    </p>
-                    <div className="space-y-1.5">
-                      {resources.map((r) => {
-                        const cfg = typeConfig[r.type] || typeConfig.url;
-                        return (
-                          <a
-                            key={r.id}
-                            href={r.url || `/resources/${r.id}`}
-                            target={r.url ? "_blank" : undefined}
-                            rel={r.url ? "noopener noreferrer" : undefined}
-                            className="flex items-center gap-2 rounded-lg border border-light bg-surface p-2 text-xs transition-colors hover:border-primary-200"
-                          >
-                            {r.thumbnail_url ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={r.thumbnail_url}
-                                alt=""
-                                className="h-8 w-10 flex-shrink-0 rounded object-cover"
-                              />
-                            ) : (
-                              <span
-                                className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded bg-gradient-to-br ${cfg.bg} text-sm`}
-                              >
-                                {cfg.icon}
-                              </span>
-                            )}
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate font-medium text-secondary">
-                                {r.title}
-                              </p>
-                              {r.description && (
-                                <p className="truncate text-[10px] text-muted">
-                                  {r.description}
-                                </p>
+          <div
+            className="flex gap-4 overflow-x-auto pb-4"
+            style={{ scrollSnapType: "x mandatory" }}
+          >
+            {/* Resources Column */}
+            {hasResources && (
+              <div
+                className="w-64 flex-shrink-0 rounded-2xl border border-light bg-surface-muted shadow-warm"
+                style={{ scrollSnapAlign: "start" }}
+              >
+                <div className="border-b bg-surface px-4 py-3 rounded-t-2xl">
+                  <h3 className="text-sm font-semibold text-primary">
+                    Curriculum Resources
+                  </h3>
+                  <p className="text-xs text-muted">
+                    {curriculumResources.length} shared
+                  </p>
+                </div>
+                <div className="space-y-4 p-3">
+                  {Object.entries(resourcesByType).map(([group, resources]) => (
+                    <div key={group}>
+                      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
+                        {group}
+                      </p>
+                      <div className="space-y-1.5">
+                        {resources.map((r) => {
+                          const cfg = typeConfig[r.type] || typeConfig.url;
+                          return (
+                            <a
+                              key={r.id}
+                              href={r.url || `/resources/${r.id}`}
+                              target={r.url ? "_blank" : undefined}
+                              rel={r.url ? "noopener noreferrer" : undefined}
+                              className="flex items-center gap-2 rounded-lg border border-light bg-surface p-2 text-xs transition-colors hover:border-primary-200"
+                            >
+                              {r.thumbnail_url ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={r.thumbnail_url}
+                                  alt=""
+                                  className="h-8 w-10 flex-shrink-0 rounded object-cover"
+                                />
+                              ) : (
+                                <span
+                                  className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded bg-gradient-to-br ${cfg.bg} text-sm`}
+                                >
+                                  {cfg.icon}
+                                </span>
                               )}
-                            </div>
-                          </a>
-                        );
-                      })}
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate font-medium text-secondary">
+                                  {r.title}
+                                </p>
+                                {r.description && (
+                                  <p className="truncate text-[10px] text-muted">
+                                    {r.description}
+                                  </p>
+                                )}
+                              </div>
+                            </a>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Section columns */}
-          {sectionOrder.map((sectionName) => (
-            <SectionColumn
-              key={sectionName}
-              sectionName={sectionName}
-              lessons={sectionMap.get(sectionName)!}
-              subjectColor={subjectColor}
-              assignedChildren={assignedChildren}
-              isPending={isPending}
-              onCompletionToggle={handleCompletionToggle}
-              isAddingHere={addingToSection === sectionName}
-              newLessonTitle={addingToSection === sectionName ? newLessonTitle : ""}
-              onNewLessonTitleChange={setNewLessonTitle}
-              onAddClick={() => { setAddingToSection(sectionName); setNewLessonTitle(""); }}
-              onSave={() => handleAddLesson(sectionName)}
-              onCancel={() => { setAddingToSection(null); setNewLessonTitle(""); }}
-              isSaving={isSaving}
-              showAddLesson={showAddLesson}
-              showCompletions={showCompletions}
-              showActions={showRowActions}
-              onViewLesson={handleViewLesson}
-              onEditLesson={setEditingLesson}
-              onDeleteLesson={handleDeleteLesson}
-              onTitleClick={setViewingLesson}
-            />
-          ))}
+            {/* Section columns */}
+            {sectionOrder.map((sectionName) => (
+              <SectionColumn
+                key={sectionName}
+                sectionName={sectionName}
+                lessons={sectionMap.get(sectionName)!}
+                subjectColor={subjectColor}
+                assignedChildren={assignedChildren}
+                isPending={isPending}
+                onCompletionToggle={handleCompletionToggle}
+                isAddingHere={addingToSection === sectionName}
+                newLessonTitle={addingToSection === sectionName ? newLessonTitle : ""}
+                onNewLessonTitleChange={setNewLessonTitle}
+                onAddClick={() => { setAddingToSection(sectionName); setNewLessonTitle(""); }}
+                onSave={() => handleAddLesson(sectionName)}
+                onCancel={() => { setAddingToSection(null); setNewLessonTitle(""); }}
+                isSaving={isSaving}
+                showAddLesson={showAddLesson}
+                showCompletions={showCompletions}
+                showActions={showRowActions}
+                onViewLesson={handleViewLesson}
+                onEditLesson={setEditingLesson}
+                onDeleteLesson={handleDeleteLesson}
+                onTitleClick={setViewingLesson}
+              />
+            ))}
 
-          {/* Unsectioned lessons */}
-          {unsectioned.length > 0 && (
-            <SectionColumn
-              sectionName="Other"
-              lessons={unsectioned}
-              subjectColor={subjectColor}
-              assignedChildren={assignedChildren}
-              isPending={isPending}
-              onCompletionToggle={handleCompletionToggle}
-              isAddingHere={addingToSection === "Other"}
-              newLessonTitle={addingToSection === "Other" ? newLessonTitle : ""}
-              onNewLessonTitleChange={setNewLessonTitle}
-              onAddClick={() => { setAddingToSection("Other"); setNewLessonTitle(""); }}
-              onSave={() => handleAddLesson("Other")}
-              onCancel={() => { setAddingToSection(null); setNewLessonTitle(""); }}
-              isSaving={isSaving}
-              showAddLesson={showAddLesson}
-              showCompletions={showCompletions}
-              showActions={showRowActions}
-              onViewLesson={handleViewLesson}
-              onEditLesson={setEditingLesson}
-              onDeleteLesson={handleDeleteLesson}
-              onTitleClick={setViewingLesson}
-            />
-          )}
+            {/* Unsectioned lessons */}
+            {unsectioned.length > 0 && (
+              <SectionColumn
+                sectionName="Other"
+                lessons={unsectioned}
+                subjectColor={subjectColor}
+                assignedChildren={assignedChildren}
+                isPending={isPending}
+                onCompletionToggle={handleCompletionToggle}
+                isAddingHere={addingToSection === "Other"}
+                newLessonTitle={addingToSection === "Other" ? newLessonTitle : ""}
+                onNewLessonTitleChange={setNewLessonTitle}
+                onAddClick={() => { setAddingToSection("Other"); setNewLessonTitle(""); }}
+                onSave={() => handleAddLesson("Other")}
+                onCancel={() => { setAddingToSection(null); setNewLessonTitle(""); }}
+                isSaving={isSaving}
+                showAddLesson={showAddLesson}
+                showCompletions={showCompletions}
+                showActions={showRowActions}
+                onViewLesson={handleViewLesson}
+                onEditLesson={setEditingLesson}
+                onDeleteLesson={handleDeleteLesson}
+                onTitleClick={setViewingLesson}
+              />
+            )}
 
-          {/* Empty state */}
-          {filteredLessons.length === 0 && (
-            <div className="flex w-full items-center justify-center py-16 text-sm text-muted">
-              {statusFilter === "all" ? "No cards in this curriculum yet." : `No ${statusFilter} cards.`}
-            </div>
-          )}
-        </div>
+            {/* Empty state */}
+            {dndFilteredLessons.length === 0 && (
+              <div className="flex w-full items-center justify-center py-16 text-sm text-muted">
+                {statusFilter === "all" ? "No cards in this curriculum yet." : `No ${statusFilter} cards.`}
+              </div>
+            )}
+          </div>
+
+          <DragOverlay>
+            {activeDragLesson && (
+              <div className="w-72 opacity-90">
+                <LessonMiniCard
+                  lesson={activeDragLesson}
+                  assignedChildren={assignedChildren}
+                  isPending={false}
+                  onCompletionToggle={() => {}}
+                  showCompletions={false}
+                  showActions={false}
+                />
+              </div>
+            )}
+          </DragOverlay>
+        </DndContext>
 
         <LessonFormModal
           open={!!editingLesson}

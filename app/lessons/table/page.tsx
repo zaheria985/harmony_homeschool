@@ -1,6 +1,5 @@
 export const dynamic = "force-dynamic";
 import PageHeader from "@/components/ui/PageHeader";
-import { ViewToggleNav } from "@/components/ui/ViewToggle";
 import { getAllLessonsWithResources } from "@/lib/queries/lessons";
 import { getAllResources } from "@/lib/queries/resources";
 import EditableLessonsTable from "@/components/lessons/EditableLessonsTable";
@@ -21,13 +20,6 @@ export default async function LessonsTablePage() {
     <div>
       {" "}
       <PageHeader title="Lessons">
-        {" "}
-        <ViewToggleNav
-          options={[
-            { key: "card", label: "Card", href: "/lessons" },
-            { key: "table", label: "Table", href: "/lessons/table" },
-          ]}
-        />{" "}
       </PageHeader>{" "}
       <EditableLessonsTable
         lessons={lessons}

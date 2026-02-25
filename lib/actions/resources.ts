@@ -502,7 +502,7 @@ export async function attachResourceToLessons(
 
     const r = resource.rows[0];
     // Map resource types to lesson_resources types
-    const lrType = ["youtube", "pdf", "url"].includes(r.type) ? r.type : "url";
+    const lrType = r.type === "video" ? "youtube" : ["youtube", "pdf", "url"].includes(r.type) ? r.type : "url";
 
     for (const lessonId of lIds) {
       await client.query(
