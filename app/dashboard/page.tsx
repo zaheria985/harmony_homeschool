@@ -32,10 +32,9 @@ function dayKeyFromDate(date: Date): string {
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ days?: string }>;
+  searchParams: { days?: string };
 }) {
-  const params = await searchParams;
-  const daysAhead = params.days === "7" ? 7 : 3;
+  const daysAhead = searchParams.days === "7" ? 7 : 3;
   const user = await getCurrentUser();
   const scopedChildId =
     user.role === "kid" ? user.childId || undefined : undefined;
