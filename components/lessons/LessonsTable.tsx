@@ -25,7 +25,13 @@ type Lesson = {
 
 type Child = { id: string; name: string };
 
-type SortField = "planned_date" | "title" | "status";
+type SortField =
+  | "planned_date"
+  | "title"
+  | "status"
+  | "curriculum_name"
+  | "subject_name"
+  | "child_name";
 type SortDir = "asc" | "desc";
 
 function toSafeText(value: unknown): string {
@@ -64,6 +70,11 @@ export default function LessonsTable({
   const [subjectFilter, setSubjectFilter] = useState("");
   const [curriculumFilter, setCurriculumFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [titleSearch, setTitleSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [completionFilter, setCompletionFilter] = useState("");
+  const [gradeFilter, setGradeFilter] = useState("");
 
   // Expanded rows
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -128,6 +139,32 @@ export default function LessonsTable({
         (l) => l.curriculum_id === effectiveCurriculumFilter,
       );
     if (statusFilter) result = result.filter((l) => l.status === statusFilter);
+    if (titleSearch) {
+      const q = titleSearch.toLowerCase();
+      result = result.filter((l) =>
+        toSafeText(l.title).toLowerCase().includes(q),
+      );
+    }
+    if (dateFrom) {
+      result = result.filter(
+        (l) => l.planned_date != null && l.planned_date >= dateFrom,
+      );
+    }
+    if (dateTo) {
+      result = result.filter(
+        (l) => l.planned_date != null && l.planned_date <= dateTo,
+      );
+    }
+    if (completionFilter === "completed") {
+      result = result.filter((l) => l.completed_at != null);
+    } else if (completionFilter === "not_completed") {
+      result = result.filter((l) => l.completed_at == null);
+    }
+    if (gradeFilter === "graded") {
+      result = result.filter((l) => l.grade != null);
+    } else if (gradeFilter === "ungraded") {
+      result = result.filter((l) => l.grade == null);
+    }
 
     result = [...result].sort((a, b) => {
       let cmp = 0;
@@ -135,6 +172,18 @@ export default function LessonsTable({
         cmp = toSafeText(a.title).localeCompare(toSafeText(b.title));
       } else if (sortField === "status") {
         cmp = (statusOrder[a.status] ?? 0) - (statusOrder[b.status] ?? 0);
+      } else if (sortField === "curriculum_name") {
+        cmp = toSafeText(a.curriculum_name).localeCompare(
+          toSafeText(b.curriculum_name),
+        );
+      } else if (sortField === "subject_name") {
+        cmp = toSafeText(a.subject_name).localeCompare(
+          toSafeText(b.subject_name),
+        );
+      } else if (sortField === "child_name") {
+        cmp = toSafeText(a.child_name).localeCompare(
+          toSafeText(b.child_name),
+        );
       } else {
         // planned_date — nulls last
         const da = a.planned_date;
@@ -154,6 +203,11 @@ export default function LessonsTable({
     subjectFilter,
     effectiveCurriculumFilter,
     statusFilter,
+    titleSearch,
+    dateFrom,
+    dateTo,
+    completionFilter,
+    gradeFilter,
     sortField,
     sortDir,
   ]);
@@ -176,11 +230,19 @@ export default function LessonsTable({
     <>
       {/* Filters */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
+        <input
+          type="text"
+          value={titleSearch}
+          onChange={(e) => setTitleSearch(e.target.value)}
+          placeholder="Search by title..."
+          className="rounded-lg border border-light bg-surface px-3 py-2 text-sm text-primary placeholder:text-muted"
+        />
+
         {children.length > 1 && (
           <select
             value={childFilter}
             onChange={(e) => setChildFilter(e.target.value)}
-            className="rounded-lg border bg-surface px-3 py-2 text-sm"
+            className="rounded-lg border border-light bg-surface px-3 py-2 text-sm text-primary"
           >
             <option value="">All Students</option>
             {children.map((c) => (
@@ -197,7 +259,7 @@ export default function LessonsTable({
             setSubjectFilter(e.target.value);
             setCurriculumFilter("");
           }}
-          className="rounded-lg border bg-surface px-3 py-2 text-sm"
+          className="rounded-lg border border-light bg-surface px-3 py-2 text-sm text-primary"
         >
           <option value="">All Subjects</option>
           {subjects.map((s) => (
@@ -210,7 +272,7 @@ export default function LessonsTable({
         <select
           value={effectiveCurriculumFilter}
           onChange={(e) => setCurriculumFilter(e.target.value)}
-          className="rounded-lg border bg-surface px-3 py-2 text-sm"
+          className="rounded-lg border border-light bg-surface px-3 py-2 text-sm text-primary"
         >
           <option value="">All Curricula</option>
           {curricula.map((c) => (
@@ -223,13 +285,53 @@ export default function LessonsTable({
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-lg border bg-surface px-3 py-2 text-sm"
+          className="rounded-lg border border-light bg-surface px-3 py-2 text-sm text-primary"
         >
           <option value="">All Statuses</option>
           <option value="planned">Planned</option>
           <option value="in_progress">In Progress</option>
           <option value="completed">Completed</option>
         </select>
+
+        <select
+          value={completionFilter}
+          onChange={(e) => setCompletionFilter(e.target.value)}
+          className="rounded-lg border border-light bg-surface px-3 py-2 text-sm text-primary"
+        >
+          <option value="">All Completion</option>
+          <option value="completed">Completed</option>
+          <option value="not_completed">Not Completed</option>
+        </select>
+
+        <select
+          value={gradeFilter}
+          onChange={(e) => setGradeFilter(e.target.value)}
+          className="rounded-lg border border-light bg-surface px-3 py-2 text-sm text-primary"
+        >
+          <option value="">All Grades</option>
+          <option value="graded">Graded</option>
+          <option value="ungraded">Ungraded</option>
+        </select>
+
+        <div className="flex items-center gap-1">
+          <label className="text-xs text-muted">From</label>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="rounded-lg border border-light bg-surface px-3 py-2 text-sm text-primary placeholder:text-muted"
+          />
+        </div>
+
+        <div className="flex items-center gap-1">
+          <label className="text-xs text-muted">To</label>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="rounded-lg border border-light bg-surface px-3 py-2 text-sm text-primary placeholder:text-muted"
+          />
+        </div>
 
         <span className="text-sm text-muted">
           {filtered.length} lesson{filtered.length !== 1 ? "s" : ""}
@@ -247,14 +349,23 @@ export default function LessonsTable({
               >
                 Title{sortIndicator("title")}
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">
-                Student
+              <th
+                onClick={() => toggleSort("child_name")}
+                className="cursor-pointer px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted hover:text-secondary"
+              >
+                Student{sortIndicator("child_name")}
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">
-                Subject
+              <th
+                onClick={() => toggleSort("subject_name")}
+                className="cursor-pointer px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted hover:text-secondary"
+              >
+                Subject{sortIndicator("subject_name")}
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted">
-                Curriculum
+              <th
+                onClick={() => toggleSort("curriculum_name")}
+                className="cursor-pointer px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted hover:text-secondary"
+              >
+                Curriculum{sortIndicator("curriculum_name")}
               </th>
               <th
                 onClick={() => toggleSort("status")}
