@@ -7,11 +7,13 @@ export default function Modal({
   onClose,
   title,
   children,
+  className,
 }: {
   open: boolean;
   onClose: () => void;
   title?: string;
   children: React.ReactNode;
+  className?: string;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const pointerStartedOnBackdropRef = useRef(false);
@@ -49,7 +51,7 @@ export default function Modal({
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onClick={handleBackdropClick}
-      className="w-full max-w-lg rounded-2xl border border-light bg-surface p-0 shadow-warm-xl backdrop:bg-[var(--overlay)]"
+      className={`w-full max-w-lg rounded-2xl border border-light bg-surface p-0 shadow-warm-xl backdrop:bg-[var(--overlay)] ${className || ""}`}
     >
       <div className="p-6">
         {title && (

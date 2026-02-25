@@ -2,13 +2,13 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import Badge from "@/components/ui/Badge";
 import RowActions from "@/components/ui/RowActions";
 import LessonFormModal from "@/components/lessons/LessonFormModal";
 import { updateLessonStatus, createLesson, deleteLesson } from "@/lib/actions/lessons";
 import { markLessonComplete } from "@/lib/actions/completions";
 import { canEdit, canMarkComplete } from "@/lib/permissions";
+import CardViewModal from "@/components/curricula/CardViewModal";
 
 // ============================================================================
 // Types
@@ -123,8 +123,7 @@ function ResourceMiniCard({
 }) {
   const cfg = typeConfig[type] || typeConfig.url;
   const displayTitle = title || "Untitled";
-  const youtubeId =
-    type === "youtube" || type === "video" ? extractYoutubeId(url) : null;
+  const youtubeId = extractYoutubeId(url);
 
   const isImageUrl = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(url);
   const thumbnail = youtubeId
@@ -229,6 +228,7 @@ function LessonMiniCard({
   onEdit,
   onDeleteLesson,
   showActions = false,
+  onTitleClick,
 }: {
   lesson: Lesson;
   assignedChildren: Child[];
@@ -239,6 +239,7 @@ function LessonMiniCard({
   onEdit?: () => void;
   onDeleteLesson?: () => void;
   showActions?: boolean;
+  onTitleClick?: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const completedChildIds = new Set(lesson.completions.map((c) => c.child_id));
@@ -280,11 +281,15 @@ function LessonMiniCard({
 
       <div className="p-3">
         <div className="flex items-start justify-between gap-1">
-          <Link href={`/lessons/${lesson.id}`} className="block hover:text-interactive min-w-0 flex-1">
+          <button
+            type="button"
+            onClick={onTitleClick}
+            className="block hover:text-interactive min-w-0 flex-1 text-left"
+          >
             <h4 className="text-sm font-medium text-primary line-clamp-2">
               {lesson.title}
             </h4>
-          </Link>
+          </button>
           {showActions && (
             <RowActions
               onView={onView}
@@ -435,6 +440,7 @@ function SectionColumn({
   onViewLesson,
   onEditLesson,
   onDeleteLesson,
+  onTitleClick,
 }: {
   sectionName: string;
   lessons: Lesson[];
@@ -455,6 +461,7 @@ function SectionColumn({
   onViewLesson?: (lessonId: string) => void;
   onEditLesson?: (lesson: Lesson) => void;
   onDeleteLesson?: (lessonId: string) => void;
+  onTitleClick?: (lesson: Lesson) => void;
 }) {
   return (
     <div
@@ -469,7 +476,7 @@ function SectionColumn({
       {/* Section header */}
       <div className="border-b bg-surface px-4 py-3 rounded-t-none">
         <h3 className="text-sm font-semibold text-primary">{sectionName}</h3>
-        <p className="text-xs text-muted">{lessons.length} lessons</p>
+        <p className="text-xs text-muted">{lessons.length} cards</p>
       </div>
       {/* Stacked lesson cards */}
       <div className="space-y-2 overflow-y-auto p-3" style={{ maxHeight: "70vh" }}>
@@ -485,6 +492,7 @@ function SectionColumn({
             onView={onViewLesson ? () => onViewLesson(lesson.id) : undefined}
             onEdit={onEditLesson ? () => onEditLesson(lesson) : undefined}
             onDeleteLesson={onDeleteLesson ? () => onDeleteLesson(lesson.id) : undefined}
+            onTitleClick={onTitleClick ? () => onTitleClick(lesson) : undefined}
           />
         ))}
 
@@ -499,7 +507,7 @@ function SectionColumn({
                 if (e.key === "Enter" && newLessonTitle.trim()) onSave();
                 if (e.key === "Escape") onCancel();
               }}
-              placeholder="Lesson title..."
+              placeholder="Card title..."
               autoFocus
               disabled={isSaving}
               className="w-full rounded-lg border border-light bg-surface px-3 py-1.5 text-sm text-primary placeholder:text-muted focus:border-interactive focus:outline-none focus:ring-1 focus:ring-focus disabled:opacity-50"
@@ -529,7 +537,7 @@ function SectionColumn({
             onClick={onAddClick}
             className="w-full rounded-lg border border-dashed border-light px-3 py-2 text-sm text-muted hover:bg-surface-muted hover:text-secondary transition-colors"
           >
-            + Add Lesson
+            + Add Card
           </button>
         ))}
       </div>
@@ -599,6 +607,7 @@ export default function CurriculumBoard({
   const [isSaving, setIsSaving] = useState(false);
   const [statusFilter, setStatusFilter] = useState<FilterOption>("all");
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
+  const [viewingLesson, setViewingLesson] = useState<Lesson | null>(null);
   const showRowActions = canEdit(permissionLevel);
 
   const completedCount = lessons.filter((l) => {
@@ -813,6 +822,7 @@ export default function CurriculumBoard({
               onViewLesson={handleViewLesson}
               onEditLesson={setEditingLesson}
               onDeleteLesson={handleDeleteLesson}
+              onTitleClick={setViewingLesson}
             />
           ))}
 
@@ -838,13 +848,14 @@ export default function CurriculumBoard({
               onViewLesson={handleViewLesson}
               onEditLesson={setEditingLesson}
               onDeleteLesson={handleDeleteLesson}
+              onTitleClick={setViewingLesson}
             />
           )}
 
           {/* Empty state */}
           {filteredLessons.length === 0 && (
             <div className="flex w-full items-center justify-center py-16 text-sm text-muted">
-              {statusFilter === "all" ? "No lessons in this curriculum yet." : `No ${statusFilter} lessons.`}
+              {statusFilter === "all" ? "No cards in this curriculum yet." : `No ${statusFilter} cards.`}
             </div>
           )}
         </div>
@@ -864,6 +875,11 @@ export default function CurriculumBoard({
               : null
           }
           children={assignedChildren}
+        />
+
+        <CardViewModal
+          lesson={viewingLesson}
+          onClose={() => setViewingLesson(null)}
         />
       </div>
     );
@@ -985,7 +1001,7 @@ export default function CurriculumBoard({
               <div className="border-b px-4 py-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-muted">
-                    Lesson {idx + 1}
+                    Card {idx + 1}
                   </span>
                   <div className="flex items-center gap-1">
                     <Badge variant={statusBadge[lesson.status] || "default"}>
@@ -1016,10 +1032,11 @@ export default function CurriculumBoard({
                 )}
               </div>
 
-              {/* Title & description — clickable to lesson detail */}
-              <Link
-                href={`/lessons/${lesson.id}`}
-                className="block px-4 py-3 transition-colors hover:bg-surface-muted"
+              {/* Title & description — clickable to open card view modal */}
+              <button
+                type="button"
+                onClick={() => setViewingLesson(lesson)}
+                className="block w-full text-left px-4 py-3 transition-colors hover:bg-surface-muted"
               >
                 <h4 className="text-sm font-semibold text-primary line-clamp-2">
                   {lesson.title}
@@ -1034,7 +1051,7 @@ export default function CurriculumBoard({
                     ~{lesson.estimated_duration} min
                   </p>
                 )}
-              </Link>
+              </button>
 
               {/* Resources */}
               {lesson.resources.length > 0 && (
@@ -1089,7 +1106,7 @@ export default function CurriculumBoard({
         {/* Empty state */}
         {filteredLessons.length === 0 && (
           <div className="flex w-full items-center justify-center py-16 text-sm text-muted">
-            {statusFilter === "all" ? "No lessons in this curriculum yet." : `No ${statusFilter} lessons.`}
+            {statusFilter === "all" ? "No cards in this curriculum yet." : `No ${statusFilter} cards.`}
           </div>
         )}
       </div>
@@ -1109,6 +1126,11 @@ export default function CurriculumBoard({
             : null
         }
         children={assignedChildren}
+      />
+
+      <CardViewModal
+        lesson={viewingLesson}
+        onClose={() => setViewingLesson(null)}
       />
     </div>
   );

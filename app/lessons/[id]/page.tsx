@@ -12,6 +12,7 @@ import CompletionForm from "./CompletionForm";
 import KidCompletionModal from "@/components/lessons/KidCompletionModal";
 import UncompleteButton from "@/components/lessons/UncompleteButton";
 import { getCurrentUser } from "@/lib/session";
+import MarkdownContent from "@/components/ui/MarkdownContent";
 export default async function LessonDetailPage({
   params,
 }: {
@@ -51,7 +52,7 @@ export default async function LessonDetailPage({
       : lesson.status === "in_progress"
         ? "warning"
         : "default";
-  const isCompleted = lesson.status === "completed";
+
   return (
     <div className="mx-auto max-w-4xl">
       {" "}
@@ -137,9 +138,10 @@ export default async function LessonDetailPage({
             {" "}
             Description{" "}
           </h3>{" "}
-          <p className="text-secondary whitespace-pre-wrap">
-            {lesson.description}
-          </p>{" "}
+          <MarkdownContent
+            content={lesson.description}
+            className="text-tertiary"
+          />{" "}
         </div>
       )}{" "}
       {/* Completion section */}{" "}
