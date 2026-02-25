@@ -5,6 +5,7 @@ export interface WeekLesson {
   title: string;
   status: string;
   planned_date: string;
+  curriculum_id: string;
   curriculum_name: string;
   subject_id: string;
   subject_name: string;
@@ -25,7 +26,7 @@ export async function getWeekLessons(
   const res = await pool.query(
     `SELECT
        l.id, l.title, l.status, l.planned_date::text,
-       cu.name AS curriculum_name,
+       cu.id AS curriculum_id, cu.name AS curriculum_name,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        lc.grade
      FROM lessons l
@@ -55,7 +56,7 @@ export async function getAllWeekLessons(
   const res = await pool.query(
     `SELECT
        l.id, l.title, l.status, l.planned_date::text,
-       cu.name AS curriculum_name,
+       cu.id AS curriculum_id, cu.name AS curriculum_name,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        c.name AS child_name,
        lc.grade

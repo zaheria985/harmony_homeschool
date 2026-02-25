@@ -20,6 +20,7 @@ interface GridLesson {
   id: string;
   title: string;
   status: string;
+  curriculum_id: string;
   curriculum_name: string;
   grade: number | null;
 }
@@ -53,6 +54,19 @@ interface DragLesson {
   fromDate: string;
   subjectName: string;
   subjectColor: string | null;
+}
+function groupByCourse(lessons: GridLesson[]) {
+  const groups = new Map<string, { curriculum_id: string; lessons: GridLesson[] }>();
+  for (const lesson of lessons) {
+    const key = lesson.curriculum_name || "Uncategorized";
+    let group = groups.get(key);
+    if (!group) {
+      group = { curriculum_id: lesson.curriculum_id, lessons: [] };
+      groups.set(key, group);
+    }
+    group.lessons.push(lesson);
+  }
+  return Array.from(groups.entries());
 }
 function moveLesson(
   weeks: WeekData[],
@@ -410,52 +424,65 @@ export default function WeekGrid({
                                 {subject.subjectName}{" "}
                               </span>{" "}
                             </div>{" "}
-                            <div className="mt-0.5 space-y-0.5 pl-3">
+                            <div className="mt-0.5 space-y-1 pl-3">
                               {" "}
-                              {subject.lessons.map((lesson) => (
-                                <Link
-                                  key={lesson.id}
-                                  href={`/lessons/${lesson.id}`}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (
-                                      touchDragging ||
-                                      suppressNextClick.current
-                                    ) {
-                                      e.preventDefault();
-                                      suppressNextClick.current = false;
-                                    }
-                                  }}
-                                  draggable={!isPending}
-                                  onDragStart={(event) => {
-                                    event.stopPropagation();
-                                    setDraggingLesson({
-                                      id: lesson.id,
-                                      fromDate: day.date,
-                                      subjectName: subject.subjectName,
-                                      subjectColor: subject.subjectColor,
-                                    });
-                                  }}
-                                  onDragEnd={() => {
-                                    setDraggingLesson(null);
-                                    setDropTargetDate(null);
-                                  }}
-                                  onTouchStart={(event) =>
-                                    handleTouchStart(event, {
-                                      id: lesson.id,
-                                      fromDate: day.date,
-                                      subjectName: subject.subjectName,
-                                      subjectColor: subject.subjectColor,
-                                    })
-                                  }
-                                  onTouchMove={handleTouchMove}
-                                  onTouchEnd={handleTouchEnd}
-                                  onTouchCancel={handleTouchCancel}
-                                  className={`block line-clamp-2 text-sm leading-tight transition-colors hover:text-interactive md:text-xs ${lesson.status === "completed" ? "text-muted line-through" : "text-tertiary"}`}
-                                >
-                                  {" "}
-                                  {lesson.title}{" "}
-                                </Link>
+                              {groupByCourse(subject.lessons).map(([courseName, courseGroup]) => (
+                                <div key={courseName}>
+                                  <Link
+                                    href={`/curricula/${courseGroup.curriculum_id}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="line-clamp-1 text-xs text-interactive hover:underline"
+                                  >
+                                    {courseName}
+                                  </Link>
+                                  <div className="mt-0.5 space-y-0.5 pl-2">
+                                    {courseGroup.lessons.map((lesson) => (
+                                      <Link
+                                        key={lesson.id}
+                                        href={`/lessons/${lesson.id}`}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (
+                                            touchDragging ||
+                                            suppressNextClick.current
+                                          ) {
+                                            e.preventDefault();
+                                            suppressNextClick.current = false;
+                                          }
+                                        }}
+                                        draggable={!isPending}
+                                        onDragStart={(event) => {
+                                          event.stopPropagation();
+                                          setDraggingLesson({
+                                            id: lesson.id,
+                                            fromDate: day.date,
+                                            subjectName: subject.subjectName,
+                                            subjectColor: subject.subjectColor,
+                                          });
+                                        }}
+                                        onDragEnd={() => {
+                                          setDraggingLesson(null);
+                                          setDropTargetDate(null);
+                                        }}
+                                        onTouchStart={(event) =>
+                                          handleTouchStart(event, {
+                                            id: lesson.id,
+                                            fromDate: day.date,
+                                            subjectName: subject.subjectName,
+                                            subjectColor: subject.subjectColor,
+                                          })
+                                        }
+                                        onTouchMove={handleTouchMove}
+                                        onTouchEnd={handleTouchEnd}
+                                        onTouchCancel={handleTouchCancel}
+                                        className={`block line-clamp-2 text-sm leading-tight transition-colors hover:text-interactive md:text-xs ${lesson.status === "completed" ? "text-muted line-through" : "text-tertiary"}`}
+                                      >
+                                        {" "}
+                                        {lesson.title}{" "}
+                                      </Link>
+                                    ))}
+                                  </div>
+                                </div>
                               ))}{" "}
                             </div>{" "}
                           </div>

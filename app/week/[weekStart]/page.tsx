@@ -127,6 +127,7 @@ export default async function WeeklyBoardPage({
             id: l.id,
             title: l.title,
             status: l.status,
+            curriculum_id: l.curriculum_id,
             curriculum_name: l.curriculum_name,
             grade: l.grade,
           })),
