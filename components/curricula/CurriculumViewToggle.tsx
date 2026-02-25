@@ -8,7 +8,7 @@ export function CurriculumViewToggle({
   return (
     <ViewToggleNav
       options={[
-        { key: "list", label: "List View", href: `/curricula/${curriculumId}` },
+        { key: "list", label: "List View", href: `/curricula/${curriculumId}/list` },
         {
           key: "board",
           label: "Board View",
