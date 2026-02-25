@@ -9,6 +9,7 @@ import RowActions from "@/components/ui/RowActions";
 import BulkSelectBar from "@/components/ui/BulkSelectBar";
 import { updateCurriculum, deleteCurriculum } from "@/lib/actions/lessons";
 import { canEdit } from "@/lib/permissions";
+import CurriculumEditModal from "@/components/curricula/CurriculumEditModal";
 
 type Curriculum = {
   id: string;
@@ -51,6 +52,12 @@ export default function CurriculaView({
   const [isPending, startTransition] = useTransition();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
+  const [editingCurriculum, setEditingCurriculum] = useState<{
+    id: string;
+    name: string;
+    description: string | null;
+    cover_image: string | null;
+  } | null>(null);
 
   const [timelineFilter, setTimelineFilter] = useState<
     "due-12mo" | "completed" | "future-12mo"
@@ -345,6 +352,7 @@ export default function CurriculaView({
                     <div className="mt-2">
                       <RowActions
                         onView={() => router.push(`/curricula/${curriculum.id}`)}
+                        onEdit={() => setEditingCurriculum(curriculum)}
                         onDelete={() => {
                           startTransition(async () => {
                             await deleteCurriculum(curriculum.id);
@@ -445,6 +453,7 @@ export default function CurriculaView({
                             <div className="mt-1.5">
                               <RowActions
                                 onView={() => router.push(`/curricula/${curriculum.id}`)}
+                                onEdit={() => setEditingCurriculum(curriculum)}
                                 onDelete={() => {
                                   startTransition(async () => {
                                     await deleteCurriculum(curriculum.id);
@@ -466,6 +475,11 @@ export default function CurriculaView({
           </div>
         </div>
       )}
+
+      <CurriculumEditModal
+        curriculum={editingCurriculum}
+        onClose={() => setEditingCurriculum(null)}
+      />
 
       {/* Table View */}
       {view === "table" && timelineFiltered.length > 0 && (
@@ -615,6 +629,7 @@ export default function CurriculaView({
                       <td className="whitespace-nowrap px-4 py-3 text-sm">
                         <RowActions
                           onView={() => router.push(`/curricula/${curriculum.id}`)}
+                          onEdit={() => setEditingCurriculum(curriculum)}
                           onDelete={() => {
                             startTransition(async () => {
                               await deleteCurriculum(curriculum.id);

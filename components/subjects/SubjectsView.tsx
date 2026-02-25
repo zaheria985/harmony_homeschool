@@ -6,6 +6,7 @@ import EditableCell from "@/components/ui/EditableCell";
 import RowActions from "@/components/ui/RowActions";
 import BulkSelectBar from "@/components/ui/BulkSelectBar";
 import { updateSubject, deleteSubject } from "@/lib/actions/lessons";
+import SubjectEditModal from "@/components/subjects/SubjectEditModal";
 type Subject = {
   id: string;
   name: string;
@@ -31,6 +32,12 @@ export default function SubjectsView({
   const [isPending, startTransition] = useTransition();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
+  const [editingSubject, setEditingSubject] = useState<{
+    id: string;
+    name: string;
+    color: string | null;
+    thumbnail_url: string | null;
+  } | null>(null);
 
   const filteredSubjects = subjects
     .filter((subject) => {
@@ -190,6 +197,7 @@ export default function SubjectsView({
                       <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: subject.color || "#6366f1" }} />
                       <RowActions
                         onView={() => router.push(`/subjects/${subject.id}`)}
+                        onEdit={() => setEditingSubject(subject)}
                         onDelete={() => {
                           startTransition(async () => {
                             await deleteSubject(subject.id);
@@ -228,6 +236,10 @@ export default function SubjectsView({
           })}{" "}
         </div>
       )}{" "}
+      <SubjectEditModal
+        subject={editingSubject}
+        onClose={() => setEditingSubject(null)}
+      />
       {/* Table View */}{" "}
       {view === "table" && filteredSubjects.length > 0 && (
         <>
@@ -256,6 +268,7 @@ export default function SubjectsView({
                     <div className="flex items-center gap-2">
                       <RowActions
                         onView={() => router.push(`/subjects/${subject.id}`)}
+                        onEdit={() => setEditingSubject(subject)}
                         onDelete={() => {
                           startTransition(async () => {
                             await deleteSubject(subject.id);
@@ -428,6 +441,7 @@ export default function SubjectsView({
                       <td className="whitespace-nowrap px-4 py-3 text-sm">
                         <RowActions
                           onView={() => router.push(`/subjects/${subject.id}`)}
+                          onEdit={() => setEditingSubject(subject)}
                           onDelete={() => {
                             startTransition(async () => {
                               await deleteSubject(subject.id);
