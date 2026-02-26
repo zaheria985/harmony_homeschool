@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Modal from "@/components/ui/Modal";
+import TagInput from "@/components/ui/TagInput";
 import { updateCurriculum } from "@/lib/actions/lessons";
 
 type CurriculumForEdit = {
@@ -20,6 +21,7 @@ type CurriculumForEdit = {
   prepped?: boolean;
   default_view?: string;
   default_filter?: string;
+  tags?: string;
 } | null;
 
 type SubjectOption = { id: string; name: string };
@@ -27,16 +29,22 @@ type SubjectOption = { id: string; name: string };
 export default function CurriculumEditModal({
   curriculum,
   subjects,
+  allTags = [],
   onClose,
 }: {
   curriculum: CurriculumForEdit;
   subjects: SubjectOption[];
+  allTags?: string[];
   onClose: () => void;
 }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [clearCoverImage, setClearCoverImage] = useState(false);
+  const [tagsValue, setTagsValue] = useState(curriculum?.tags || "");
+  useEffect(() => {
+    setTagsValue(curriculum?.tags || "");
+  }, [curriculum?.id, curriculum?.tags]);
 
   if (!curriculum) return null;
 
@@ -268,6 +276,20 @@ export default function CurriculumEditModal({
             rows={3}
             defaultValue={curriculum.notes || ""}
             className={inputClass}
+          />
+        </div>
+
+        {/* Tags */}
+        <div>
+          <label className="block text-sm font-medium text-secondary mb-1">
+            Tags
+          </label>
+          <input type="hidden" name="tags" value={tagsValue} />
+          <TagInput
+            value={tagsValue}
+            onChange={setTagsValue}
+            allTags={allTags}
+            placeholder="Add tags to this course"
           />
         </div>
 

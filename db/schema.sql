@@ -202,6 +202,12 @@ CREATE TABLE curriculum_booklists (
     PRIMARY KEY (curriculum_id, booklist_id)
 );
 
+CREATE TABLE curriculum_tags (
+    curriculum_id   UUID NOT NULL REFERENCES curricula(id) ON DELETE CASCADE,
+    tag_id          UUID NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    PRIMARY KEY (curriculum_id, tag_id)
+);
+
 -- ============================================================================
 -- INDEXES
 -- ============================================================================
@@ -230,6 +236,7 @@ CREATE INDEX idx_lesson_completions_lesson          ON lesson_completions(lesson
 CREATE INDEX idx_lesson_completions_child           ON lesson_completions(child_id);
 CREATE INDEX idx_resource_tags_resource             ON resource_tags(resource_id);
 CREATE INDEX idx_resource_tags_tag                  ON resource_tags(tag_id);
+CREATE INDEX idx_curriculum_tags_tag                ON curriculum_tags(tag_id);
 
 CREATE INDEX idx_booklist_resources_booklist ON booklist_resources(booklist_id);
 CREATE INDEX idx_booklist_resources_resource ON booklist_resources(resource_id);

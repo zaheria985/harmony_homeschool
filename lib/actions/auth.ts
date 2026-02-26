@@ -206,6 +206,29 @@ export async function updateKidPermission(userId: string, permissionLevel: strin
   return { success: true };
 }
 
+const resetPasswordSchema = z.object({
+  userId: z.string().uuid(),
+  newPassword: z.string().min(8, "Password must be at least 8 characters"),
+});
+
+export async function resetKidPassword(userId: string, newPassword: string) {
+  const parsed = resetPasswordSchema.safeParse({ userId, newPassword });
+  if (!parsed.success) return { error: parsed.error.errors[0].message };
+
+  const userRes = await pool.query("SELECT role FROM users WHERE id = $1", [parsed.data.userId]);
+  if (userRes.rows.length === 0) return { error: "User not found" };
+  if (userRes.rows[0].role !== "kid") return { error: "Can only reset kid account passwords" };
+
+  const passwordHash = await hash(parsed.data.newPassword, 10);
+  await pool.query("UPDATE users SET password_hash = $1 WHERE id = $2", [
+    passwordHash,
+    parsed.data.userId,
+  ]);
+
+  revalidatePath("/settings/users");
+  return { success: true };
+}
+
 export async function deleteKidAccount(userId: string) {
   // Verify target is a kid account
   const userRes = await pool.query("SELECT role FROM users WHERE id = $1", [userId]);

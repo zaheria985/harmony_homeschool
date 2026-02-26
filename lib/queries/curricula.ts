@@ -10,7 +10,13 @@ export async function getAllCurricula() {
        ca.child_id,
        c.name AS child_name,
        COUNT(DISTINCT l.id)::int AS lesson_count,
-       COUNT(DISTINCT CASE WHEN l.status = 'completed' THEN l.id END)::int AS completed_count
+       COUNT(DISTINCT CASE WHEN l.status = 'completed' THEN l.id END)::int AS completed_count,
+       COALESCE(
+         (SELECT string_agg(t.name, ',' ORDER BY t.name)
+          FROM curriculum_tags ct JOIN tags t ON t.id = ct.tag_id
+          WHERE ct.curriculum_id = cu.id),
+         ''
+       ) AS tags
      FROM curricula cu
      LEFT JOIN subjects s ON s.id = cu.subject_id
      LEFT JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id

@@ -149,6 +149,11 @@ export async function getAllResourceTags() {
   return res.rows;
 }
 
+export async function getAllTagNames(): Promise<string[]> {
+  const res = await pool.query(`SELECT name FROM tags ORDER BY name`);
+  return res.rows.map((r: { name: string }) => r.name);
+}
+
 export async function getAllBookResources() {
   const res = await pool.query(
     `SELECT

@@ -33,10 +33,13 @@ export default async function WeeklyBoardPage({
 
   // Auto-bump overdue lessons (for each child when viewing all)
   const today = toDateStr(new Date());
+  let bumpedCount = 0;
   if (isAllKids) {
-    await Promise.all(children.map((c) => bumpOverdueLessons(c.id, today)));
+    const results = await Promise.all(children.map((c) => bumpOverdueLessons(c.id, today)));
+    bumpedCount = results.reduce((sum, r) => sum + (r && "bumped" in r ? (r.bumped ?? 0) : 0), 0);
   } else {
-    await bumpOverdueLessons(childParam, today);
+    const result = await bumpOverdueLessons(childParam, today);
+    bumpedCount = result && "bumped" in result ? (result.bumped ?? 0) : 0;
   }
 
   const initialWeekStart = params.weekStart;
@@ -139,5 +142,5 @@ export default async function WeeklyBoardPage({
     return { weekStart, label: formatWeekLabel(weekStart), days };
   });
 
-  return <WeekGrid weeks={weeks} />;
+  return <WeekGrid weeks={weeks} bumpedCount={bumpedCount} />;
 }

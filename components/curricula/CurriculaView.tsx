@@ -28,6 +28,7 @@ type Curriculum = {
   child_name: string;
   lesson_count: number;
   completed_count: number;
+  tags?: string;
 };
 
 type Child = { id: string; name: string };
@@ -37,11 +38,13 @@ export default function CurriculaView({
   curricula,
   children,
   subjects,
+  allTags = [],
   permissionLevel = "full",
 }: {
   curricula: Curriculum[];
   children: Child[];
   subjects: SubjectOption[];
+  allTags?: string[];
   permissionLevel?: string;
 }) {
   const hasEditPermission = canEdit(permissionLevel);
@@ -62,6 +65,7 @@ export default function CurriculaView({
     status: "active" | "archived" | "draft";
     start_date: string | null;
     end_date: string | null;
+    tags?: string;
   } | null>(null);
 
   const [timelineFilter, setTimelineFilter] = useState<
@@ -353,6 +357,15 @@ export default function CurriculaView({
                       {curriculum.child_name}
                     </span>
                   </div>
+                  {curriculum.tags && (
+                    <div className="mb-1.5 flex flex-wrap gap-1">
+                      {curriculum.tags.split(",").map((tag) => (
+                        <span key={tag} className="rounded-full bg-surface-muted px-1.5 py-0.5 text-[10px] text-tertiary">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   <div className="flex items-center justify-between text-xs text-muted">
                     <span>
                       {curriculum.completed_count}/{curriculum.lesson_count}
@@ -496,6 +509,7 @@ export default function CurriculaView({
       <CurriculumEditModal
         curriculum={editingCurriculum}
         subjects={subjects}
+        allTags={allTags}
         onClose={() => setEditingCurriculum(null)}
       />
 

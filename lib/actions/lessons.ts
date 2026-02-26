@@ -1157,6 +1157,27 @@ export async function updateCurriculum(formData: FormData) {
     );
   }
 
+  // Sync curriculum tags if provided
+  const rawTags = formData.get("tags");
+  if (typeof rawTags === "string") {
+    const { parseTagNames } = await import("@/lib/utils/resource-tags");
+    const tagNames = parseTagNames(rawTags || undefined);
+    await pool.query("DELETE FROM curriculum_tags WHERE curriculum_id = $1", [id]);
+    for (const tagName of tagNames) {
+      const tagRes = await pool.query(
+        `INSERT INTO tags (name) VALUES ($1)
+         ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
+         RETURNING id`,
+        [tagName]
+      );
+      await pool.query(
+        `INSERT INTO curriculum_tags (curriculum_id, tag_id)
+         VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+        [id, tagRes.rows[0].id]
+      );
+    }
+  }
+
   revalidateAll();
   return { success: true };
 }

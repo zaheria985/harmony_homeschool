@@ -8,6 +8,7 @@ import Link from "next/link";
 import CreateKidAccountForm from "./CreateKidAccountForm";
 import DeleteKidButton from "./DeleteKidButton";
 import PermissionSelect from "./PermissionSelect";
+import ResetPasswordButton from "./ResetPasswordButton";
 
 export default async function UsersPage() {
   const session = await getServerSession(authOptions);
@@ -75,6 +76,7 @@ export default async function UsersPage() {
                     userId={account.id}
                     currentLevel={account.permission_level || "full"}
                   />
+                  <ResetPasswordButton userId={account.id} userName={account.name} />
                   <DeleteKidButton userId={account.id} userName={account.name} />
                 </div>
               </div>

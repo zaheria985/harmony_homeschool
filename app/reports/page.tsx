@@ -4,7 +4,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import ProgressBar from "@/components/ui/ProgressBar";
 import { getAllChildren } from "@/lib/queries/students";
-import { getProgressReport } from "@/lib/queries/reports";
+import { getProgressReport, getAllSchoolYearsForReports } from "@/lib/queries/reports";
 import { getAllGrades } from "@/lib/queries/grades";
 import { getCurrentUser } from "@/lib/session";
 type ReportData = Awaited<ReturnType<typeof getProgressReport>>;
@@ -23,18 +23,23 @@ function subjectColor(value: unknown): string {
 export default async function ReportsPage({
   searchParams,
 }: {
-  searchParams?: { student?: string };
+  searchParams?: { student?: string; year?: string };
 }) {
   const user = await getCurrentUser();
-  const [children, grades] = await Promise.all([
+  const [children, grades, schoolYears] = await Promise.all([
     getAllChildren(user.role === "parent" ? user.id : undefined),
     getAllGrades(),
+    getAllSchoolYearsForReports(),
   ]);
+  const selectedYear = searchParams?.year || "";
+  const yearId = schoolYears.some((y: Record<string, string>) => y.id === selectedYear)
+    ? selectedYear
+    : undefined;
   const reports = await Promise.all(
     children.map(async (c: Record<string, string>) => ({
       childId: c.id,
       childName: c.name,
-      report: await getProgressReport(c.id),
+      report: await getProgressReport(c.id, yearId),
     })),
   );
   const totalLessons = reports.reduce(
@@ -92,6 +97,32 @@ export default async function ReportsPage({
     <div>
       {" "}
       <PageHeader title="Progress Reports" />{" "}
+      {schoolYears.length > 0 && (
+        <div className="mb-4 flex items-center gap-2">
+          <span className="text-sm text-muted">School Year:</span>
+          <div className="flex gap-1 rounded-lg bg-surface-subtle p-1">
+            <Link
+              href={`/reports${selectedId ? `?student=${selectedId}` : ""}`}
+              className={`rounded-md px-3 py-1 text-xs font-medium ${
+                !yearId ? "bg-surface text-primary shadow-sm" : "text-muted hover:text-primary"
+              }`}
+            >
+              All Years
+            </Link>
+            {schoolYears.map((y: Record<string, string>) => (
+              <Link
+                key={y.id}
+                href={`/reports?year=${y.id}${selectedId ? `&student=${selectedId}` : ""}`}
+                className={`rounded-md px-3 py-1 text-xs font-medium ${
+                  yearId === y.id ? "bg-surface text-primary shadow-sm" : "text-muted hover:text-primary"
+                }`}
+              >
+                {y.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
       <Card title="Students">
         {" "}
         {reports.length === 0 ? (
@@ -114,7 +145,7 @@ export default async function ReportsPage({
               return (
                 <Link
                   key={r.childId}
-                  href={`/reports?student=${r.childId}`}
+                  href={`/reports?student=${r.childId}${yearId ? `&year=${yearId}` : ""}`}
                   className={`rounded-lg border px-3 py-2 transition-colors ${active ? "border-interactive-border bg-interactive-light/30" : "border-light hover:bg-surface-muted"}`}
                 >
                   {" "}
