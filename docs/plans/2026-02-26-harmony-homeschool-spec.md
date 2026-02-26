@@ -2,8 +2,8 @@
 
 **Project:** Harmony Homeschool
 **Version:** 1.0
-**Last Updated:** February 2026
-**Status:** Draft
+**Last Updated:** 2026-02-26
+**Status:** Active
 
 ## Table of Contents
 
@@ -110,7 +110,6 @@ Student Management tracks the children being homeschooled. Each child has a prof
 
 ### Future Scope
 
-- **School year selector** — Allow browsing previous school years on the student detail page to review historical courses, grades, and completion rates
 - **Year-over-year progress** — Compare performance across school years (e.g. grade trends, completion rates by subject)
 - **Archived year reports** — Generate and export a summary report for a completed school year
 
@@ -162,6 +161,7 @@ All actions validate with Zod, use parameterized SQL, and revalidate `/students`
 
 - **Parent scoping** — Parent users see only their linked children. Other roles see all children.
 - **School year awareness** — Progress stats, subject breakdown, and course listings are scoped to the currently active school year (determined by `CURRENT_DATE BETWEEN start_date AND end_date`).
+- **School year selector** — Dropdown on the student detail page allows browsing previous school years to review historical courses, grades, and completion rates. Filters curricula/completions by the selected year.
 - **Admin-only CRUD** — Create/edit/delete UI lives in `/admin/children`, not on the student pages themselves. Supports table and gallery views with an emoji picker (30 presets) and image upload.
 - **Cascading delete** — Deleting a child removes all curriculum assignments, lesson completions, and parent linkages via database cascades. Booklist `owner_child_id` is set to NULL.
 
@@ -260,17 +260,7 @@ Curricula and lessons form the core of Harmony Homeschool. A curriculum (course 
 
 ### Future Scope
 
-- **Prepped flag** — *(Implemented)* Boolean on curricula so the parent can mark when all planning and prep for a course is complete. Toggleable via the curriculum edit modal.
-- **Actual start/end dates** — Track when a course actually started and completed, separate from the planned dates. Useful for end-of-year reporting and understanding schedule drift.
-- **Curriculum tags** — New `curriculum_tags` junction table to extend the existing tag system to courses (currently only resources are taggable).
-- **Course-to-lesson resource flow** — Improved UI for managing curriculum-level resources: easily attach books and materials to a course, then when editing a lesson, select from the course's resource library rather than searching the global list.
-- **Combo grade type** — `grade_type = 'combo'` allowing per-lesson grade mode within a single curriculum
-- **Lesson tags** — `lesson_tags` junction table extending the tag system to individual lessons
-- **Safe curriculum deletion** — *(Implemented)* `deleteCurriculum` checks for completed lessons and requires `force=true` to proceed when completions exist
 - **Completed lesson archiving** — End-of-year process to archive completed lessons as permanent records, decoupled from the curriculum structure
-- **Smart auto-scheduling** — *(Implemented)* `autoScheduleLessons` now skips dates that already have a lesson scheduled for that curriculum, only assigning to open dates
-- **Per-curriculum default view** — *(Implemented)* Stores a preferred view (board vs list) on the curriculum record; the `/curricula/[id]` redirect page uses `default_view` to route to the correct view
-- **Per-curriculum default filter** — *(Implemented)* Stores a preferred lesson filter (All / Incomplete / Completed) on the curriculum record so the list view opens with the right tab pre-selected
 - **Lesson templates** — Reusable lesson structures that can be applied to new curricula
 - **Curriculum sharing** — Export/import curricula between Harmony instances
 - **Completion-aware status** — Currently `lesson.status` is a single shared field even though completions are per-child; decouple so each child can have independent progress on shared curricula
@@ -290,15 +280,15 @@ Curricula and lessons form the core of Harmony Homeschool. A curriculum (course 
 | cover_image | TEXT (nullable) | Exists | Path to uploaded cover image |
 | course_type | TEXT | Exists | `curriculum` or `unit_study`, default `curriculum` |
 | status | TEXT | Exists | `active`, `archived`, or `draft`, default `active` |
-| grade_type | TEXT | Exists | `numeric` or `pass_fail`, default `numeric` |
+| grade_type | TEXT | Exists | `numeric`, `pass_fail`, or `combo`, default `numeric` |
 | start_date | DATE (nullable) | Exists | Planned start date |
 | end_date | DATE (nullable) | Exists | Planned end date |
 | notes | TEXT (nullable) | Exists | Internal notes |
 | prepped | BOOLEAN | Exists | Parent marks when course planning/prep is complete; default false |
 | default_view | TEXT (nullable) | Exists | Preferred view mode (`board` or `list`); used by `/curricula/[id]` redirect |
 | default_filter | TEXT (nullable) | Exists | Preferred lesson filter (`all`, `incomplete`, or `completed`); used by list view |
-| actual_start_date | DATE | **Future** | Date the course actually started |
-| actual_end_date | DATE | **Future** | Date the course was actually completed |
+| actual_start_date | DATE (nullable) | Exists | Date the course actually started; auto-set on first lesson completion |
+| actual_end_date | DATE (nullable) | Exists | Date the course was actually completed; auto-set when all lessons completed |
 
 **curriculum_assignments**
 
@@ -334,7 +324,7 @@ Per-assignment weekday overrides. If none are set, the school year's default sch
 
 Unique on (curriculum_id, resource_id). This table exists but the UI needs better integration — particularly a flow to attach course books/resources and then easily assign them to individual lessons.
 
-**curriculum_tags** (future — does not exist yet)
+**curriculum_tags** (junction)
 
 | Field | Type | Description |
 |---|---|---|
@@ -342,7 +332,7 @@ Unique on (curriculum_id, resource_id). This table exists but the UI needs bette
 | tag_id | UUID | Foreign key to tags |
 | created_at | TIMESTAMPTZ | Auto-set |
 
-Currently tags only apply to resources. This junction table would extend the existing tag system to curricula.
+Extends the tag system to curricula. Composite primary key on (curriculum_id, tag_id).
 
 **lessons**
 
@@ -386,13 +376,15 @@ Unique constraint on (lesson_id, child_id).
 | thumbnail_url | TEXT (nullable) | Preview image |
 | page_number | INTEGER (nullable) | Specific page reference |
 
-**lesson_tags** (future — does not exist yet)
+**lesson_tags** (junction)
 
 | Field | Type | Description |
 |---|---|---|
 | lesson_id | UUID | Foreign key to lessons |
 | tag_id | UUID | Foreign key to tags |
 | created_at | TIMESTAMPTZ | Auto-set |
+
+Extends the tag system to individual lessons. Composite primary key on (lesson_id, tag_id).
 
 ### Lessons — Key Behaviors
 
@@ -418,7 +410,7 @@ The `grade_type` field should support three modes:
 | `pass_fail` | All lessons graded as pass/fail |
 | `combo` | Per-lesson choice — each lesson can be either numeric or pass/fail |
 
-Currently only `numeric` and `pass_fail` exist. `combo` is a future addition.
+All three grade types are implemented.
 
 ### Curriculum Deletion
 
@@ -493,6 +485,13 @@ Currently only `numeric` and `pass_fail` exist. `combo` is a future addition.
 - **Lesson status is shared** — `lesson.status` is a single field, not per-child. Marking complete for one child sets it to `completed` for all. This is a known limitation (see Future Scope).
 - **Prepped toggle** — The curriculum edit modal includes a checkbox to toggle the `prepped` boolean. This is a purely organizational aid with no functional side effects; it indicates that all planning and prep for the course is complete.
 - **Drag-and-drop** — Uses `@dnd-kit` for board card reordering. On drop, all affected cards get updated `order_index` and `section` values via `reorderLessons`.
+- **Actual start/end dates** — `actual_start_date` is auto-set on the first lesson completion for a curriculum; `actual_end_date` is auto-set when all lessons are completed. Displayed on board, list, and edit views.
+- **Curriculum tags** — Curricula can be tagged via the `curriculum_tags` junction table, extending the tag system beyond resources.
+- **Lesson tags** — Individual lessons can be tagged via the `lesson_tags` junction table.
+- **Course-to-lesson resource flow** — When editing a lesson, a checklist shows the parent curriculum's resources for easy selection rather than searching the global library.
+- **Combo grade type** — `grade_type = 'combo'` allows per-lesson grade mode (numeric or pass/fail) within a single curriculum.
+- **Interactive checklists** — Lesson descriptions can contain checklist items that are toggleable in the UI, allowing sub-tasks to be checked off as completed.
+- **Checklist progress indicator** — Board and week cards display checklist completion counts (e.g. "3/5 items done").
 
 ### Data Flow
 
@@ -528,10 +527,6 @@ The Week Planner is the primary daily-use view for managing homeschool schedulin
 
 ### Future Scope
 
-- **Inline lesson detail modal** — When clicking a lesson in the week grid, open a modal overlay (not a page navigation) showing the full lesson detail: title, description, resources, completion form. Allows marking complete and returning to the planner instantly.
-- **Bump notification** — Surface the count of auto-bumped overdue lessons in a visible banner (plumbing exists but isn't wired up)
-- **External events at drill-down levels** — Currently external events only appear on the top-level board; show them at the daily and subject levels too
-- **Weekly summary/notes** — A per-week notes field for the parent to jot down reflections or plans
 - **Drag-and-drop between children** — Reassign a lesson from one child to another via drag
 
 ### Route Structure
@@ -573,7 +568,11 @@ Full lesson detail cards with: completion checkbox, title, curriculum link, desc
 - **Inline completion** — Checkbox toggles `markLessonComplete` / `markLessonIncomplete` via `useTransition`. Respects permission levels (kid users create pending completions).
 - **Resource embeds** — YouTube resources render as privacy-friendly `youtube-nocookie.com` iframes. PDFs render as styled links with page numbers. Other types render as generic links.
 - **Filtering** — Subject and course dropdowns filter the board client-side. Subject selection cascades to filter the course list. "Clear filters" resets both.
-- **External events** — Fetched alongside lessons and displayed at the top of each day cell. Scoped by child (or all children for the parent). Include color dot, title, and time range. Only shown on the Level 1 board.
+- **External events** — Fetched alongside lessons and displayed at the top of each day cell. Scoped by child (or all children for the parent). Include color dot, title, and time range. Shown at all drill-down levels (board, daily subjects, and subject lessons).
+- **Inline lesson detail modal** — Clicking a lesson in the week grid opens a modal overlay showing full lesson detail (title, description, resources, completion form) without page navigation.
+- **Bump notification banner** — Displays the count of auto-bumped overdue lessons in a visible banner after the bump runs.
+- **Weekly summary/notes** — A per-week notes field for the parent to jot down reflections or plans, stored via `weekly-notes` server actions.
+- **Checklist progress indicator** — Lesson cards in the week view display checklist completion counts when the lesson has checklist items.
 
 ### Queries
 
@@ -602,13 +601,10 @@ Grades, Reports, and Completed Lessons are three related read-heavy views that a
 ### Out of Scope
 
 - GPA calculation or weighted grade formulas
-- Report card PDF generation (beyond browser print)
 - Grade import from external systems
 
 ### Future Scope
 
-- **School year filter on reports** — Currently `getProgressReport` doesn't accept a year; add a year selector so parents can review prior year performance
-- **Exportable report cards** — Formatted PDF export of per-child progress for record-keeping or submission to school districts
 - **Grade trends** — Chart showing grade trajectory over time per subject
 - **Custom grading scales** — Allow defining letter grade thresholds (A/B/C/D/F) mapped to numeric ranges
 - **Weighted grades** — Support assignment weighting within a curriculum (e.g. tests worth more than homework)
@@ -650,6 +646,8 @@ Grades, Reports, and Completed Lessons are three related read-heavy views that a
 - **Performance feedback** — Automated text based on completion percentage: "Excellent" (85%+), "Solid" (65%+), "Making progress" (40%+), "Early-stage" (<40%).
 - **Print-friendly completed view** — CSS print rules hide navigation, filters, and summary. Print header shows report scope. Grid switches to 2-column for paper layout.
 - **Server-side filtering** — Completed page builds dynamic SQL WHERE clause from URL params. All filters are optional and combinable.
+- **School year filter on reports** — Year selector on the reports page allows reviewing progress for any school year, not just the active one.
+- **Exportable PDF report cards** — Per-child PDF report card generation via pdfkit (`/api/reports/export`). Includes subject breakdown, grade averages, and completion stats for record-keeping or submission to school districts.
 
 ---
 
@@ -677,7 +675,6 @@ The Calendar provides a monthly view of scheduled lessons and external events, w
 
 - **Drag-and-drop rescheduling on calendar** — Move lessons between days by dragging on the monthly grid
 - **Multi-month or semester view** — Zoomed-out view showing completion density across months
-- **Show all subjects per day** — *(Implemented)* Day cells now show all lesson subjects per day with no limit, using a compact layout that scales.
 - **Improved day detail modal** — Denser day cells with a quick-access centered overlay for day detail
 
 ### Architecture
@@ -715,7 +712,7 @@ Returns RFC 5545 iCalendar file with future non-completed lessons as all-day eve
 Standard 7-column grid (Sun-Sat). Each day cell shows:
 - Day number (today highlighted with ring)
 - Up to 1 external event (color dot + school emoji)
-- All subject indicators (color dots) for scheduled lessons, no limit
+- All subject indicators (color dots) for scheduled lessons — no limit, compact layout that scales
 
 Clicking a day opens a **Day Detail Modal** grouping lessons by Subject -> Curriculum. Each lesson is clickable to open the full Lesson Detail Modal.
 
@@ -779,11 +776,7 @@ Resources are a global library of learning materials — books, videos, PDFs, li
 
 ### Future Scope
 
-- **Extend tags to curricula and lessons** — Currently tags only apply to resources. New `curriculum_tags` and `lesson_tags` junction tables would let tags organize curricula and lessons too.
-- **Course-to-lesson resource flow** — When editing a lesson, show a checklist of the parent curriculum's resources for easy selection instead of searching the global library
 - **Resource usage analytics** — Track which resources are most/least used across curricula
-- **Bulk tag assignment** — Apply tags to multiple selected resources at once from the list view
-- **Promote inline to global** — Convert inline-only lesson resources into full library resources with one click
 - **Asset vs resource separation** — Clearly distinguish between app assets (uploaded images for display purposes) and learning resources (materials used in instruction). Assets should have their own storage and management path, never appearing in the global resource library.
 - **Resource type: "local file"** — If local file attachments (worksheets, printables) need to be treated as resources, add a distinct `local_file` type so they can be filtered separately from external URLs.
 
@@ -903,6 +896,10 @@ Composite primary key on (resource_id, tag_id).
 - **Tag merge is destructive** — Merging moves all resource associations from source to target, then deletes the source tag.
 - **Inline preview** — `ResourcePreviewModal` renders YouTube videos as `youtube-nocookie.com` iframes, images as thumbnails, and other types as "no preview" with an external link.
 - **Local uploads are not resources** — Uploaded images (curriculum cover photos, subject thumbnails, child banners) are local app assets stored under `/uploads/`. These should NOT appear in the Resources library. Resources are intentional learning materials: books, supplies, external links, videos, and PDFs that the parent plans to use for instruction.
+- **Tags extended to curricula and lessons** — Tags apply to resources (via `resource_tags`), curricula (via `curriculum_tags`), and lessons (via `lesson_tags`).
+- **Course-to-lesson resource flow** — When editing a lesson, a checklist of the parent curriculum's resources is shown for easy selection instead of searching the global library.
+- **Bulk tag assignment** — Tags can be applied to multiple selected resources at once from the list view.
+- **Promote inline to global** — Inline-only lesson resources can be converted into full library resources with one click.
 
 ---
 
@@ -921,15 +918,11 @@ Booklists are named collections of book-type resources, displayed as a kanban-st
 
 ### Out of Scope
 
-- Reading progress tracking per book
 - Book reviews or ratings
 - Integration with library catalog systems
 
 ### Future Scope
 
-- **Bulk booklist import** — Import a list of books from a pasted text list, CSV, or external curriculum catalog. Useful for pulling in reading lists from curricula you may not fully adopt but want to track the books from.
-- **Curriculum-linked booklists** — Assign a booklist to a curriculum as an "optional reading" or "supplemental" list. The booklist appears on the curriculum view (board and list), giving easy access to suggested books without making them required resources. A single booklist could be linked to multiple curricula.
-- **Reading log** — Track pages read, time spent, or completion status per book per child
 - **Book recommendations** — Suggest books based on current subjects or tags
 - **Booklist sharing/export** — Export a booklist as a printable reading list or share between Harmony instances
 
@@ -986,7 +979,9 @@ Composite primary key on (booklist_id, resource_id). Only `type = 'book'` resour
 - **Create from tags** — Parent can select tags, see a live count of matching books, and auto-populate a new list with all matches.
 - **OpenLibrary auto-cover** — When kids add books via wishlist, the system auto-fetches a cover image from OpenLibrary's search API.
 - **Drag-and-drop** — Books are draggable between columns. Kids can only drop onto their own wishlist. Uses HTML5 drag events.
-- **No curriculum link** — Booklists are completely independent of curricula/lessons. They're a standalone reading organization tool.
+- **Curriculum-linked booklists** — Booklists can be assigned to a curriculum as supplemental reading lists. The booklist appears on the curriculum view (board and list). A single booklist can be linked to multiple curricula.
+- **Bulk booklist import** — Import a list of books from a pasted text list, CSV, or external curriculum catalog for quick population of reading lists.
+- **Reading log** — Tracks pages read and time spent per book per child via the `reading_log` table. Accessible at `/reading` with a dedicated `ReadingLogClient` component. Server actions in `lib/actions/reading.ts` and queries in `lib/queries/reading.ts`.
 
 ---
 
@@ -1013,7 +1008,6 @@ External Events track non-lesson activities — co-ops, sports, classes, tutorin
 
 - **Two-way calendar sync** — Sync external events with Google Calendar, Apple Calendar, or CalDAV
 - **Event notes per occurrence** — Add notes to a specific date's occurrence (e.g. "field trip today") without affecting the series
-- **Event categories** — Group external events by type (co-op, sport, music, etc.) for filtering and reporting
 - **Travel time / location** — Add location and estimated travel time to help with daily planning
 
 ### Data Model
@@ -1033,6 +1027,7 @@ External Events track non-lesson activities — co-ops, sports, classes, tutorin
 | end_time | TIME (nullable) | Event end time |
 | all_day | BOOLEAN | Default false |
 | color | TEXT | Hex color code, default `#3b82f6` |
+| category | TEXT (nullable) | Event category: `co-op`, `sport`, `music`, `art`, `field-trip`, or `other` |
 | created_at | TIMESTAMPTZ | Auto-set |
 
 **external_event_children** (junction)
@@ -1100,6 +1095,8 @@ All actions are parent-only (kid role blocked).
 
 Events are always scoped by child (or all children for parent view) and filtered to the displayed date range.
 
+- **Event categories** — Events can be categorized by type (`co-op`, `sport`, `music`, `art`, `field-trip`, `other`) for filtering and reporting.
+
 ---
 
 ## Feature 10: Authentication & Users
@@ -1123,10 +1120,7 @@ Authentication uses NextAuth with JWT sessions and a credentials provider (email
 
 ### Future Scope
 
-- **Permission level UI** — `permission_level` exists in the database and session but has no form to set or change it. Add a UI to configure kid permissions when creating or editing kid accounts.
-- **Password reset** — No password reset flow exists. Add email-based or parent-initiated password reset for kid accounts.
-- **Parent ownership enforcement on delete** — Currently any parent can delete any kid account. Add ownership verification via `parent_children`.
-- **Pending completion approval UI expansion** — The `pending_completions` table and server actions exist, but the approval UI could be expanded beyond the dashboard widget.
+(No remaining items — all previously scoped items have been implemented.)
 
 ### Data Model
 
@@ -1210,6 +1204,10 @@ All routes require a valid JWT except: `/login`, `/signup`, `/api/auth/*`, stati
 - **Pending completion workflow** — When a kid with `mark_complete` permission marks a lesson complete, it goes into `pending_completions` for parent approval rather than being recorded immediately.
 - **Auth bypass** — Currently the landing page redirects straight to `/dashboard`, so login is only triggered when the JWT expires or is absent.
 - **Bcrypt hashing** — All passwords hashed with bcrypt. No plain-text storage.
+- **Permission level UI** — Kid account creation and editing forms include a permission level selector (`full`, `mark_complete`, `view_only`).
+- **Password reset for kid accounts** — Parents can reset kid account passwords from the user management UI.
+- **Parent ownership enforcement on delete** — Deleting a kid account verifies parent ownership via `parent_children` before proceeding.
+- **Dedicated approvals page** — `/approvals` provides a dedicated page for reviewing and approving pending completions submitted by kid accounts, beyond the dashboard widget.
 
 ---
 
@@ -1230,16 +1228,12 @@ The Admin panel provides power-user tools for configuration, bulk operations, an
 
 - Multi-user admin roles (single admin level)
 - Audit logging of admin actions
-- Data export / backup tools
 
 ### Future Scope
 
 - **Bulk resource import** — Import resources (books, links) from a pasted list or CSV, not just via Trello
-- **Data export** — Export all data (curricula, lessons, grades, completions) as CSV or JSON for backup or migration
 - **Admin dashboard** — Richer analytics: completion trends, time-to-complete, subject balance across children
 - **Import from other homeschool platforms** — Import lesson plans from common homeschool planning tools beyond Trello
-- **Interactive checklists** — Trello checklists currently import as static markdown in lesson descriptions. Convert them to functional, toggleable checklists within lessons so items can be checked off as they're completed. This could be a general lesson feature — any lesson could have a checklist of sub-tasks or steps.
-- **Checklist progress tracking** — Show checklist completion (e.g. "3/5 items done") on lesson cards in the board and week views
 
 ### Admin Hub (`/admin`)
 
@@ -1312,6 +1306,13 @@ Covered in Feature 7. Full tag lifecycle: create, rename, merge, delete with res
 | Holidays / makeup days | None | Date override system |
 | Schedule diagnostics | None | Exception detection table |
 | Tag lifecycle | Apply only | Create, rename, merge, delete |
+| Data export | None | CSV/JSON export via `/api/export` |
+
+### Key Behaviors
+
+- **Data export** — Export all data (curricula, lessons, grades, completions) as CSV or JSON for backup or migration via `/api/export`.
+- **Interactive checklists** — Lesson descriptions support functional, toggleable checklist items. Checklist items can be checked off as they are completed. Works across lesson detail, board, and week views.
+- **Checklist progress tracking** — Lesson cards in board and week views display checklist completion counts (e.g. "3/5 items done").
 
 ---
 
