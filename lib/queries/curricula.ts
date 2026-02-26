@@ -5,18 +5,20 @@ export async function getAllCurricula() {
     `SELECT
        cu.id, cu.name, cu.description, cu.order_index, cu.cover_image,
        cu.course_type, cu.grade_type, cu.status, cu.start_date::text, cu.end_date::text,
+       cu.prepped, cu.default_view, cu.default_filter,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        ca.child_id,
        c.name AS child_name,
        COUNT(DISTINCT l.id)::int AS lesson_count,
        COUNT(DISTINCT CASE WHEN l.status = 'completed' THEN l.id END)::int AS completed_count
      FROM curricula cu
-     JOIN subjects s ON s.id = cu.subject_id
+     LEFT JOIN subjects s ON s.id = cu.subject_id
      LEFT JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id
      LEFT JOIN children c ON c.id = ca.child_id
      LEFT JOIN lessons l ON l.curriculum_id = cu.id
       GROUP BY cu.id, cu.name, cu.description, cu.order_index, cu.cover_image,
                cu.course_type, cu.grade_type, cu.status, cu.start_date, cu.end_date,
+               cu.prepped, cu.default_view, cu.default_filter,
                s.id, s.name, s.color, ca.child_id, c.name
      ORDER BY c.name NULLS FIRST, s.name, cu.order_index, cu.name`
   );
@@ -28,11 +30,12 @@ export async function getCurriculumDetail(id: string) {
     `SELECT
        cu.id, cu.name, cu.description, cu.order_index, cu.cover_image,
        cu.course_type, cu.grade_type, cu.status, cu.start_date::text, cu.end_date::text,
+       cu.prepped, cu.default_view, cu.default_filter,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        ca.child_id,
        c.name AS child_name
      FROM curricula cu
-     JOIN subjects s ON s.id = cu.subject_id
+     LEFT JOIN subjects s ON s.id = cu.subject_id
      LEFT JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id
      LEFT JOIN children c ON c.id = ca.child_id
      WHERE cu.id = $1
@@ -65,11 +68,12 @@ export async function getCurriculumBoardData(id: string) {
     `SELECT
        cu.id, cu.name, cu.description, cu.order_index, cu.cover_image,
        cu.course_type, cu.grade_type, cu.status, cu.start_date::text, cu.end_date::text,
+       cu.prepped, cu.default_view, cu.default_filter,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        ca.child_id,
        c.name AS child_name
      FROM curricula cu
-     JOIN subjects s ON s.id = cu.subject_id
+     LEFT JOIN subjects s ON s.id = cu.subject_id
      LEFT JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id
      LEFT JOIN children c ON c.id = ca.child_id
      WHERE cu.id = $1

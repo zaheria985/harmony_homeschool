@@ -278,34 +278,29 @@ export default function CalendarView({
                 >
                   {day}
                 </span>
-                <div className="mt-1 space-y-1">
-                  {dayEvents.slice(0, 1).map((event) => (
+                <div className="mt-1 space-y-0.5 overflow-hidden">
+                  {dayEvents.map((event) => (
                     <div key={event.event_id} className="flex items-center gap-1">
                       <span
-                        className="h-2 w-2 rounded-full"
+                        className="h-1.5 w-1.5 shrink-0 rounded-full"
                         style={{ backgroundColor: event.color }}
                       />
-                      <span className="max-w-[92px] truncate text-[10px] text-secondary">
+                      <span className="truncate text-[10px] text-secondary">
                         🏫 {event.title}
                       </span>
                     </div>
                   ))}
-                  {subjectsForDay.slice(0, 2).map(([subjectName, color]) => (
+                  {subjectsForDay.map(([subjectName, color]) => (
                     <div key={subjectName} className="flex items-center gap-1">
                       <span
-                        className="h-2 w-2 rounded-full"
+                        className="h-1.5 w-1.5 shrink-0 rounded-full"
                         style={{ backgroundColor: color }}
                       />
-                      <span className="max-w-[92px] truncate text-[10px] text-tertiary">
+                      <span className="truncate text-[10px] text-tertiary">
                         {subjectName}
                       </span>
                     </div>
                   ))}
-                  {dayEvents.length + subjectsForDay.length > 2 && (
-                    <span className="block text-[10px] text-muted">
-                      +{dayEvents.length + subjectsForDay.length - 2} more
-                    </span>
-                  )}
                 </div>
               </button>
             );

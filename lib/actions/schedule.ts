@@ -191,6 +191,18 @@ export async function autoScheduleLessons(curriculumId: string, childId: string)
     return { error: "No unscheduled lessons" };
   }
 
+  // Collect dates that already have a lesson scheduled for this curriculum
+  const occupiedRes = await pool.query(
+    `SELECT DISTINCT planned_date::text AS planned_date
+     FROM lessons
+     WHERE curriculum_id = $1
+       AND planned_date IS NOT NULL`,
+    [parsed.data.curriculumId]
+  );
+  const occupiedDates = new Set<string>(
+    (occupiedRes.rows as { planned_date: string }[]).map((r) => r.planned_date)
+  );
+
   const overrides = new Map<string, "exclude" | "include">();
   for (const row of overridesRes.rows as { date: string; type: "exclude" | "include" }[]) {
     overrides.set(row.date, row.type);
@@ -205,17 +217,20 @@ export async function autoScheduleLessons(curriculumId: string, childId: string)
 
   const updates: Array<{ lessonId: string; plannedDate: string }> = [];
 
-  // Assign each unscheduled lesson to the next valid school day in sequence.
+  // Assign each unscheduled lesson to the next valid school day in sequence,
+  // skipping dates that already have a lesson scheduled for this curriculum.
   for (const lesson of lessonsRes.rows as { id: string }[]) {
     let assignedDate: string | null = null;
 
     while (cursor.getTime() <= endDate.getTime()) {
+      const dateKey = formatDateKey(cursor);
       const matchesCustomWeekday = weekdaySet.has(cursor.getDay());
       const isAllowedDate = usesCustomWeekdays
         ? matchesCustomWeekday
         : isSchoolDate(cursor, weekdaySet, overrides);
-      if (isAllowedDate) {
-        assignedDate = formatDateKey(cursor);
+      if (isAllowedDate && !occupiedDates.has(dateKey)) {
+        assignedDate = dateKey;
+        occupiedDates.add(dateKey);
         cursor = addDays(cursor, 1);
         break;
       }

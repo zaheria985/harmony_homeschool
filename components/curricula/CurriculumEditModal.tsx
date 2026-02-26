@@ -17,6 +17,9 @@ type CurriculumForEdit = {
   start_date: string | null;
   end_date: string | null;
   notes?: string | null;
+  prepped?: boolean;
+  default_view?: string;
+  default_filter?: string;
 } | null;
 
 type SubjectOption = { id: string; name: string };
@@ -154,6 +157,59 @@ export default function CurriculumEditModal({
             <option value="archived">Archived</option>
             <option value="draft">Draft</option>
           </select>
+        </div>
+
+        {/* Prepped */}
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="hidden"
+            name="prepped"
+            value={curriculum.prepped ? "true" : "false"}
+          />
+          <input
+            type="checkbox"
+            defaultChecked={curriculum.prepped || false}
+            onChange={(e) => {
+              const hidden = e.target.previousElementSibling as HTMLInputElement;
+              hidden.value = e.target.checked ? "true" : "false";
+            }}
+            className="h-4 w-4 rounded border-light text-interactive focus:ring-focus"
+          />
+          <span className="text-sm font-medium text-secondary">Prepped</span>
+          <span className="text-xs text-tertiary">Course planning and materials are ready</span>
+        </label>
+
+        {/* Default View & Filter */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label htmlFor="curriculum-default-view" className="block text-sm font-medium text-secondary mb-1">
+              Default View
+            </label>
+            <select
+              id="curriculum-default-view"
+              name="default_view"
+              defaultValue={curriculum.default_view || "board"}
+              className={inputClass}
+            >
+              <option value="board">Board</option>
+              <option value="list">List</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="curriculum-default-filter" className="block text-sm font-medium text-secondary mb-1">
+              Default Filter
+            </label>
+            <select
+              id="curriculum-default-filter"
+              name="default_filter"
+              defaultValue={curriculum.default_filter || "all"}
+              className={inputClass}
+            >
+              <option value="all">All</option>
+              <option value="incomplete">Incomplete</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
         </div>
 
         {/* Start Date */}

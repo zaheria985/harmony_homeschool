@@ -794,7 +794,7 @@ export async function createSubject(formData: FormData) {
 
 const createCurriculumSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  subject_id: z.string().uuid(),
+  subject_id: z.string().uuid().optional(),
   description: z.string().optional(),
   course_type: z.enum(["curriculum", "unit_study"]).optional(),
   grade_type: z.enum(["numeric", "pass_fail"]).optional(),
@@ -802,6 +802,9 @@ const createCurriculumSchema = z.object({
   start_date: optionalDateSchema,
   end_date: optionalDateSchema,
   notes: z.string().optional(),
+  prepped: z.enum(["true", "false"]).optional(),
+  default_view: z.enum(["board", "list"]).optional(),
+  default_filter: z.enum(["all", "incomplete", "completed"]).optional(),
   child_id: z.string().uuid().optional(),
   school_year_id: z.string().uuid().optional(),
 });
@@ -817,6 +820,9 @@ export async function createCurriculum(formData: FormData) {
     start_date: formData.get("start_date") || undefined,
     end_date: formData.get("end_date") || undefined,
     notes: formData.get("notes") || undefined,
+    prepped: formData.get("prepped") || undefined,
+    default_view: formData.get("default_view") || undefined,
+    default_filter: formData.get("default_filter") || undefined,
     child_id: formData.get("child_id") || undefined,
     school_year_id: formData.get("school_year_id") || undefined,
   });
@@ -835,6 +841,9 @@ export async function createCurriculum(formData: FormData) {
     start_date,
     end_date,
     notes,
+    prepped,
+    default_view,
+    default_filter,
     child_id,
     school_year_id,
   } = data.data;
@@ -847,11 +856,11 @@ export async function createCurriculum(formData: FormData) {
   if (savedCover && "error" in savedCover) return savedCover;
 
   const res = await pool.query(
-    `INSERT INTO curricula (name, subject_id, description, cover_image, course_type, grade_type, status, start_date, end_date, notes)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+    `INSERT INTO curricula (name, subject_id, description, cover_image, course_type, grade_type, status, start_date, end_date, notes, prepped, default_view, default_filter)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
     [
       name,
-      subject_id,
+      subject_id || null,
       description || null,
       savedCover?.path || null,
       course_type || "curriculum",
@@ -860,6 +869,9 @@ export async function createCurriculum(formData: FormData) {
       start_date || null,
       end_date || null,
       notes || null,
+      prepped === "true",
+      default_view || "board",
+      default_filter || "all",
     ]
   );
 
@@ -985,6 +997,9 @@ const updateCurriculumSchema = z.object({
   start_date: optionalDateSchema,
   end_date: optionalDateSchema,
   notes: z.string().optional(),
+  prepped: z.enum(["true", "false"]).optional(),
+  default_view: z.enum(["board", "list"]).optional(),
+  default_filter: z.enum(["all", "incomplete", "completed"]).optional(),
   cover_image: z.string().optional(),
 });
 
@@ -1000,6 +1015,9 @@ export async function updateCurriculum(formData: FormData) {
     start_date: formData.get("start_date") || undefined,
     end_date: formData.get("end_date") || undefined,
     notes: formData.get("notes") || undefined,
+    prepped: formData.get("prepped") || undefined,
+    default_view: formData.get("default_view") || undefined,
+    default_filter: formData.get("default_filter") || undefined,
     cover_image: formData.get("cover_image") || undefined,
   });
 
@@ -1007,10 +1025,10 @@ export async function updateCurriculum(formData: FormData) {
     return { error: data.error.errors[0]?.message || "Invalid input" };
   }
 
-  const { id, name, description, subject_id, course_type, grade_type, status, start_date, end_date, notes, cover_image } = data.data;
+  const { id, name, description, subject_id, course_type, grade_type, status, start_date, end_date, notes, prepped, default_view, default_filter, cover_image } = data.data;
 
   const existingRes = await pool.query(
-    `SELECT cover_image, course_type, grade_type, status, start_date::text, end_date::text, notes
+    `SELECT cover_image, course_type, grade_type, status, start_date::text, end_date::text, notes, prepped, default_view, default_filter
      FROM curricula WHERE id = $1`,
     [id]
   );
@@ -1025,6 +1043,9 @@ export async function updateCurriculum(formData: FormData) {
     start_date: string | null;
     end_date: string | null;
     notes: string | null;
+    prepped: boolean;
+    default_view: string;
+    default_filter: string;
   };
 
   const uploadedCover = formData.get("cover_image_file");
@@ -1044,13 +1065,17 @@ export async function updateCurriculum(formData: FormData) {
   const nextStartDate = start_date || existing.start_date || null;
   const nextEndDate = end_date || existing.end_date || null;
   const nextNotes = notes || existing.notes || null;
+  const nextPrepped = prepped !== undefined ? prepped === "true" : existing.prepped;
+  const nextDefaultView = default_view || existing.default_view || "board";
+  const nextDefaultFilter = default_filter || existing.default_filter || "all";
 
   if (subject_id) {
     await pool.query(
         `UPDATE curricula
         SET name = $1, description = $2, subject_id = $3, cover_image = $4,
-            course_type = $5, grade_type = $6, status = $7, start_date = $8, end_date = $9, notes = $10
-       WHERE id = $11`,
+            course_type = $5, grade_type = $6, status = $7, start_date = $8, end_date = $9,
+            notes = $10, prepped = $11, default_view = $12, default_filter = $13
+       WHERE id = $14`,
       [
         name,
         description || null,
@@ -1062,6 +1087,9 @@ export async function updateCurriculum(formData: FormData) {
         nextStartDate,
         nextEndDate,
         nextNotes,
+        nextPrepped,
+        nextDefaultView,
+        nextDefaultFilter,
         id,
       ]
     );
@@ -1069,8 +1097,9 @@ export async function updateCurriculum(formData: FormData) {
     await pool.query(
         `UPDATE curricula
        SET name = $1, description = $2, cover_image = $3,
-            course_type = $4, grade_type = $5, status = $6, start_date = $7, end_date = $8, notes = $9
-       WHERE id = $10`,
+            course_type = $4, grade_type = $5, status = $6, start_date = $7, end_date = $8,
+            notes = $9, prepped = $10, default_view = $11, default_filter = $12
+       WHERE id = $13`,
       [
         name,
         description || null,
@@ -1081,6 +1110,9 @@ export async function updateCurriculum(formData: FormData) {
         nextStartDate,
         nextEndDate,
         nextNotes,
+        nextPrepped,
+        nextDefaultView,
+        nextDefaultFilter,
         id,
       ]
     );
