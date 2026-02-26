@@ -5,15 +5,19 @@ import Link from "next/link";
 import CurriculumBoard from "@/components/curricula/CurriculumBoard";
 import { CurriculumViewToggle } from "@/components/curricula/CurriculumViewToggle";
 import { getCurriculumBoardData } from "@/lib/queries/curricula";
+import { getLinkedBooklists, getAllBooklistSummaries } from "@/lib/queries/booklists";
 import { getCurrentUser } from "@/lib/session";
+import LinkedBooklists from "@/components/curricula/LinkedBooklists";
 export default async function CurriculumBoardPage({
   params,
 }: {
   params: { id: string };
 }) {
-  const [data, user] = await Promise.all([
+  const [data, user, linkedBooklists, allBooklists] = await Promise.all([
     getCurriculumBoardData(params.id),
     getCurrentUser(),
+    getLinkedBooklists(params.id),
+    getAllBooklistSummaries(),
   ]);
   if (!data) notFound();
   return (
@@ -71,6 +75,12 @@ export default async function CurriculumBoardPage({
           {data.children.length !== 1 ? "s" : ""} assigned{" "}
         </span>{" "}
       </div>{" "}
+      <LinkedBooklists
+        curriculumId={params.id}
+        linkedBooklists={linkedBooklists}
+        allBooklists={allBooklists}
+        isParent={user.role === "parent"}
+      />
       <CurriculumBoard
         curriculumId={data.id}
         subjectColor={data.subject_color}

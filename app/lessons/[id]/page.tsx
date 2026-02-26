@@ -13,6 +13,7 @@ import KidCompletionModal from "@/components/lessons/KidCompletionModal";
 import UncompleteButton from "@/components/lessons/UncompleteButton";
 import { getCurrentUser } from "@/lib/session";
 import MarkdownContent from "@/components/ui/MarkdownContent";
+import InteractiveChecklist, { parseChecklist } from "@/components/lessons/InteractiveChecklist";
 export default async function LessonDetailPage({
   params,
 }: {
@@ -141,7 +142,16 @@ export default async function LessonDetailPage({
           <MarkdownContent
             content={lesson.description}
             className="text-tertiary"
-          />{" "}
+          />
+          {parseChecklist(lesson.description).length > 0 && (
+            <div className="mt-4 border-t border-light pt-4">
+              <InteractiveChecklist
+                lessonId={lesson.id}
+                items={parseChecklist(lesson.description)}
+                state={(lesson.checklist_state as Record<string, boolean>) || {}}
+              />
+            </div>
+          )}
         </div>
       )}{" "}
       {/* Completion section */}{" "}
@@ -219,7 +229,7 @@ export default async function LessonDetailPage({
             lessonId={lesson.id}
             childId={lesson.child_id}
             gradeType={
-              (lesson.grade_type as "numeric" | "pass_fail") || "numeric"
+              (lesson.grade_type as "numeric" | "pass_fail" | "combo") || "numeric"
             }
           />
         )}{" "}

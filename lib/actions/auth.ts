@@ -47,6 +47,7 @@ const createKidSchema = z.object({
   email: z.string().email("Invalid email"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   childId: z.string().uuid("Invalid child"),
+  permissionLevel: z.enum(["full", "mark_complete", "view_only"]).default("full"),
 });
 
 export async function createKidAccount(formData: FormData) {
@@ -54,13 +55,14 @@ export async function createKidAccount(formData: FormData) {
     email: formData.get("email"),
     password: formData.get("password"),
     childId: formData.get("childId"),
+    permissionLevel: formData.get("permissionLevel") || "full",
   });
 
   if (!parsed.success) {
     return { error: parsed.error.errors[0].message };
   }
 
-  const { email, password, childId } = parsed.data;
+  const { email, password, childId, permissionLevel } = parsed.data;
 
   // Verify child exists
   const childRes = await pool.query("SELECT id, name FROM children WHERE id = $1", [childId]);
@@ -73,8 +75,8 @@ export async function createKidAccount(formData: FormData) {
 
   try {
     await pool.query(
-      "INSERT INTO users (name, email, password_hash, role, child_id) VALUES ($1, $2, $3, 'kid', $4)",
-      [childName, email, passwordHash, childId]
+      "INSERT INTO users (name, email, password_hash, role, child_id, permission_level) VALUES ($1, $2, $3, 'kid', $4, $5)",
+      [childName, email, passwordHash, childId, permissionLevel]
     );
   } catch (err: unknown) {
     const pgErr = err as { code?: string };
@@ -179,6 +181,28 @@ export async function updatePassword(formData: FormData) {
   ]);
 
   revalidatePath("/settings/account");
+  return { success: true };
+}
+
+const updatePermissionSchema = z.object({
+  userId: z.string().uuid(),
+  permissionLevel: z.enum(["full", "mark_complete", "view_only"]),
+});
+
+export async function updateKidPermission(userId: string, permissionLevel: string) {
+  const parsed = updatePermissionSchema.safeParse({ userId, permissionLevel });
+  if (!parsed.success) return { error: "Invalid input" };
+
+  const userRes = await pool.query("SELECT role FROM users WHERE id = $1", [parsed.data.userId]);
+  if (userRes.rows.length === 0) return { error: "User not found" };
+  if (userRes.rows[0].role !== "kid") return { error: "Can only update kid accounts" };
+
+  await pool.query(
+    "UPDATE users SET permission_level = $1 WHERE id = $2",
+    [parsed.data.permissionLevel, parsed.data.userId]
+  );
+
+  revalidatePath("/settings/users");
   return { success: true };
 }
 

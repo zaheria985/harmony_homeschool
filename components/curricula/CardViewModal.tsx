@@ -4,12 +4,14 @@ import { useState } from "react";
 import Modal from "@/components/ui/Modal";
 import MarkdownContent from "@/components/ui/MarkdownContent";
 import ResourcePreviewModal from "@/components/ui/ResourcePreviewModal";
+import InteractiveChecklist, { parseChecklist } from "@/components/lessons/InteractiveChecklist";
 
 type CardViewModalProps = {
   lesson: {
     id: string;
     title: string;
     description: string | null;
+    checklist_state?: Record<string, boolean>;
     resources: {
       id: string;
       type: string;
@@ -143,6 +145,15 @@ export default function CardViewModal({ lesson, onClose }: CardViewModalProps) {
                 content={lesson.description}
                 className="text-tertiary"
               />
+              {parseChecklist(lesson.description).length > 0 && (
+                <div className="mt-4 border-t border-light pt-4">
+                  <InteractiveChecklist
+                    lessonId={lesson.id}
+                    items={parseChecklist(lesson.description)}
+                    state={lesson.checklist_state || {}}
+                  />
+                </div>
+              )}
             </div>
           )}
 

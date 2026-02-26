@@ -82,7 +82,7 @@ CREATE TABLE curricula (
     status      TEXT NOT NULL DEFAULT 'active'
                   CHECK (status IN ('active', 'archived', 'draft')),
     grade_type  TEXT NOT NULL DEFAULT 'numeric'
-                  CHECK (grade_type IN ('numeric', 'pass_fail')),
+                  CHECK (grade_type IN ('numeric', 'pass_fail', 'combo')),
     start_date  DATE,
     end_date    DATE,
     notes       TEXT
@@ -112,7 +112,8 @@ CREATE TABLE lessons (
     order_index     INTEGER NOT NULL DEFAULT 0,
     planned_date    DATE,
     status          TEXT NOT NULL DEFAULT 'planned'
-                        CHECK (status IN ('planned', 'in_progress', 'completed'))
+                        CHECK (status IN ('planned', 'in_progress', 'completed')),
+    checklist_state JSONB NOT NULL DEFAULT '{}'::jsonb
 );
 
 -- ============================================================================
@@ -193,6 +194,13 @@ CREATE TABLE booklist_resources (
     PRIMARY KEY (booklist_id, resource_id)
 );
 
+
+CREATE TABLE curriculum_booklists (
+    curriculum_id   UUID NOT NULL REFERENCES curricula(id) ON DELETE CASCADE,
+    booklist_id     UUID NOT NULL REFERENCES booklists(id) ON DELETE CASCADE,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (curriculum_id, booklist_id)
+);
 
 -- ============================================================================
 -- INDEXES

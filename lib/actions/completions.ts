@@ -38,7 +38,7 @@ const requiredGradeSchema = z.preprocess((value) => {
 const completeSchema = z.object({
   lessonId: z.string().uuid(),
   childId: z.string().uuid(),
-  gradeType: z.enum(["numeric", "pass_fail"]).optional().default("numeric"),
+  gradeType: z.enum(["numeric", "pass_fail", "combo"]).optional().default("numeric"),
   grade: optionalGradeSchema,
   passFail: z.enum(["pass", "fail"]).optional(),
   notes: z.string().optional(),

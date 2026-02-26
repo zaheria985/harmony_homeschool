@@ -13,15 +13,21 @@ import {
   getCompletionMismatches,
   getCurriculumDetail,
 } from "@/lib/queries/curricula";
+import { getLinkedBooklists, getAllBooklistSummaries } from "@/lib/queries/booklists";
+import LinkedBooklists from "@/components/curricula/LinkedBooklists";
+import { getCurrentUser } from "@/lib/session";
 export default async function CurriculumDetailPage({
   params,
 }: {
   params: { id: string };
 }) {
-  const [curriculum, assignmentDays, mismatches] = await Promise.all([
+  const [curriculum, assignmentDays, mismatches, linkedBooklists, allBooklists, user] = await Promise.all([
     getCurriculumDetail(params.id),
     getAssignmentDaysForCurriculum(params.id),
     getCompletionMismatches(params.id),
+    getLinkedBooklists(params.id),
+    getAllBooklistSummaries(),
+    getCurrentUser(),
   ]);
   if (!curriculum) notFound();
   const totalLessons = curriculum.lessons.length;
@@ -133,6 +139,12 @@ export default async function CurriculumDetailPage({
           unscheduledCount={unscheduledCount}
         />{" "}
       </Card>{" "}
+      <LinkedBooklists
+        curriculumId={params.id}
+        linkedBooklists={linkedBooklists}
+        allBooklists={allBooklists}
+        isParent={user.role === "parent"}
+      />
       {/* Lessons */}{" "}
       <Card title="Lessons">
         {" "}

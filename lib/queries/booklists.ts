@@ -52,6 +52,29 @@ export async function ensureChildWishlist(childId: string, childName: string) {
   );
 }
 
+export async function getLinkedBooklists(curriculumId: string) {
+  const res = await pool.query(
+    `SELECT b.id, b.name, b.description,
+       (SELECT COUNT(*)::int FROM booklist_resources br WHERE br.booklist_id = b.id) AS book_count
+     FROM curriculum_booklists cb
+     JOIN booklists b ON b.id = cb.booklist_id
+     WHERE cb.curriculum_id = $1
+     ORDER BY b.name`,
+    [curriculumId]
+  );
+  return res.rows as { id: string; name: string; description: string | null; book_count: number }[];
+}
+
+export async function getAllBooklistSummaries() {
+  const res = await pool.query(
+    `SELECT b.id, b.name,
+       (SELECT COUNT(*)::int FROM booklist_resources br WHERE br.booklist_id = b.id) AS book_count
+     FROM booklists b
+     ORDER BY b.name`
+  );
+  return res.rows as { id: string; name: string; book_count: number }[];
+}
+
 export async function getBooklistsForResource(resourceId: string) {
   const res = await pool.query(
     `SELECT booklist_id

@@ -10,6 +10,7 @@ import { markLessonComplete } from "@/lib/actions/completions";
 import { canEdit, canMarkComplete } from "@/lib/permissions";
 import CardViewModal from "@/components/curricula/CardViewModal";
 import ResourcePreviewModal from "@/components/ui/ResourcePreviewModal";
+import { parseChecklist, checklistProgress } from "@/components/lessons/InteractiveChecklist";
 import {
   DndContext,
   DragOverlay,
@@ -65,6 +66,7 @@ type Lesson = {
   section: string | null;
   resources: LessonResource[];
   completions: Completion[];
+  checklist_state?: Record<string, boolean>;
 };
 
 type CurriculumResource = {
@@ -353,6 +355,24 @@ function LessonMiniCard({
             </span>
           )}
         </div>
+
+        {/* Checklist progress indicator */}
+        {(() => {
+          const items = parseChecklist(lesson.description);
+          if (items.length === 0) return null;
+          const { checked, total } = checklistProgress(items, lesson.checklist_state || {});
+          return (
+            <div className="mt-1.5 flex items-center gap-2">
+              <div className="h-1.5 flex-1 rounded-full bg-surface-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-[var(--success-solid)] transition-all"
+                  style={{ width: `${(checked / total) * 100}%` }}
+                />
+              </div>
+              <span className="text-[10px] text-muted whitespace-nowrap">{checked}/{total}</span>
+            </div>
+          );
+        })()}
 
         {/* Other image resources — displayed larger, always visible */}
         {otherImages.length > 0 && (

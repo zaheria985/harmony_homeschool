@@ -6,6 +6,7 @@ import BookCard from "@/components/booklists/BookCard";
 import {
   addBookToPersonalWishlist,
   addBookToBooklist,
+  bulkImportBooks,
   createBooklist,
   createBooklistFromTags,
   deleteBooklist,
@@ -64,6 +65,10 @@ export default function BooklistsClient({
   const [bookUrl, setBookUrl] = useState("");
   const [bookThumbnailFile, setBookThumbnailFile] = useState<File | null>(null);
   const [booklistTargets, setBooklistTargets] = useState<string[]>([]);
+  const [showBulkImport, setShowBulkImport] = useState(false);
+  const [bulkText, setBulkText] = useState("");
+  const [bulkTargetList, setBulkTargetList] = useState("");
+  const [bulkParsed, setBulkParsed] = useState<{ title: string; author: string }[]>([]);
   const fieldClass =
     "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary placeholder:text-muted focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus";
   const isKid = userRole === "kid";
@@ -144,6 +149,59 @@ export default function BooklistsClient({
     setBooklistTargets((prev) =>
       prev.includes(id) ? prev.filter((value) => value !== id) : [...prev, id],
     );
+  }
+  function parseBulkText(text: string) {
+    return text
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .map((line) => {
+        // Try CSV: "Title","Author"
+        const csvMatch = line.match(/^"([^"]+)"[,\t]+"?([^"]*)"?$/);
+        if (csvMatch) return { title: csvMatch[1].trim(), author: csvMatch[2].trim() };
+        // Try "Title by Author"
+        const byMatch = line.match(/^(.+?)\s+by\s+(.+)$/i);
+        if (byMatch) return { title: byMatch[1].trim(), author: byMatch[2].trim() };
+        // Try "Title - Author"
+        const dashMatch = line.match(/^(.+?)\s*[-–—]\s*(.+)$/);
+        if (dashMatch) return { title: dashMatch[1].trim(), author: dashMatch[2].trim() };
+        // Try "Title, Author" (single comma)
+        const commaMatch = line.match(/^([^,]+),\s*(.+)$/);
+        if (commaMatch) return { title: commaMatch[1].trim(), author: commaMatch[2].trim() };
+        // Fallback: title only
+        return { title: line, author: "" };
+      });
+  }
+  function openBulkImport() {
+    setBulkText("");
+    setBulkParsed([]);
+    setBulkTargetList("");
+    setError("");
+    setShowBulkImport(true);
+  }
+  function handleBulkTextChange(text: string) {
+    setBulkText(text);
+    setBulkParsed(parseBulkText(text));
+  }
+  function handleBulkImport(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (bulkParsed.length === 0) {
+      setError("No books detected. Paste one book per line.");
+      return;
+    }
+    setError("");
+    startTransition(async () => {
+      const result = await bulkImportBooks(
+        bulkParsed,
+        bulkTargetList || undefined,
+      );
+      if ("error" in result) {
+        setError(result.error || "Failed to import books");
+        return;
+      }
+      setShowBulkImport(false);
+      router.refresh();
+    });
   }
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -274,6 +332,12 @@ export default function BooklistsClient({
             >
               {" "}
               + New Booklist{" "}
+            </button>{" "}
+            <button
+              onClick={openBulkImport}
+              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-secondary hover:bg-surface-muted"
+            >
+              Bulk Import
             </button>{" "}
             <button
               onClick={openAddBook}
@@ -734,6 +798,87 @@ export default function BooklistsClient({
           </div>{" "}
         </form>{" "}
       </Modal>{" "}
+      <Modal
+        open={showBulkImport}
+        onClose={() => setShowBulkImport(false)}
+        title="Bulk Import Books"
+      >
+        <form onSubmit={handleBulkImport} className="space-y-4">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-secondary">
+              Paste book list (one per line)
+            </label>
+            <textarea
+              value={bulkText}
+              onChange={(e) => handleBulkTextChange(e.target.value)}
+              rows={8}
+              className={fieldClass}
+              placeholder={"The Hobbit by J.R.R. Tolkien\nCharlotte's Web - E.B. White\nThe Giver, Lois Lowry"}
+            />
+            <p className="mt-1 text-xs text-muted">
+              Formats: &quot;Title by Author&quot;, &quot;Title - Author&quot;, &quot;Title, Author&quot;, or CSV
+            </p>
+          </div>
+          {bulkParsed.length > 0 && (
+            <div>
+              <p className="mb-1 text-sm font-medium text-secondary">
+                Preview ({bulkParsed.length} {bulkParsed.length === 1 ? "book" : "books"})
+              </p>
+              <div className="max-h-48 overflow-y-auto rounded-lg border border-light">
+                <table className="w-full text-sm">
+                  <thead className="bg-surface-muted text-left text-xs text-muted">
+                    <tr>
+                      <th className="px-3 py-1.5">Title</th>
+                      <th className="px-3 py-1.5">Author</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {bulkParsed.map((book, i) => (
+                      <tr key={i}>
+                        <td className="px-3 py-1.5 text-primary">{book.title}</td>
+                        <td className="px-3 py-1.5 text-muted">{book.author || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-secondary">
+              Add to booklist <span className="text-muted">(optional)</span>
+            </label>
+            <select
+              value={bulkTargetList}
+              onChange={(e) => setBulkTargetList(e.target.value)}
+              className={fieldClass}
+            >
+              <option value="">None (unassigned)</option>
+              {booklists.map((list) => (
+                <option key={list.id} value={list.id}>
+                  {list.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowBulkImport(false)}
+              className="rounded-lg border border-border px-4 py-2 text-sm text-tertiary hover:bg-surface-muted"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isPending || bulkParsed.length === 0}
+              className="rounded-lg bg-interactive px-4 py-2 text-sm font-medium text-white hover:bg-interactive-hover disabled:opacity-50"
+            >
+              {isPending ? "Importing..." : `Import ${bulkParsed.length} Books`}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </>
   );
 }

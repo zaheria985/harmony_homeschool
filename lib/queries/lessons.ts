@@ -19,7 +19,7 @@ export async function getLessonsByChild(
 
   const res = await pool.query(
     `SELECT
-       l.id, l.title, l.description, l.status, l.planned_date, l.order_index,
+       l.id, l.title, l.description, l.status, l.planned_date, l.order_index, l.checklist_state,
        cu.id AS curriculum_id, cu.name AS curriculum_name,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        lc.grade, lc.notes AS completion_notes, lc.completed_at
@@ -53,7 +53,7 @@ export async function getAllLessons(filters?: { status?: string; childId?: strin
 
   const res = await pool.query(
     `SELECT
-       l.id, l.title, l.description, l.status, l.planned_date, l.order_index,
+       l.id, l.title, l.description, l.status, l.planned_date, l.order_index, l.checklist_state,
        cu.id AS curriculum_id, cu.name AS curriculum_name,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        ca.child_id,
@@ -80,7 +80,7 @@ export async function getLessonDetails(id: string, childId?: string) {
 
   const res = await pool.query(
     `SELECT
-       l.id, l.title, l.description, l.status, l.planned_date, l.order_index,
+       l.id, l.title, l.description, l.status, l.planned_date, l.order_index, l.checklist_state,
        cu.name AS curriculum_name, cu.id AS curriculum_id, cu.grade_type,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        ca.child_id,
@@ -158,7 +158,7 @@ export async function getAllLessonsWithResources(filters?: {
 
   const res = await pool.query(
     `SELECT
-       l.id, l.title, l.description, l.status, l.planned_date, l.order_index,
+       l.id, l.title, l.description, l.status, l.planned_date, l.order_index, l.checklist_state,
        cu.id AS curriculum_id, cu.name AS curriculum_name,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        ca.child_id,
@@ -173,7 +173,7 @@ export async function getAllLessonsWithResources(filters?: {
      LEFT JOIN lesson_completions lc ON lc.lesson_id = l.id AND lc.child_id = ca.child_id
      LEFT JOIN lesson_resources lr ON lr.lesson_id = l.id
      ${where}
-     GROUP BY l.id, l.title, l.description, l.status, l.planned_date, l.order_index,
+     GROUP BY l.id, l.title, l.description, l.status, l.planned_date, l.order_index, l.checklist_state,
               cu.id, cu.name, s.id, s.name, s.color, ca.child_id, c.name,
               lc.grade, lc.notes, lc.completed_at
      ORDER BY l.planned_date ASC NULLS LAST, l.order_index`,

@@ -1,0 +1,1 @@
+ALTER TABLE lessons ADD COLUMN IF NOT EXISTS checklist_state JSONB NOT NULL DEFAULT '{}'::jsonb;

@@ -92,6 +92,24 @@ export default function CreateKidAccountForm({ children }: { children: Child[] }
             className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"
           />
         </div>
+        <div>
+          <label htmlFor="kid-permission" className="block text-sm font-medium text-secondary">
+            Permission Level
+          </label>
+          <select
+            id="kid-permission"
+            name="permissionLevel"
+            defaultValue="full"
+            className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"
+          >
+            <option value="full">Full Access</option>
+            <option value="mark_complete">Mark Complete Only</option>
+            <option value="view_only">View Only</option>
+          </select>
+          <p className="mt-1 text-xs text-muted">
+            Full: can do everything. Mark Complete: can only mark lessons done (requires approval). View Only: read-only access.
+          </p>
+        </div>
         <button
           type="submit"
           disabled={loading}

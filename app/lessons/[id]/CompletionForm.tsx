@@ -9,11 +9,13 @@ export default function CompletionForm({
 }: {
   lessonId: string;
   childId: string;
-  gradeType: "numeric" | "pass_fail";
+  gradeType: "numeric" | "pass_fail" | "combo";
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const [comboMode, setComboMode] = useState<"numeric" | "pass_fail">("numeric");
+  const effectiveGradeType = gradeType === "combo" ? comboMode : gradeType;
   async function handleSubmit(formData: FormData) {
     setPending(true);
     setError("");
@@ -41,8 +43,39 @@ export default function CompletionForm({
       {" "}
       <input type="hidden" name="lessonId" value={lessonId} />{" "}
       <input type="hidden" name="childId" value={childId} />{" "}
-      <input type="hidden" name="gradeType" value={gradeType} />{" "}
-      {gradeType === "numeric" ? (
+      <input type="hidden" name="gradeType" value={effectiveGradeType} />{" "}
+      {gradeType === "combo" && (
+        <div>
+          <label className="block text-sm font-medium text-secondary mb-1">
+            Grading Mode
+          </label>
+          <div className="flex rounded-lg border border-border bg-surface p-1 gap-1">
+            <button
+              type="button"
+              onClick={() => setComboMode("numeric")}
+              className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                comboMode === "numeric"
+                  ? "bg-interactive text-white shadow-sm"
+                  : "text-muted hover:text-primary"
+              }`}
+            >
+              Numeric
+            </button>
+            <button
+              type="button"
+              onClick={() => setComboMode("pass_fail")}
+              className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                comboMode === "pass_fail"
+                  ? "bg-interactive text-white shadow-sm"
+                  : "text-muted hover:text-primary"
+              }`}
+            >
+              Pass / Fail
+            </button>
+          </div>
+        </div>
+      )}
+      {effectiveGradeType === "numeric" ? (
         <div>
           {" "}
           <label className="block text-sm font-medium text-secondary">

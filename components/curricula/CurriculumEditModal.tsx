@@ -12,7 +12,7 @@ type CurriculumForEdit = {
   cover_image: string | null;
   subject_id: string;
   course_type: "curriculum" | "unit_study";
-  grade_type?: "numeric" | "pass_fail";
+  grade_type?: "numeric" | "pass_fail" | "combo";
   status: "active" | "archived" | "draft";
   start_date: string | null;
   end_date: string | null;
@@ -139,6 +139,7 @@ export default function CurriculumEditModal({
           >
             <option value="numeric">Numeric</option>
             <option value="pass_fail">Pass / Fail</option>
+            <option value="combo">Combo (per-lesson choice)</option>
           </select>
         </div>
 

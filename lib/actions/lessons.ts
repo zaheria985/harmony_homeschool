@@ -725,6 +725,45 @@ export async function updateLesson(formData: FormData) {
   return { success: true };
 }
 
+export async function toggleChecklistItem(
+  lessonId: string,
+  itemIndex: number,
+  checked: boolean,
+) {
+  const parsed = z.object({
+    lessonId: z.string().uuid(),
+    itemIndex: z.number().int().min(0),
+    checked: z.boolean(),
+  }).safeParse({ lessonId, itemIndex, checked });
+  if (!parsed.success) return { error: "Invalid input" };
+
+  try {
+    if (parsed.data.checked) {
+      await pool.query(
+        `UPDATE lessons SET checklist_state = checklist_state || jsonb_build_object($2::text, true) WHERE id = $1`,
+        [parsed.data.lessonId, String(parsed.data.itemIndex)]
+      );
+    } else {
+      await pool.query(
+        `UPDATE lessons SET checklist_state = checklist_state - $2 WHERE id = $1`,
+        [parsed.data.lessonId, String(parsed.data.itemIndex)]
+      );
+    }
+  } catch (err) {
+    console.error("Failed to toggle checklist item", {
+      lessonId: parsed.data.lessonId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { error: "Failed to update checklist" };
+  }
+
+  revalidatePath("/curricula");
+  revalidatePath("/lessons");
+  revalidatePath("/week");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
 export async function deleteLesson(lessonId: string) {
   const parsed = z.string().uuid().safeParse(lessonId);
   if (!parsed.success) return { error: "Invalid lesson ID" };
@@ -797,7 +836,7 @@ const createCurriculumSchema = z.object({
   subject_id: z.string().uuid().optional(),
   description: z.string().optional(),
   course_type: z.enum(["curriculum", "unit_study"]).optional(),
-  grade_type: z.enum(["numeric", "pass_fail"]).optional(),
+  grade_type: z.enum(["numeric", "pass_fail", "combo"]).optional(),
   status: z.enum(["active", "archived", "draft"]).optional(),
   start_date: optionalDateSchema,
   end_date: optionalDateSchema,
@@ -992,7 +1031,7 @@ const updateCurriculumSchema = z.object({
   description: z.string().optional(),
   subject_id: z.string().uuid().optional(),
   course_type: z.enum(["curriculum", "unit_study"]).optional(),
-  grade_type: z.enum(["numeric", "pass_fail"]).optional(),
+  grade_type: z.enum(["numeric", "pass_fail", "combo"]).optional(),
   status: z.enum(["active", "archived", "draft"]).optional(),
   start_date: optionalDateSchema,
   end_date: optionalDateSchema,

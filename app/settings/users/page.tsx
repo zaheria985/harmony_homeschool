@@ -7,6 +7,7 @@ import pool from "@/lib/db";
 import Link from "next/link";
 import CreateKidAccountForm from "./CreateKidAccountForm";
 import DeleteKidButton from "./DeleteKidButton";
+import PermissionSelect from "./PermissionSelect";
 
 export default async function UsersPage() {
   const session = await getServerSession(authOptions);
@@ -17,7 +18,7 @@ export default async function UsersPage() {
   }
 
   const kidAccountsRes = await pool.query(
-    `SELECT u.id, u.name, u.email, c.name as child_name
+    `SELECT u.id, u.name, u.email, u.permission_level, c.name as child_name
      FROM users u
      LEFT JOIN children c ON u.child_id = c.id
      WHERE u.role = 'kid'
@@ -69,7 +70,13 @@ export default async function UsersPage() {
                     <p className="text-xs text-muted">Linked to: {account.child_name}</p>
                   )}
                 </div>
-                <DeleteKidButton userId={account.id} userName={account.name} />
+                <div className="flex items-center gap-2">
+                  <PermissionSelect
+                    userId={account.id}
+                    currentLevel={account.permission_level || "full"}
+                  />
+                  <DeleteKidButton userId={account.id} userName={account.name} />
+                </div>
               </div>
             ))}
           </div>

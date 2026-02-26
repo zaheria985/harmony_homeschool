@@ -337,6 +337,101 @@ export async function addBookToPersonalWishlist(title: string, author: string) {
   return { success: true };
 }
 
+// --- Bulk import ---
+
+const bulkImportSchema = z.object({
+  books: z.array(z.object({
+    title: z.string().min(1),
+    author: z.string().default(""),
+  })).min(1, "At least one book is required"),
+  booklistId: z.string().uuid().optional(),
+});
+
+export async function bulkImportBooks(
+  books: { title: string; author: string }[],
+  booklistId?: string,
+) {
+  const user = await getCurrentUser();
+  if (user.role === "kid") {
+    return { error: "Students cannot bulk import books" };
+  }
+
+  const parsed = bulkImportSchema.safeParse({ books, booklistId });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message || "Invalid input" };
+  }
+
+  const client = await pool.connect();
+  let imported = 0;
+
+  try {
+    await client.query("BEGIN");
+
+    for (const book of parsed.data.books) {
+      const title = book.title.trim();
+      const author = book.author.trim();
+      if (!title) continue;
+
+      // Create the book resource
+      const created = await client.query(
+        `INSERT INTO resources (title, type, author)
+         VALUES ($1, 'book', $2)
+         RETURNING id`,
+        [title, author || null]
+      );
+      const resourceId = created.rows[0].id as string;
+
+      // Auto-tag with author name if present
+      if (author) {
+        const authorTag = author.toLowerCase();
+        const tagRes = await client.query(
+          `INSERT INTO tags (name)
+           VALUES ($1)
+           ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
+           RETURNING id`,
+          [authorTag]
+        );
+        await client.query(
+          `INSERT INTO resource_tags (resource_id, tag_id)
+           VALUES ($1, $2)
+           ON CONFLICT (resource_id, tag_id) DO NOTHING`,
+          [resourceId, tagRes.rows[0].id]
+        );
+      }
+
+      // Add to booklist if specified
+      if (parsed.data.booklistId) {
+        await client.query(
+          `INSERT INTO booklist_resources (booklist_id, resource_id, position)
+           VALUES (
+             $1, $2,
+             COALESCE((SELECT MAX(position) + 1 FROM booklist_resources WHERE booklist_id = $1), 0)
+           )
+           ON CONFLICT (booklist_id, resource_id) DO NOTHING`,
+          [parsed.data.booklistId, resourceId]
+        );
+      }
+
+      imported++;
+    }
+
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Failed to bulk import books", {
+      count: parsed.data.books.length,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { error: "Failed to import books" };
+  } finally {
+    client.release();
+  }
+
+  revalidatePath("/booklists");
+  revalidatePath("/resources");
+  return { success: true, imported };
+}
+
 const createBooklistFromTagsSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
@@ -405,5 +500,63 @@ export async function createBooklistFromTags(
 
   revalidatePath("/booklists");
   revalidatePath("/resources");
+  return { success: true };
+}
+
+// --- Curriculum-linked booklists ---
+
+const linkBooklistSchema = z.object({
+  curriculumId: z.string().uuid(),
+  booklistId: z.string().uuid(),
+});
+
+export async function linkBooklistToCurriculum(
+  curriculumId: string,
+  booklistId: string,
+) {
+  const parsed = linkBooklistSchema.safeParse({ curriculumId, booklistId });
+  if (!parsed.success) return { error: "Invalid input" };
+
+  try {
+    await pool.query(
+      `INSERT INTO curriculum_booklists (curriculum_id, booklist_id)
+       VALUES ($1, $2)
+       ON CONFLICT DO NOTHING`,
+      [parsed.data.curriculumId, parsed.data.booklistId]
+    );
+  } catch (err) {
+    console.error("Failed to link booklist", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { error: "Failed to link booklist" };
+  }
+
+  revalidatePath("/curricula");
+  revalidatePath("/booklists");
+  return { success: true };
+}
+
+export async function unlinkBooklistFromCurriculum(
+  curriculumId: string,
+  booklistId: string,
+) {
+  const parsed = linkBooklistSchema.safeParse({ curriculumId, booklistId });
+  if (!parsed.success) return { error: "Invalid input" };
+
+  try {
+    await pool.query(
+      `DELETE FROM curriculum_booklists
+       WHERE curriculum_id = $1 AND booklist_id = $2`,
+      [parsed.data.curriculumId, parsed.data.booklistId]
+    );
+  } catch (err) {
+    console.error("Failed to unlink booklist", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { error: "Failed to unlink booklist" };
+  }
+
+  revalidatePath("/curricula");
+  revalidatePath("/booklists");
   return { success: true };
 }

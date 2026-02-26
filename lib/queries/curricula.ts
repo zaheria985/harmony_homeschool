@@ -47,7 +47,7 @@ export async function getCurriculumDetail(id: string) {
   const childId = res.rows[0].child_id;
   const lessons = await pool.query(
     `SELECT
-       l.id, l.title, l.status, l.planned_date, l.order_index, l.description,
+       l.id, l.title, l.status, l.planned_date, l.order_index, l.description, l.checklist_state,
        lc.grade, lc.completed_at
      FROM lessons l
      LEFT JOIN lesson_completions lc ON lc.lesson_id = l.id ${childId ? "AND lc.child_id = $1" : ""}
@@ -88,7 +88,7 @@ export async function getCurriculumBoardData(id: string) {
   const lessons = await pool.query(
     `SELECT
        l.id, l.title, l.description, l.status, l.planned_date,
-       l.order_index, l.estimated_duration, l.section
+       l.order_index, l.estimated_duration, l.section, l.checklist_state
      FROM lessons l
      WHERE l.curriculum_id = $1
      ORDER BY l.order_index, l.planned_date ASC NULLS LAST`,
