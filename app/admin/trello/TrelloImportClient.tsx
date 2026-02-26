@@ -324,7 +324,7 @@ export default function TrelloImportClient({
 
       for (const card of lessonCards) {
         const listName = listMap.get(card.idList)?.name || "";
-        const title = prefixWithListName
+        const rawTitle = prefixWithListName
           ? `[${listName}] ${card.name}`
           : card.name;
         const baseDesc = cleanDescription(card.desc);
@@ -337,16 +337,31 @@ export default function TrelloImportClient({
           description = baseDesc ? `${baseDesc}\n\n${md}` : md;
         }
 
+        // Extract resources and check if card title is a URL
+        const cardResources = extractResources(card);
+        const titleIsUrl = /^(\[.*?\]\s*)?https?:\/\/\S+$/i.test(rawTitle.trim());
+        if (titleIsUrl) {
+          const urlFromTitle = rawTitle.replace(/^\[.*?\]\s*/, "").trim();
+          if (!cardResources.some((r) => r.url === urlFromTitle)) {
+            const isYt = /youtube\.com|youtu\.be/.test(urlFromTitle);
+            cardResources.unshift({
+              type: isYt ? "youtube" : "url",
+              url: urlFromTitle,
+              title: isYt ? "YouTube Video" : urlFromTitle.split("/").pop() || "Link",
+            });
+          }
+        }
+
         drafts.push({
           cardId: card.id,
           include: true,
-          title,
+          title: rawTitle,
           description,
           planned_date: formatDate(card.due),
           status:
             importCompleted && card.dueComplete ? "completed" : "planned",
           section: listName,
-          resources: extractResources(card),
+          resources: cardResources,
         });
 
         // In lessons mode, create a draft per checklist item
@@ -401,7 +416,7 @@ export default function TrelloImportClient({
 
       for (const card of lessonCards) {
         const listName = listMap.get(card.idList)?.name || "";
-        const title = prefixWithListName
+        const rawTitle = prefixWithListName
           ? `[${listName}] ${card.name}`
           : card.name;
         // Preserve existing include state if card was already in drafts
@@ -415,10 +430,25 @@ export default function TrelloImportClient({
           description = baseDesc ? `${baseDesc}\n\n${md}` : md;
         }
 
+        // Extract resources and check if card title is a URL
+        const cardResources = extractResources(card);
+        const titleIsUrl = /^(\[.*?\]\s*)?https?:\/\/\S+$/i.test(rawTitle.trim());
+        if (titleIsUrl) {
+          const urlFromTitle = rawTitle.replace(/^\[.*?\]\s*/, "").trim();
+          if (!cardResources.some((r) => r.url === urlFromTitle)) {
+            const isYt = /youtube\.com|youtu\.be/.test(urlFromTitle);
+            cardResources.unshift({
+              type: isYt ? "youtube" : "url",
+              url: urlFromTitle,
+              title: isYt ? "YouTube Video" : urlFromTitle.split("/").pop() || "Link",
+            });
+          }
+        }
+
         drafts.push({
           cardId: card.id,
           include: existing?.include ?? true,
-          title,
+          title: rawTitle,
           description,
           planned_date: formatDate(card.due),
           status:
@@ -426,7 +456,7 @@ export default function TrelloImportClient({
               ? ("completed" as const)
               : ("planned" as const),
           section: listName,
-          resources: extractResources(card),
+          resources: cardResources,
         });
 
         if (checklistMode === "lessons" && checklists.length > 0) {

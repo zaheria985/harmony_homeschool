@@ -7,7 +7,7 @@ import RowActions from "@/components/ui/RowActions";
 import LessonFormModal from "@/components/lessons/LessonFormModal";
 import { updateLessonStatus, createLesson, deleteLesson, reorderLessons } from "@/lib/actions/lessons";
 import { markLessonComplete } from "@/lib/actions/completions";
-import { attachResourceToLessons } from "@/lib/actions/resources";
+import { attachResourceToLessons, addResource } from "@/lib/actions/resources";
 import { canEdit, canMarkComplete } from "@/lib/permissions";
 import CardViewModal from "@/components/curricula/CardViewModal";
 import ResourcePreviewModal from "@/components/ui/ResourcePreviewModal";
@@ -703,6 +703,8 @@ function SectionColumn({
   isAddingHere,
   newLessonTitle,
   onNewLessonTitleChange,
+  newLessonUrl,
+  onNewLessonUrlChange,
   onAddClick,
   onSave,
   onCancel,
@@ -725,6 +727,8 @@ function SectionColumn({
   isAddingHere: boolean;
   newLessonTitle: string;
   onNewLessonTitleChange: (value: string) => void;
+  newLessonUrl: string;
+  onNewLessonUrlChange: (value: string) => void;
   onAddClick: () => void;
   onSave: () => void;
   onCancel: () => void;
@@ -751,7 +755,7 @@ function SectionColumn({
       {/* Section header */}
       <div className="border-b bg-surface px-4 py-3 rounded-t-none">
         <h3 className="text-sm font-semibold text-primary">{sectionName}</h3>
-        <p className="text-xs text-muted">{lessons.length} cards</p>
+        <p className="text-xs text-muted">{lessons.length} lesson card{lessons.length !== 1 ? "s" : ""}</p>
       </div>
       {/* Stacked lesson cards */}
       <SortableContext items={lessons.map((l) => l.id)} strategy={verticalListSortingStrategy}>
@@ -789,11 +793,40 @@ function SectionColumn({
                 if (e.key === "Enter" && newLessonTitle.trim()) onSave();
                 if (e.key === "Escape") onCancel();
               }}
-              placeholder="Card title..."
+              placeholder="Card title or paste a URL..."
               autoFocus
               disabled={isSaving}
               className="w-full rounded-lg border border-light bg-surface px-3 py-1.5 text-sm text-primary placeholder:text-muted focus:border-interactive focus:outline-none focus:ring-1 focus:ring-focus disabled:opacity-50"
             />
+            {/* URL field — shown when title is NOT a URL */}
+            {!/^https?:\/\/\S+$/i.test(newLessonTitle.trim()) && (
+              <input
+                type="url"
+                value={newLessonUrl}
+                onChange={(e) => onNewLessonUrlChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newLessonTitle.trim()) onSave();
+                  if (e.key === "Escape") onCancel();
+                }}
+                placeholder="Link (YouTube, website, etc.)..."
+                disabled={isSaving}
+                className="w-full rounded-lg border border-light bg-surface px-3 py-1.5 text-sm text-primary placeholder:text-muted focus:border-interactive focus:outline-none focus:ring-1 focus:ring-focus disabled:opacity-50"
+              />
+            )}
+            {/* YouTube thumbnail preview */}
+            {(() => {
+              const previewUrl = /^https?:\/\/\S+$/i.test(newLessonTitle.trim()) ? newLessonTitle.trim() : newLessonUrl.trim();
+              const ytId = previewUrl ? extractYoutubeId(previewUrl) : null;
+              if (!ytId) return null;
+              return (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`}
+                  alt="YouTube preview"
+                  className="w-full rounded-lg object-cover"
+                />
+              );
+            })()}
             <div className="flex gap-2">
               <button
                 type="button"
@@ -819,7 +852,7 @@ function SectionColumn({
             onClick={onAddClick}
             className="w-full rounded-lg border border-dashed border-light px-3 py-2 text-sm text-muted hover:bg-surface-muted hover:text-secondary transition-colors"
           >
-            + Add Card
+            + Add Lesson Card
           </button>
         ))}
       </div>
@@ -887,6 +920,7 @@ export default function CurriculumBoard({
   const showCompletions = canMarkComplete(permissionLevel);
   const [addingToSection, setAddingToSection] = useState<string | null>(null);
   const [newLessonTitle, setNewLessonTitle] = useState("");
+  const [newLessonUrl, setNewLessonUrl] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [statusFilter, setStatusFilter] = useState<FilterOption>("all");
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
@@ -927,15 +961,37 @@ export default function CurriculumBoard({
           });
 
   async function handleAddLesson(sectionName: string) {
-    if (!newLessonTitle.trim()) return;
+    const titleRaw = newLessonTitle.trim();
+    if (!titleRaw) return;
     setIsSaving(true);
     try {
+      // Detect if the title itself is a URL (common from Trello imports or paste)
+      const urlPattern = /^https?:\/\/\S+$/i;
+      const titleIsUrl = urlPattern.test(titleRaw);
+      const explicitUrl = newLessonUrl.trim();
+      const resourceUrl = titleIsUrl ? titleRaw : explicitUrl || null;
+
       const fd = new FormData();
-      fd.set("title", newLessonTitle.trim());
+      fd.set("title", titleIsUrl ? titleRaw : titleRaw);
       fd.set("curriculum_id", curriculumId);
       fd.set("section", sectionName);
-      await createLesson(fd);
+      const result = await createLesson(fd);
+
+      // If we have a URL (either from title detection or explicit field), attach as resource
+      if (resourceUrl && result && "id" in result && result.id) {
+        const ytMatch = resourceUrl.match(
+          /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/
+        );
+        const resourceType = ytMatch ? "youtube" : "url";
+        const rfd = new FormData();
+        rfd.set("lesson_id", result.id as string);
+        rfd.set("type", resourceType);
+        rfd.set("url", resourceUrl);
+        await addResource(rfd);
+      }
+
       setNewLessonTitle("");
+      setNewLessonUrl("");
       setAddingToSection(null);
       router.refresh();
     } finally {
@@ -1171,7 +1227,7 @@ export default function CurriculumBoard({
               </div>
             )}
 
-            {/* Section columns */}
+            {/* Lesson columns */}
             {sectionOrder.map((sectionName) => (
               <SectionColumn
                 key={sectionName}
@@ -1184,9 +1240,11 @@ export default function CurriculumBoard({
                 isAddingHere={addingToSection === sectionName}
                 newLessonTitle={addingToSection === sectionName ? newLessonTitle : ""}
                 onNewLessonTitleChange={setNewLessonTitle}
-                onAddClick={() => { setAddingToSection(sectionName); setNewLessonTitle(""); }}
+                newLessonUrl={addingToSection === sectionName ? newLessonUrl : ""}
+                onNewLessonUrlChange={setNewLessonUrl}
+                onAddClick={() => { setAddingToSection(sectionName); setNewLessonTitle(""); setNewLessonUrl(""); }}
                 onSave={() => handleAddLesson(sectionName)}
-                onCancel={() => { setAddingToSection(null); setNewLessonTitle(""); }}
+                onCancel={() => { setAddingToSection(null); setNewLessonTitle(""); setNewLessonUrl(""); }}
                 isSaving={isSaving}
                 showAddLesson={showAddLesson}
                 showCompletions={showCompletions}
@@ -1199,7 +1257,7 @@ export default function CurriculumBoard({
               />
             ))}
 
-            {/* Unsectioned lessons */}
+            {/* Unsectioned lesson cards */}
             {unsectioned.length > 0 && (
               <SectionColumn
                 sectionName="Other"
@@ -1211,9 +1269,11 @@ export default function CurriculumBoard({
                 isAddingHere={addingToSection === "Other"}
                 newLessonTitle={addingToSection === "Other" ? newLessonTitle : ""}
                 onNewLessonTitleChange={setNewLessonTitle}
-                onAddClick={() => { setAddingToSection("Other"); setNewLessonTitle(""); }}
+                newLessonUrl={addingToSection === "Other" ? newLessonUrl : ""}
+                onNewLessonUrlChange={setNewLessonUrl}
+                onAddClick={() => { setAddingToSection("Other"); setNewLessonTitle(""); setNewLessonUrl(""); }}
                 onSave={() => handleAddLesson("Other")}
-                onCancel={() => { setAddingToSection(null); setNewLessonTitle(""); }}
+                onCancel={() => { setAddingToSection(null); setNewLessonTitle(""); setNewLessonUrl(""); }}
                 isSaving={isSaving}
                 showAddLesson={showAddLesson}
                 showCompletions={showCompletions}
@@ -1229,7 +1289,7 @@ export default function CurriculumBoard({
             {/* Empty state */}
             {dndFilteredLessons.length === 0 && (
               <div className="flex w-full items-center justify-center py-16 text-sm text-muted">
-                {statusFilter === "all" ? "No cards in this curriculum yet." : `No ${statusFilter} cards.`}
+                {statusFilter === "all" ? "No lesson cards in this curriculum yet." : `No ${statusFilter} lesson cards.`}
               </div>
             )}
           </div>
@@ -1377,7 +1437,7 @@ export default function CurriculumBoard({
               <div className="border-b px-4 py-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-muted">
-                    Card {idx + 1}
+                    Lesson Card {idx + 1}
                   </span>
                   <div className="flex items-center gap-1">
                     <Badge variant={statusBadge[colDisplayStatus] || "default"}>
@@ -1482,7 +1542,7 @@ export default function CurriculumBoard({
         {/* Empty state */}
         {filteredLessons.length === 0 && (
           <div className="flex w-full items-center justify-center py-16 text-sm text-muted">
-            {statusFilter === "all" ? "No cards in this curriculum yet." : `No ${statusFilter} cards.`}
+            {statusFilter === "all" ? "No lesson cards in this curriculum yet." : `No ${statusFilter} lesson cards.`}
           </div>
         )}
       </div>
