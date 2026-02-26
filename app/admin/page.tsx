@@ -3,8 +3,13 @@ import Link from "next/link";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import { getAdminStats, getArchiveStats, getAdminAnalytics } from "@/lib/queries/admin";
+import { getAllChildren } from "@/lib/queries/students";
 import LessonArchiveCard from "@/components/admin/LessonArchiveCard";
 import AdminAnalytics from "@/components/admin/AdminAnalytics";
+import CalendarSubscriptions from "@/components/admin/CalendarSubscriptions";
+import PlatformImportCard from "@/components/admin/PlatformImportCard";
+import { importFromPlatform } from "@/lib/actions/import";
+import pool from "@/lib/db";
 
 const sections = [
   {
@@ -17,11 +22,17 @@ const sections = [
 ];
 
 export default async function AdminPage() {
-  const [stats, archiveStats, analytics] = await Promise.all([
+  const [stats, archiveStats, analytics, children, subjectsRes] = await Promise.all([
     getAdminStats(),
     getArchiveStats(),
     getAdminAnalytics(),
+    getAllChildren(),
+    pool.query(`SELECT id, name FROM subjects ORDER BY name`),
   ]);
+  const subjects = subjectsRes.rows as { id: string; name: string }[];
+
+  const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+  const hasIcalToken = !!process.env.ICAL_TOKEN;
   return (
     <div>
       <PageHeader title="Admin" />
@@ -101,6 +112,26 @@ export default async function AdminPage() {
           </Card>
         </Link>
 
+        <Card>
+          <div className="mb-3 flex items-center gap-3">
+            <span className="text-2xl">📆</span>
+            <div>
+              <h3 className="text-lg font-semibold">Calendar Subscriptions</h3>
+              <p className="text-sm text-muted">
+                Subscribe to lesson schedules via iCal/CalDAV
+              </p>
+            </div>
+          </div>
+          <CalendarSubscriptions
+            kids={children.map((c: { id: string; name: string }) => ({
+              id: c.id,
+              name: c.name,
+            }))}
+            baseUrl={baseUrl}
+            hasToken={hasIcalToken}
+          />
+        </Card>
+
         <Link href="/admin/lessons">
           <Card className="transition-shadow hover:shadow-md">
             <div className="flex items-center gap-3">
@@ -133,6 +164,15 @@ export default async function AdminPage() {
             </div>
           </Card>
         </Link>
+
+        <PlatformImportCard
+          children={children.map((c: { id: string; name: string }) => ({
+            id: c.id,
+            name: c.name,
+          }))}
+          subjects={subjects}
+          importAction={importFromPlatform}
+        />
 
         <Link href="/tags">
           <Card className="transition-shadow hover:shadow-md">

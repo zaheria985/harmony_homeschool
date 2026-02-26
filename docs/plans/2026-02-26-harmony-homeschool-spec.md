@@ -1286,7 +1286,6 @@ The Admin panel provides power-user tools for configuration, bulk operations, an
 
 - **Bulk resource import** — Import resources (books, links) from a pasted list or CSV, not just via Trello
 - **Admin dashboard** — Richer analytics: completion trends, time-to-complete, subject balance across children
-- **Import from other homeschool platforms** — Import lesson plans from common homeschool planning tools beyond Trello
 
 ### Admin Hub (`/admin`)
 
@@ -1360,10 +1359,12 @@ Covered in Feature 7. Full tag lifecycle: create, rename, merge, delete with res
 | Schedule diagnostics | None | Exception detection table |
 | Tag lifecycle | Apply only | Create, rename, merge, delete |
 | Data export | None | CSV/JSON export via `/api/export` |
+| Platform import | None | CSV/JSON import for lessons and books |
 
 ### Key Behaviors
 
 - **Data export** — Export all data (curricula, lessons, grades, completions) as CSV or JSON for backup or migration via `/api/export`.
+- **Platform import** — Generic CSV/JSON import for lessons and books from other homeschool platforms. Supports comma and tab delimited CSV, and JSON arrays. Lesson import creates a new curriculum assigned to the selected child and school year. Book import adds to the booklist as wishlist items. Accessible via "Import Data" card on the admin page (`/admin`). Server action: `importFromPlatform` in `lib/actions/import.ts`. Client component: `PlatformImportCard` in `components/admin/PlatformImportCard.tsx` with `PlatformImportModal`.
 - **Interactive checklists** — Lesson descriptions support functional, toggleable checklist items. Checklist items can be checked off as they are completed. Works across lesson detail, board, and week views.
 - **Checklist progress tracking** — Lesson cards in board and week views display checklist completion counts (e.g. "3/5 items done").
 
