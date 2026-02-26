@@ -173,6 +173,28 @@ function ResourceMiniCard({
     ? `https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`
     : thumbnailUrl || (isImageUrl ? url : null);
 
+  // YouTube/video with thumbnail: full-width image, title below
+  if (youtubeId && thumbnail) {
+    const Wrapper = onPreview ? "button" : "a";
+    const wrapperProps = onPreview
+      ? { type: "button" as const, onClick: (e: React.MouseEvent) => { e.stopPropagation(); onPreview(); } }
+      : { href: url, target: "_blank" as const, rel: "noopener noreferrer", onClick: (e: React.MouseEvent) => e.stopPropagation() };
+    return (
+      <Wrapper
+        {...(wrapperProps as Record<string, unknown>)}
+        className="group block w-full overflow-hidden rounded-lg border border-light bg-surface text-left transition-colors hover:border-primary-200 hover:bg-interactive-light/30"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={thumbnail} alt="" className="w-full object-cover" />
+        <div className="flex items-center gap-1.5 px-2 py-1.5">
+          <span className="text-[10px] text-red-500">▶</span>
+          <span className="min-w-0 truncate text-xs text-secondary group-hover:text-interactive">{displayTitle}</span>
+        </div>
+      </Wrapper>
+    );
+  }
+
+  // Non-YouTube: compact horizontal layout
   const inner = (
     <>
       {thumbnail ? (

@@ -103,6 +103,43 @@ function ResourceCard({
     ? `https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`
     : thumbnailUrl || (isImageUrl ? url : null);
 
+  // YouTube: full-width thumbnail, title below
+  if (youtubeId && thumbnail) {
+    const handleClick = onPreview || undefined;
+    if (handleClick) {
+      return (
+        <button
+          type="button"
+          onClick={handleClick}
+          className="group block w-full overflow-hidden rounded-lg border border-light bg-surface text-left transition-colors hover:border-primary-200 hover:bg-interactive-light/30"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={thumbnail} alt="" className="w-full object-cover" />
+          <div className="flex items-center gap-2 px-3 py-2">
+            <span className="text-sm text-red-500">▶</span>
+            <span className="min-w-0 truncate text-sm text-secondary group-hover:text-interactive">{displayTitle}</span>
+          </div>
+        </button>
+      );
+    }
+    return (
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="group block w-full overflow-hidden rounded-lg border border-light bg-surface transition-colors hover:border-primary-200 hover:bg-interactive-light/30"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={thumbnail} alt="" className="w-full object-cover" />
+        <div className="flex items-center gap-2 px-3 py-2">
+          <span className="text-sm text-red-500">▶</span>
+          <span className="min-w-0 truncate text-sm text-secondary group-hover:text-interactive">{displayTitle}</span>
+        </div>
+      </a>
+    );
+  }
+
+  // Non-YouTube: compact horizontal layout
   if (onPreview) {
     return (
       <button
