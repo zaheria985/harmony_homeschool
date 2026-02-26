@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Modal from "@/components/ui/Modal";
 import MarkdownContent from "@/components/ui/MarkdownContent";
 import ResourcePreviewModal from "@/components/ui/ResourcePreviewModal";
 import InteractiveChecklist, { parseChecklist } from "@/components/lessons/InteractiveChecklist";
 import { attachResourceToLessons } from "@/lib/actions/resources";
 import { suggestResources } from "@/lib/actions/ai";
+import { createLessonCard, deleteLessonCard } from "@/lib/actions/lesson-cards";
 
 type CurriculumResource = {
   id: string;
@@ -21,6 +23,20 @@ type AISuggestion = {
   title: string;
   type: string;
   description: string;
+};
+
+type LessonCardItem = {
+  id: string;
+  card_type: string;
+  title: string | null;
+  content: string | null;
+  url: string | null;
+  thumbnail_url: string | null;
+  resource_id: string | null;
+  resource_title: string | null;
+  resource_type: string | null;
+  resource_url: string | null;
+  resource_thumbnail_url: string | null;
 };
 
 type CardViewModalProps = {
@@ -39,6 +55,7 @@ type CardViewModalProps = {
       global_thumbnail_url: string | null;
       resource_id?: string | null;
     }[];
+    cards?: LessonCardItem[];
   } | null;
   curriculumResources?: CurriculumResource[];
   subjectName?: string;
@@ -139,6 +156,82 @@ function ResourceCard({
         {displayTitle}
       </span>
     </a>
+  );
+}
+
+function AddLessonCardForm({ lessonId }: { lessonId: string }) {
+  const [isAdding, setIsAdding] = useState(false);
+  const [url, setUrl] = useState("");
+  const [title, setTitle] = useState("");
+  const [saving, setSaving] = useState(false);
+  const router = useRouter();
+
+  if (!isAdding) {
+    return (
+      <button
+        type="button"
+        onClick={() => setIsAdding(true)}
+        className="w-full rounded-lg border border-dashed border-light px-3 py-2 text-xs text-muted hover:border-primary-200 hover:text-interactive transition-colors"
+      >
+        + Add lesson card
+      </button>
+    );
+  }
+
+  async function handleSave() {
+    if (!url.trim() && !title.trim()) return;
+    setSaving(true);
+    try {
+      const fd = new FormData();
+      fd.set("lesson_id", lessonId);
+      if (url.trim()) fd.set("url", url.trim());
+      if (title.trim()) fd.set("title", title.trim());
+      await createLessonCard(fd);
+      setUrl("");
+      setTitle("");
+      setIsAdding(false);
+      router.refresh();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-light bg-surface p-3 space-y-2">
+      <input
+        type="text"
+        placeholder="Title (optional if URL provided)"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        className="w-full rounded-md border border-light bg-surface px-2 py-1.5 text-sm text-primary placeholder:text-muted focus:border-interactive focus:ring-1 focus:ring-focus"
+      />
+      <input
+        type="text"
+        placeholder="URL (YouTube, link, etc.)"
+        value={url}
+        onChange={(e) => setUrl(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && handleSave()}
+        className="w-full rounded-md border border-light bg-surface px-2 py-1.5 text-sm text-primary placeholder:text-muted focus:border-interactive focus:ring-1 focus:ring-focus"
+        autoFocus
+      />
+      <div className="flex gap-2 justify-end">
+        <button
+          type="button"
+          onClick={() => { setIsAdding(false); setUrl(""); setTitle(""); }}
+          className="rounded-md px-2 py-1 text-xs text-muted hover:text-primary"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving || (!url.trim() && !title.trim())}
+          className="rounded-md bg-interactive px-3 py-1 text-xs font-medium text-white hover:bg-interactive-hover disabled:opacity-50"
+        >
+          {saving ? "Saving..." : "Add"}
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -276,6 +369,104 @@ export default function CardViewModal({ lesson, curriculumResources = [], subjec
               </div>
             </div>
           )}
+
+          {/* Lesson Cards (building blocks) */}
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted">
+                Lesson Cards ({lesson.cards?.length || 0})
+              </h4>
+            </div>
+            {(lesson.cards || []).map((card) => {
+              const ytId = card.url ? extractYoutubeId(card.url) : null;
+              const thumb = card.thumbnail_url || (ytId ? `https://img.youtube.com/vi/${ytId}/mqdefault.jpg` : null)
+                || card.resource_thumbnail_url;
+              const cardTitle = card.title || card.resource_title || card.url || "Untitled";
+
+              return (
+                <div key={card.id} className="mb-2 flex items-start gap-2">
+                  <div className="min-w-0 flex-1">
+                    {card.card_type === "youtube" && thumb ? (
+                      <button
+                        type="button"
+                        onClick={() => card.url && setPreviewResource({
+                          title: cardTitle, type: "youtube", url: card.url, thumbnailUrl: thumb,
+                        })}
+                        className="group w-full overflow-hidden rounded-lg border border-light text-left transition-colors hover:border-primary-200"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={thumb} alt="" className="w-full object-cover" />
+                        <div className="flex items-center gap-1.5 px-3 py-1.5">
+                          <span className="text-xs text-red-500">▶</span>
+                          <span className="truncate text-sm text-secondary group-hover:text-interactive">{cardTitle}</span>
+                        </div>
+                      </button>
+                    ) : card.card_type === "url" && card.url ? (
+                      <a
+                        href={card.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group flex items-center gap-3 rounded-lg border border-light bg-surface p-3 text-sm transition-colors hover:border-primary-200"
+                      >
+                        <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded bg-gradient-to-br from-cyan-50 to-blue-100 text-sm">🔗</span>
+                        <span className="min-w-0 truncate text-secondary group-hover:text-interactive">{cardTitle}</span>
+                      </a>
+                    ) : card.card_type === "checklist" && card.content ? (
+                      <div className="rounded-lg border border-light bg-surface p-3 text-sm">
+                        <p className="font-medium text-secondary">{cardTitle}</p>
+                        <div className="mt-2 space-y-1">
+                          {card.content.split("\n").filter((l) => /^- \[[ x]\]/.test(l)).map((line, i) => {
+                            const isChecked = /^- \[x\]/i.test(line);
+                            const text = line.replace(/^- \[[ x]\]\s*/, "");
+                            return (
+                              <label key={i} className="flex items-center gap-2 text-xs">
+                                <input type="checkbox" checked={isChecked} readOnly className="rounded" />
+                                <span className={isChecked ? "text-muted line-through" : "text-secondary"}>{text}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : card.card_type === "resource" ? (
+                      <a
+                        href={card.resource_url || "#"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group flex items-center gap-3 rounded-lg border border-light bg-surface p-3 text-sm transition-colors hover:border-primary-200"
+                      >
+                        {card.resource_thumbnail_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={card.resource_thumbnail_url} alt="" className="h-10 w-16 flex-shrink-0 rounded object-cover" />
+                        ) : (
+                          <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded bg-gradient-to-br from-indigo-50 to-purple-100 text-sm">📦</span>
+                        )}
+                        <span className="min-w-0 truncate text-secondary group-hover:text-interactive">{card.resource_title || cardTitle}</span>
+                      </a>
+                    ) : (
+                      <div className="rounded-lg border border-light bg-surface p-3 text-sm">
+                        <p className="text-secondary">{cardTitle}</p>
+                        {card.content && <p className="mt-1 text-xs text-muted">{card.content}</p>}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => startTransition(async () => {
+                      await deleteLessonCard(card.id);
+                    })}
+                    disabled={isPending}
+                    className="mt-2 flex-shrink-0 rounded p-1 text-xs text-muted hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                    title="Remove card"
+                  >
+                    ✕
+                  </button>
+                </div>
+              );
+            })}
+
+            {/* Add lesson card form */}
+            <AddLessonCardForm lessonId={lesson.id} />
+          </div>
 
           {/* Curriculum Resources — available to attach */}
           {unattachedCurriculumResources.length > 0 && (

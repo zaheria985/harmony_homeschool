@@ -413,6 +413,23 @@ Extends the tag system to individual lessons. Composite primary key on (lesson_i
 
 Reusable lesson structures. Save a curriculum's lessons as a template, then apply to new curricula.
 
+**lesson_cards**
+
+| Field | Type | Description |
+|---|---|---|
+| id | UUID | Primary key |
+| lesson_id | UUID | FK to lessons (CASCADE delete) |
+| card_type | TEXT | Type: checklist, youtube, url, resource, note |
+| title | TEXT (nullable) | Card title (auto-fetched for YouTube) |
+| content | TEXT (nullable) | Markdown content, checklist items, notes |
+| url | TEXT (nullable) | URL for youtube/url types |
+| thumbnail_url | TEXT (nullable) | Auto-fetched for YouTube via oEmbed |
+| resource_id | UUID (nullable) | FK to resources (SET NULL on delete) |
+| order_index | INT | Display order within lesson |
+| created_at | TIMESTAMPTZ | Auto-set |
+
+Building blocks within a lesson. Card type auto-detected from URL content (YouTube URLs → youtube, other URLs → url, markdown checkboxes → checklist, linked resource → resource, default → note).
+
 ### Lessons — Key Behaviors
 
 **Student inheritance** — When a lesson is created within a curriculum, it automatically inherits all children assigned to that curriculum. Completion records are tracked per-child, but the lesson is available to all assigned students without manual assignment. If a new child is assigned to the curriculum later, they gain access to all existing lessons.
@@ -432,6 +449,10 @@ These are derived via the relationship chain (`lesson -> curriculum -> subject`)
 **Lesson templates** — Save a curriculum's lesson structure as a reusable template. `LessonTemplateManager` component provides UI for browsing, saving, applying, and deleting templates. Server actions in `lib/actions/templates.ts`: `getLessonTemplates`, `saveAsTemplate`, `applyLessonTemplate`, `deleteLessonTemplate`.
 
 **Curriculum export/import** — Export a curriculum as JSON via `GET /api/export/curriculum?id=`. Import via `ImportCurriculumModal` component which accepts JSON and creates curriculum with lessons.
+
+**Lesson Cards** — Building blocks within a lesson. Each lesson can have multiple lesson cards (`lesson_cards` table) that represent individual activities, videos, checklists, links, or resources. Card types: `checklist`, `youtube`, `url`, `resource`, `note`. YouTube URLs are auto-detected and thumbnails fetched via oEmbed. Cards render on the board within each lesson's mini card, and in the CardViewModal with full detail. Server actions in `lib/actions/lesson-cards.ts`: `createLessonCard`, `updateLessonCard`, `deleteLessonCard`, `reorderLessonCards`. Queries in `lib/queries/lesson-cards.ts`: `getLessonCards`, `getLessonCardsByIds`.
+
+**Hierarchy:** Course (curricula) → Lesson (lessons) → Lesson Card (lesson_cards). Lesson cards are the sub-items within a lesson — not lessons themselves, but their building blocks.
 
 ### Curricula — Grade Type
 
@@ -498,7 +519,7 @@ All three grade types are implemented.
 
 **`/curricula`** — Grid of curriculum cards with subject color, child name, cover image, lesson count, and completion progress. Supports gallery/table view toggle, child filter, and search.
 
-**`/curricula/[id]/board`** — Kanban board grouped by section. Cards show title, status, date, resource thumbnails, and per-child completion avatars. Drag-and-drop reordering. Click to open CardViewModal with markdown content and inline video preview.
+**`/curricula/[id]/board`** — Kanban board grouped by section. Cards show title, status, date, resource thumbnails, and per-child completion avatars. Drag-and-drop reordering. YouTube/video resources open inline via `ResourcePreviewModal` (both on cards and in CardViewModal). Click card title to open CardViewModal with markdown content, interactive checklists, subject/curriculum context, and inline video preview.
 
 **`/curricula/[id]/list`** — List view with filter tabs (All/Incomplete/Completed), multi-select bulk actions, schedule configuration panel, and completion copy banner for shared curricula.
 
@@ -771,8 +792,8 @@ Returns `{ notes }` array of `{ id, event_id, occurrence_date, notes }` for matc
 Standard 7-column grid (Sun-Sat). Each day cell shows:
 - Day number (today highlighted with ring) and completion count (e.g. "2/5")
 - Up to 2 external events (color dot + title), with "+N more" overflow
-- Up to 3 lesson titles (color dot + title, strikethrough if completed), with "+N more" overflow
-- Completed lessons show subject dot with success ring
+- Lessons grouped by subject (color dot + subject name with lesson count), strikethrough if all completed, with "+N more" overflow for 5+ subjects
+- All-completed subjects show subject dot with success ring
 
 Clicking a day opens a **Day Detail Modal** with:
 - **Summary stats bar** — "N lessons (M done)" and "N events" counts

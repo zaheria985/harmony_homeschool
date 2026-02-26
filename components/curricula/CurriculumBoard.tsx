@@ -56,6 +56,22 @@ type Completion = {
   notes: string | null;
 };
 
+type LessonCardItem = {
+  id: string;
+  lesson_id: string;
+  card_type: "checklist" | "youtube" | "url" | "resource" | "note";
+  title: string | null;
+  content: string | null;
+  url: string | null;
+  thumbnail_url: string | null;
+  resource_id: string | null;
+  order_index: number;
+  resource_title: string | null;
+  resource_type: string | null;
+  resource_url: string | null;
+  resource_thumbnail_url: string | null;
+};
+
 type Lesson = {
   id: string;
   title: string;
@@ -68,6 +84,7 @@ type Lesson = {
   section: string | null;
   resources: LessonResource[];
   completions: Completion[];
+  cards: LessonCardItem[];
   checklist_state?: Record<string, boolean>;
 };
 
@@ -476,6 +493,114 @@ function LessonMiniCard({
             >
               {"\u25B2 Collapse"}
             </button>
+          </div>
+        )}
+
+        {/* Lesson Cards (building blocks) */}
+        {lesson.cards && lesson.cards.length > 0 && (
+          <div className="mt-2 space-y-1.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">
+              Cards ({lesson.cards.length})
+            </p>
+            {lesson.cards.slice(0, expanded ? undefined : 2).map((card) => {
+              const ytId = card.url ? extractYoutubeId(card.url) : null;
+              const thumb = card.thumbnail_url || (ytId ? `https://img.youtube.com/vi/${ytId}/mqdefault.jpg` : null)
+                || card.resource_thumbnail_url;
+              const isVideo = card.card_type === "youtube";
+              const cardTitle = card.title || card.resource_title || card.url || "Untitled";
+
+              if (isVideo && thumb) {
+                return (
+                  <button
+                    key={card.id}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onResourcePreview && card.url) {
+                        onResourcePreview({
+                          title: cardTitle, type: "youtube", url: card.url,
+                          thumbnailUrl: thumb,
+                        });
+                      }
+                    }}
+                    className="group block w-full overflow-hidden rounded-lg border border-light text-left transition-colors hover:border-primary-200"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={thumb} alt="" className="w-full object-cover" />
+                    <div className="flex items-center gap-1.5 px-2 py-1">
+                      <span className="text-[10px] text-red-500">▶</span>
+                      <span className="truncate text-[10px] text-secondary group-hover:text-interactive">{cardTitle}</span>
+                    </div>
+                  </button>
+                );
+              }
+
+              if (card.card_type === "url" && card.url) {
+                return (
+                  <a
+                    key={card.id}
+                    href={card.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group flex items-center gap-2 rounded-lg border border-light bg-surface p-2 text-xs transition-colors hover:border-primary-200"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded bg-gradient-to-br from-cyan-50 to-blue-100 text-[10px]">🔗</span>
+                    <span className="min-w-0 truncate text-secondary group-hover:text-interactive">{cardTitle}</span>
+                  </a>
+                );
+              }
+
+              if (card.card_type === "resource" && (card.resource_title || card.resource_url)) {
+                return (
+                  <a
+                    key={card.id}
+                    href={card.resource_url || "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group flex items-center gap-2 rounded-lg border border-light bg-surface p-2 text-xs transition-colors hover:border-primary-200"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {card.resource_thumbnail_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={card.resource_thumbnail_url} alt="" className="h-8 w-12 flex-shrink-0 rounded object-cover" />
+                    ) : (
+                      <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded bg-gradient-to-br from-indigo-50 to-purple-100 text-[10px]">📦</span>
+                    )}
+                    <span className="min-w-0 truncate text-secondary group-hover:text-interactive">{card.resource_title || cardTitle}</span>
+                  </a>
+                );
+              }
+
+              if (card.card_type === "checklist" && card.content) {
+                const items = card.content.split("\n").filter((l) => /^- \[[ x]\]/.test(l));
+                const checked = items.filter((l) => /^- \[x\]/i.test(l)).length;
+                return (
+                  <div key={card.id} className="rounded-lg border border-light bg-surface p-2 text-xs" onClick={(e) => e.stopPropagation()}>
+                    <p className="font-medium text-secondary">{cardTitle}</p>
+                    <div className="mt-1 flex items-center gap-2">
+                      <div className="h-1.5 flex-1 rounded-full bg-surface-muted overflow-hidden">
+                        <div className="h-full rounded-full bg-[var(--success-solid)] transition-all" style={{ width: `${items.length ? (checked / items.length) * 100 : 0}%` }} />
+                      </div>
+                      <span className="text-[10px] text-muted">{checked}/{items.length}</span>
+                    </div>
+                  </div>
+                );
+              }
+
+              // Default: note type
+              return (
+                <div key={card.id} className="rounded-lg border border-light bg-surface p-2 text-xs" onClick={(e) => e.stopPropagation()}>
+                  <p className="text-secondary">{cardTitle}</p>
+                  {card.content && <p className="mt-0.5 text-[10px] text-muted line-clamp-2">{card.content}</p>}
+                </div>
+              );
+            })}
+            {!expanded && lesson.cards.length > 2 && (
+              <button type="button" onClick={() => setExpanded(true)} className="text-[10px] text-muted hover:text-interactive">
+                +{lesson.cards.length - 2} more cards ▼
+              </button>
+            )}
           </div>
         )}
 
@@ -1499,15 +1624,69 @@ export default function CurriculumBoard({
                     Resources ({lesson.resources.length})
                   </p>
                   <div className="space-y-1.5">
-                    {lesson.resources.map((r) => (
-                      <ResourceMiniCard
-                        key={r.id}
-                        type={r.global_type || r.type}
-                        url={r.url}
-                        title={r.title}
-                        thumbnailUrl={r.global_thumbnail_url || r.thumbnail_url}
-                      />
-                    ))}
+                    {lesson.resources.map((r) => {
+                      const rType = r.global_type || r.type;
+                      const isVideo = rType === "youtube" || rType === "video";
+                      return (
+                        <ResourceMiniCard
+                          key={r.id}
+                          type={rType}
+                          url={r.url}
+                          title={r.title}
+                          thumbnailUrl={r.global_thumbnail_url || r.thumbnail_url}
+                          onPreview={isVideo ? () => setPreviewResource({
+                            title: r.title || "Untitled", type: rType, url: r.url,
+                            thumbnailUrl: r.global_thumbnail_url || r.thumbnail_url,
+                          }) : undefined}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Lesson Cards (building blocks) */}
+              {lesson.cards && lesson.cards.length > 0 && (
+                <div className="border-t px-3 py-2">
+                  <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
+                    Cards ({lesson.cards.length})
+                  </p>
+                  <div className="space-y-1.5">
+                    {lesson.cards.map((card) => {
+                      const ytId = card.url ? extractYoutubeId(card.url) : null;
+                      const thumb = card.thumbnail_url || (ytId ? `https://img.youtube.com/vi/${ytId}/mqdefault.jpg` : null)
+                        || card.resource_thumbnail_url;
+                      const cardTitle = card.title || card.resource_title || card.url || "Untitled";
+
+                      if (card.card_type === "youtube" && thumb) {
+                        return (
+                          <button
+                            key={card.id}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (card.url) setPreviewResource({
+                                title: cardTitle, type: "youtube", url: card.url, thumbnailUrl: thumb,
+                              });
+                            }}
+                            className="group block w-full overflow-hidden rounded-lg border border-light text-left transition-colors hover:border-primary-200"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={thumb} alt="" className="w-full object-cover" />
+                            <div className="flex items-center gap-1.5 px-2 py-1">
+                              <span className="text-[10px] text-red-500">▶</span>
+                              <span className="truncate text-[10px] text-secondary group-hover:text-interactive">{cardTitle}</span>
+                            </div>
+                          </button>
+                        );
+                      }
+
+                      return (
+                        <div key={card.id} className="rounded-lg border border-light bg-surface p-2 text-xs">
+                          <span className="text-secondary">{cardTitle}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

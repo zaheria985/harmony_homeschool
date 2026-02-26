@@ -123,6 +123,20 @@ CREATE TABLE lessons (
     recurrence_end  DATE
 );
 
+CREATE TABLE lesson_cards (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    lesson_id       UUID NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+    card_type       TEXT NOT NULL DEFAULT 'note'
+                        CHECK (card_type IN ('checklist', 'youtube', 'url', 'resource', 'note')),
+    title           TEXT,
+    content         TEXT,
+    url             TEXT,
+    thumbnail_url   TEXT,
+    resource_id     UUID REFERENCES resources(id) ON DELETE SET NULL,
+    order_index     INT NOT NULL DEFAULT 0,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- ============================================================================
 -- RESOURCES
 -- ============================================================================

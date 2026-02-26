@@ -478,44 +478,46 @@ export default function CalendarView({
                   {dayEvents.length > 2 && (
                     <span className="text-[9px] text-muted">+{dayEvents.length - 2} more</span>
                   )}
-                  {dayLessons.slice(0, 3).map((l) => {
-                    const isDraggable = !readOnly && l.status !== "completed";
-                    const isBeingDragged = draggedLesson?.id === l.id;
+                  {(() => {
+                    // Group lessons by subject for compact display
+                    const subjectGroups = new Map<string, { color: string; count: number; completedCount: number }>();
+                    for (const l of dayLessons) {
+                      const key = l.subject_name || "Other";
+                      const existing = subjectGroups.get(key);
+                      if (existing) {
+                        existing.count++;
+                        if (l.status === "completed") existing.completedCount++;
+                      } else {
+                        subjectGroups.set(key, {
+                          color: l.subject_color || "#6366f1",
+                          count: 1,
+                          completedCount: l.status === "completed" ? 1 : 0,
+                        });
+                      }
+                    }
+                    const entries = Array.from(subjectGroups.entries());
                     return (
-                      <div
-                        key={l.id}
-                        draggable={isDraggable}
-                        onDragStart={(e) => {
-                          if (!isDraggable) return;
-                          e.dataTransfer.setData("text/plain", l.id);
-                          e.dataTransfer.effectAllowed = "move";
-                          setDraggedLesson({ id: l.id, date: dateStr });
-                        }}
-                        onDragEnd={() => {
-                          setDraggedLesson(null);
-                          setDropTarget(null);
-                        }}
-                        className={`flex items-center gap-0.5 ${
-                          isDraggable ? "cursor-grab active:cursor-grabbing" : ""
-                        } ${isBeingDragged ? "opacity-50 ring-1 ring-interactive rounded" : ""}`}
-                      >
-                        <span
-                          className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                            l.status === "completed" ? "ring-1 ring-[var(--success-text)]" : ""
-                          }`}
-                          style={{ backgroundColor: l.subject_color }}
-                        />
-                        <span className={`truncate text-[10px] leading-tight ${
-                          l.status === "completed" ? "text-muted line-through" : "text-tertiary"
-                        }`}>
-                          {l.title}
-                        </span>
-                      </div>
+                      <>
+                        {entries.slice(0, 4).map(([name, g]) => {
+                          const allDone = g.completedCount === g.count;
+                          return (
+                            <div key={name} className="flex items-center gap-0.5">
+                              <span
+                                className={`h-1.5 w-1.5 shrink-0 rounded-full ${allDone ? "ring-1 ring-[var(--success-text)]" : ""}`}
+                                style={{ backgroundColor: g.color }}
+                              />
+                              <span className={`truncate text-[10px] leading-tight ${allDone ? "text-muted line-through" : "text-tertiary"}`}>
+                                {name}{g.count > 1 ? ` (${g.count})` : ""}
+                              </span>
+                            </div>
+                          );
+                        })}
+                        {entries.length > 4 && (
+                          <span className="text-[9px] text-muted">+{entries.length - 4} more</span>
+                        )}
+                      </>
                     );
-                  })}
-                  {dayLessons.length > 3 && (
-                    <span className="text-[9px] text-muted">+{dayLessons.length - 3} more</span>
-                  )}
+                  })()}
                 </div>
               </div>
             );

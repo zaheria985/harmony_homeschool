@@ -189,7 +189,23 @@ export async function getCurriculumBoardData(id: string, showArchived = false) {
     [id]
   );
 
-  // Group resources and completions by lesson
+  // Lesson cards (building blocks within each lesson)
+  const lessonCardRows = await pool.query(
+    `SELECT
+       lc.id, lc.lesson_id, lc.card_type, lc.title, lc.content,
+       lc.url, lc.thumbnail_url, lc.resource_id, lc.order_index,
+       r.title AS resource_title, r.type AS resource_type,
+       r.url AS resource_url, r.thumbnail_url AS resource_thumbnail_url
+     FROM lesson_cards lc
+     LEFT JOIN resources r ON r.id = lc.resource_id
+     WHERE lc.lesson_id IN (
+       SELECT l.id FROM lessons l WHERE l.curriculum_id = $1
+     )
+     ORDER BY lc.order_index, lc.created_at`,
+    [id]
+  );
+
+  // Group resources, completions, and cards by lesson
   const resourcesByLesson = new Map<string, typeof lessonResources.rows>();
   for (const lr of lessonResources.rows) {
     const list = resourcesByLesson.get(lr.lesson_id) || [];
@@ -204,10 +220,18 @@ export async function getCurriculumBoardData(id: string, showArchived = false) {
     completionsByLesson.set(lc.lesson_id, list);
   }
 
+  const cardsByLesson = new Map<string, typeof lessonCardRows.rows>();
+  for (const card of lessonCardRows.rows) {
+    const list = cardsByLesson.get(card.lesson_id) || [];
+    list.push(card);
+    cardsByLesson.set(card.lesson_id, list);
+  }
+
   const lessonsWithDetails = lessons.rows.map((l: { id: string }) => ({
     ...l,
     resources: resourcesByLesson.get(l.id) || [],
     completions: completionsByLesson.get(l.id) || [],
+    cards: cardsByLesson.get(l.id) || [],
   }));
 
   return {
