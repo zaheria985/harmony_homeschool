@@ -236,6 +236,26 @@ CREATE TABLE reading_log (
 );
 
 -- ============================================================================
+-- GRADING SCALES
+-- ============================================================================
+
+CREATE TABLE grading_scales (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name        TEXT NOT NULL,
+    is_default  BOOLEAN NOT NULL DEFAULT false,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE grade_thresholds (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    scale_id    UUID NOT NULL REFERENCES grading_scales(id) ON DELETE CASCADE,
+    letter      TEXT NOT NULL,
+    min_score   NUMERIC(5,2) NOT NULL,
+    color       TEXT,
+    UNIQUE(scale_id, letter)
+);
+
+-- ============================================================================
 -- INDEXES
 -- ============================================================================
 
@@ -271,3 +291,6 @@ CREATE INDEX idx_lesson_tags_tag                    ON lesson_tags(tag_id);
 
 CREATE INDEX idx_booklist_resources_booklist ON booklist_resources(booklist_id);
 CREATE INDEX idx_booklist_resources_resource ON booklist_resources(resource_id);
+
+-- grading scales
+CREATE INDEX idx_grade_thresholds_scale_id ON grade_thresholds(scale_id);

@@ -13,7 +13,9 @@ import {
   getChildProgress,
   getChildSubjects,
   getCompletedCurricula,
+  getYearOverYearProgress,
 } from "@/lib/queries/students";
+import YearOverYearChart from "@/components/students/YearOverYearChart";
 import { getUpcomingLessons } from "@/lib/queries/lessons";
 import { getAllSchoolYearsForReports } from "@/lib/queries/reports";
 export default async function StudentDetailPage({
@@ -31,13 +33,14 @@ export default async function StudentDetailPage({
   )
     ? searchParams.yearId
     : undefined;
-  const [progress, subjects, upcoming, completedCurricula, activeYear] =
+  const [progress, subjects, upcoming, completedCurricula, activeYear, yearOverYear] =
     await Promise.all([
       getChildProgress(params.id, yearId),
       getChildSubjects(params.id, yearId),
       getUpcomingLessons(params.id, 5),
       getCompletedCurricula(params.id, yearId),
       getActiveSchoolYear(),
+      getYearOverYearProgress(params.id),
     ]);
   const completionPct =
     progress.total_lessons > 0
@@ -311,6 +314,14 @@ export default async function StudentDetailPage({
           </div>{" "}
         </Card>{" "}
       </div>{" "}
+      {/* Year-over-Year Progress */}{" "}
+      {yearOverYear.length > 1 && (
+        <div className="mt-6">
+          <Card title="Year-over-Year Progress">
+            <YearOverYearChart data={yearOverYear} childId={params.id} />
+          </Card>
+        </div>
+      )}{" "}
     </div>
   );
 }

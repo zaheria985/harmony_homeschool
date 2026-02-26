@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Badge from "@/components/ui/Badge";
 import EditableCell from "@/components/ui/EditableCell";
 import { updateGrade } from "@/lib/actions/completions";
+import { getLetterGrade } from "@/lib/utils/grading";
 
 type GradeRow = {
   completion_id: string;
@@ -18,7 +19,19 @@ type GradeRow = {
   child_name: string;
 };
 
-export default function GradesTableClient({ grades }: { grades: GradeRow[] }) {
+type Threshold = {
+  letter: string;
+  min_score: number;
+  color: string | null;
+};
+
+export default function GradesTableClient({
+  grades,
+  thresholds = [],
+}: {
+  grades: GradeRow[];
+  thresholds?: Threshold[];
+}) {
   const router = useRouter();
 
   async function saveGrade(completionId: string, notes: string | null, value: string) {
@@ -74,19 +87,32 @@ export default function GradesTableClient({ grades }: { grades: GradeRow[] }) {
                 </Link>
               </td>
               <td className="py-3">
-                <EditableCell
-                  value={String(Number(g.grade).toFixed(0))}
-                  onSave={(value) => saveGrade(g.completion_id, g.notes, value)}
-                  className={
-                    Number(g.grade) >= 90
-                      ? "font-semibold text-success-600"
-                      : Number(g.grade) >= 80
-                        ? "font-semibold text-interactive"
-                        : Number(g.grade) >= 70
-                          ? "font-semibold text-warning-600"
-                          : "font-semibold text-[var(--error-text)]"
-                  }
-                />
+                <div className="flex items-center gap-2">
+                  <EditableCell
+                    value={String(Number(g.grade).toFixed(0))}
+                    onSave={(value) => saveGrade(g.completion_id, g.notes, value)}
+                    className={
+                      Number(g.grade) >= 90
+                        ? "font-semibold text-success-600"
+                        : Number(g.grade) >= 80
+                          ? "font-semibold text-interactive"
+                          : Number(g.grade) >= 70
+                            ? "font-semibold text-warning-600"
+                            : "font-semibold text-[var(--error-text)]"
+                    }
+                  />
+                  {thresholds.length > 0 && (() => {
+                    const letterInfo = getLetterGrade(Number(g.grade), thresholds);
+                    return letterInfo ? (
+                      <span
+                        className="inline-block rounded px-1.5 py-0.5 text-xs font-semibold text-white"
+                        style={{ backgroundColor: letterInfo.color || "#6b7280" }}
+                      >
+                        {letterInfo.letter}
+                      </span>
+                    ) : null;
+                  })()}
+                </div>
               </td>
               <td className="py-3 text-muted">
                 <EditableCell

@@ -605,20 +605,36 @@ Grades, Reports, and Completed Lessons are three related read-heavy views that a
 
 ### Future Scope
 
-- **Grade trends** — Chart showing grade trajectory over time per subject
-- **Custom grading scales** — Allow defining letter grade thresholds (A/B/C/D/F) mapped to numeric ranges
 - **Weighted grades** — Support assignment weighting within a curriculum (e.g. tests worth more than homework)
 
 ### Pages
 
 **`/grades`** — Gradebook
 
-- Summary cards per child showing per-subject average grades with color dots
+- Summary cards per child showing per-subject average grades with color dots and **letter grade badges** from the default grading scale
+- **Grade trends chart** via `GradeTrendsChart` — per-subject sparkline charts showing grade trajectory over time
+  - Inline SVG with polyline trend lines and circle data points, colored by subject
+  - Hover tooltips showing lesson title, grade, and date
+  - Student filter dropdown when multiple children exist
+  - Grouped by child, with responsive 2-column grid layout
+  - Data from `getGradeTrends()` query in `lib/queries/grades.ts`
 - Full grades table via `GradesTableClient` with inline editing
 - **Table columns:** Student, Lesson (linked), Subject (badge, linked), Grade (editable), Notes (editable), Date
 - **Grade color coding:** green (90+), blue (80-89), amber (70-79), red (<70)
+- **Letter grade badges** next to numeric grades, derived from the default grading scale thresholds
+- "Grading Scales" link in page header navigates to `/settings` for configuration
 - Inline editing calls `updateGrade` server action, then refreshes
 - No pagination, sorting, or filtering currently
+
+**`/settings`** — Settings (includes Grading Scales)
+
+- **Grading scale editor** via `GradingScaleEditor` client component
+- Lists all grading scales; each shows threshold badges (letter: min_score+)
+- Default scale marked with star icon; click star on any scale to set as default
+- Edit mode: inline editing of scale name, threshold letters, min scores, and colors
+- Create new scales with pre-populated default thresholds (A/B/C/D/F)
+- Delete scales (disabled for default scale)
+- Default "Standard" scale seeded on migration: A (90+), B (80+), C (70+), D (60+), F (0+)
 
 **`/reports`** — Progress Reports
 
@@ -648,6 +664,7 @@ Grades, Reports, and Completed Lessons are three related read-heavy views that a
 - **Server-side filtering** — Completed page builds dynamic SQL WHERE clause from URL params. All filters are optional and combinable.
 - **School year filter on reports** — Year selector on the reports page allows reviewing progress for any school year, not just the active one.
 - **Exportable PDF report cards** — Per-child PDF report card generation via pdfkit (`/api/reports/export`). Includes subject breakdown, grade averages, and completion stats for record-keeping or submission to school districts.
+- **Custom grading scales** — Configurable letter grade thresholds via `/settings`. Tables: `grading_scales` (name, is_default) and `grade_thresholds` (scale_id, letter, min_score, color). Default scale's thresholds are used to display letter grade badges on the grades page. Server actions in `lib/actions/grades.ts` (CRUD, set default). Utility function `getLetterGrade()` in `lib/utils/grading.ts` maps numeric grades to letters.
 
 ---
 

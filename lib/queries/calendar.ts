@@ -172,3 +172,44 @@ export async function getSchoolYears() {
   );
   return res.rows;
 }
+
+export async function getSemesterOverview(
+  startMonth: string,
+  months: number,
+  childId?: string,
+  parentId?: string
+) {
+  const params: (string | number)[] = [startMonth + "-01", months];
+  const conditions: string[] = [
+    "l.planned_date >= $1::date",
+    "l.planned_date < ($1::date + ($2 || ' months')::interval)",
+  ];
+
+  if (childId) {
+    conditions.push(`ca.child_id = $${params.length + 1}`);
+    params.push(childId);
+  }
+
+  if (parentId) {
+    conditions.push(
+      `EXISTS (SELECT 1 FROM parent_children pc WHERE pc.parent_id = $${params.length + 1} AND pc.child_id = ca.child_id)`
+    );
+    params.push(parentId);
+  }
+
+  const res = await pool.query(
+    `SELECT l.planned_date::text AS date,
+            COUNT(*)::int AS total,
+            COUNT(lc.id)::int AS completed
+     FROM lessons l
+     JOIN curricula cu ON cu.id = l.curriculum_id
+     JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id
+     LEFT JOIN lesson_completions lc
+       ON lc.lesson_id = l.id AND lc.child_id = ca.child_id
+     WHERE ${conditions.join(" AND ")}
+     GROUP BY l.planned_date
+     ORDER BY l.planned_date`,
+    params
+  );
+  return res.rows as { date: string; total: number; completed: number }[];
+}

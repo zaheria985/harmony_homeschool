@@ -4,8 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import Card from "@/components/ui/Card";
 import Modal from "@/components/ui/Modal";
 import Badge from "@/components/ui/Badge";
+import ViewToggle from "@/components/ui/ViewToggle";
 import LessonDetailModal from "@/components/lessons/LessonDetailModal";
 import LessonFormModal from "./LessonFormModal";
+import SemesterOverview from "@/components/calendar/SemesterOverview";
 
 type Lesson = {
   id: string;
@@ -60,6 +62,11 @@ export default function CalendarView({
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [selectedChild, setSelectedChild] = useState("");
+  const [calView, setCalView] = useState<string>("month");
+
+  // Semester overview defaults to 6 months starting from August of the current school year
+  const semesterStartYear = month >= 8 ? year : year - 1;
+  const semesterStartMonth = `${semesterStartYear}-08`;
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [externalEvents, setExternalEvents] = useState<ExternalEvent[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -201,35 +208,54 @@ export default function CalendarView({
             ))}
           </select>
         )}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={prevMonth}
-            aria-label="Previous month"
-            className="rounded-lg border px-3 py-2 text-sm hover:bg-surface-muted"
-          >
-            &larr;
-          </button>
-          <span className="min-w-[140px] text-center font-semibold">
-            {MONTHS[month - 1]} {year}
-          </span>
-          <button
-            onClick={nextMonth}
-            aria-label="Next month"
-            className="rounded-lg border px-3 py-2 text-sm hover:bg-surface-muted"
-          >
-            &rarr;
-          </button>
-        </div>
+        <ViewToggle
+          storageKey="calendar-view"
+          options={[
+            { key: "month", label: "Month" },
+            { key: "semester", label: "Semester" },
+          ]}
+          defaultView="month"
+          onChange={setCalView}
+        />
+        {calView === "month" && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={prevMonth}
+              aria-label="Previous month"
+              className="rounded-lg border px-3 py-2 text-sm hover:bg-surface-muted"
+            >
+              &larr;
+            </button>
+            <span className="min-w-[140px] text-center font-semibold">
+              {MONTHS[month - 1]} {year}
+            </span>
+            <button
+              onClick={nextMonth}
+              aria-label="Next month"
+              className="rounded-lg border px-3 py-2 text-sm hover:bg-surface-muted"
+            >
+              &rarr;
+            </button>
+          </div>
+        )}
       </div>
 
-      {fetchError && (
+      {calView === "semester" && (
+        <SemesterOverview
+          startMonth={semesterStartMonth}
+          months={6}
+          childId={selectedChild || undefined}
+        />
+      )}
+
+      {calView === "month" && fetchError && (
         <p className="mb-4 rounded-lg bg-[var(--error-bg)] p-3 text-sm text-red-600" role="alert">
           {fetchError}
         </p>
       )}
 
       {/* Calendar Grid */}
-      <Card>
+      {calView === "month" && <Card>
         <div className="grid grid-cols-7 gap-px">
           {DAYS.map((d) => (
             <div
@@ -306,7 +332,7 @@ export default function CalendarView({
             );
           })}
         </div>
-      </Card>
+      </Card>}
 
       {/* Day Detail Modal */}
       <Modal

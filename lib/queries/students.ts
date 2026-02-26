@@ -97,6 +97,44 @@ export async function getChildSubjects(childId: string, yearId?: string) {
   return res.rows;
 }
 
+export async function getYearOverYearProgress(childId: string) {
+  const res = await pool.query(`
+    SELECT sy.id AS year_id, sy.label AS year_name,
+           COUNT(DISTINCT ca.curriculum_id)::int AS total_curricula,
+           COUNT(DISTINCT l.id)::int AS total_lessons,
+           COUNT(DISTINCT lc.id)::int AS completed_lessons,
+           ROUND(AVG(lc.grade)::numeric, 1) AS avg_grade
+    FROM school_years sy
+    JOIN curriculum_assignments ca ON ca.school_year_id = sy.id AND ca.child_id = $1
+    JOIN curricula cu ON cu.id = ca.curriculum_id
+    LEFT JOIN lessons l ON l.curriculum_id = cu.id
+    LEFT JOIN lesson_completions lc ON lc.lesson_id = l.id AND lc.child_id = $1
+    GROUP BY sy.id, sy.label
+    ORDER BY sy.label
+  `, [childId]);
+  return res.rows;
+}
+
+export async function getYearSummaryReport(childId: string, yearId: string) {
+  const res = await pool.query(`
+    SELECT
+      s.name AS subject_name,
+      cu.name AS curriculum_name,
+      COUNT(DISTINCT l.id)::int AS total_lessons,
+      COUNT(DISTINCT lc.id)::int AS completed_lessons,
+      ROUND(AVG(lc.grade)::numeric, 1) AS avg_grade
+    FROM curriculum_assignments ca
+    JOIN curricula cu ON cu.id = ca.curriculum_id
+    JOIN subjects s ON s.id = cu.subject_id
+    LEFT JOIN lessons l ON l.curriculum_id = cu.id
+    LEFT JOIN lesson_completions lc ON lc.lesson_id = l.id AND lc.child_id = $1
+    WHERE ca.child_id = $1 AND ca.school_year_id = $2
+    GROUP BY s.name, cu.name
+    ORDER BY s.name, cu.name
+  `, [childId, yearId]);
+  return res.rows;
+}
+
 export async function getCompletedCurricula(childId: string, yearId?: string) {
   const yearFilter = yearId
     ? "AND ca.school_year_id = $2"
