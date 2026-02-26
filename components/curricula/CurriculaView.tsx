@@ -188,11 +188,23 @@ export default function CurriculaView({
     });
   }, [timelineFiltered]);
 
+  async function confirmAndDelete(id: string): Promise<boolean> {
+    const result = await deleteCurriculum(id);
+    if (result && "confirm" in result) {
+      const ok = window.confirm(
+        `This curriculum has ${result.lessonCount} lessons (${result.completedCount} with completion records). Deleting will permanently remove all lesson data. Continue?`
+      );
+      if (!ok) return false;
+      await deleteCurriculum(id, true);
+    }
+    return true;
+  }
+
   async function handleBulkDelete() {
     if (selectedIds.size === 0) return;
     setIsDeleting(true);
     for (const id of selectedIds) {
-      await deleteCurriculum(id);
+      await confirmAndDelete(id);
     }
     setIsDeleting(false);
     setSelectedIds(new Set());
@@ -360,7 +372,7 @@ export default function CurriculaView({
                         onEdit={() => setEditingCurriculum(curriculum)}
                         onDelete={() => {
                           startTransition(async () => {
-                            await deleteCurriculum(curriculum.id);
+                            await confirmAndDelete(curriculum.id);
                             router.refresh();
                           });
                         }}
@@ -461,7 +473,7 @@ export default function CurriculaView({
                                 onEdit={() => setEditingCurriculum(curriculum)}
                                 onDelete={() => {
                                   startTransition(async () => {
-                                    await deleteCurriculum(curriculum.id);
+                                    await confirmAndDelete(curriculum.id);
                                     router.refresh();
                                   });
                                 }}
@@ -638,7 +650,7 @@ export default function CurriculaView({
                           onEdit={() => setEditingCurriculum(curriculum)}
                           onDelete={() => {
                             startTransition(async () => {
-                              await deleteCurriculum(curriculum.id);
+                              await confirmAndDelete(curriculum.id);
                               router.refresh();
                             });
                           }}

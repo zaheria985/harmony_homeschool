@@ -187,7 +187,7 @@ Subjects are global categories (e.g. Mathematics, History, Science) that organiz
 ### Future Scope
 
 - **Multi-subject curricula** — Allow a curriculum to be tagged with one or more subjects (junction table) instead of the current single `subject_id` foreign key
-- **Safe subject deletion** — Decouple subject deletion from curricula; deleting a subject should unlink it from curricula rather than cascade-deleting them
+- **Safe subject deletion** — *(Implemented)* Subject deletion now uses `ON DELETE SET NULL` instead of CASCADE; deleting a subject unlinks it from curricula rather than cascade-deleting them
 - **Subject-level reports** — Per-subject progress reports across school years with grade trends and completion history
 - **Subject templates** — Pre-built subject structures for common homeschool approaches (Classical, Charlotte Mason, etc.)
 
@@ -203,7 +203,7 @@ Subjects are global categories (e.g. Mathematics, History, Science) that organiz
 | thumbnail_url | TEXT (nullable) | Path or URL to subject image |
 | created_at | TIMESTAMPTZ | Auto-set on creation |
 
-Uniqueness enforced at the database level on `name`. Deleting a subject cascades to all curricula via `ON DELETE CASCADE`.
+Uniqueness enforced at the database level on `name`. Deleting a subject sets `subject_id` to NULL on associated curricula via `ON DELETE SET NULL`.
 
 ### Server Actions
 
@@ -211,7 +211,7 @@ Uniqueness enforced at the database level on `name`. Deleting a subject cascades
 |---|---|---|
 | `createSubject(FormData)` | name (required), color, thumbnail_file | Creates a subject; thumbnail via file upload only |
 | `updateSubject(FormData)` | id, name, color, thumbnail_url, thumbnail_file, clear_thumbnail | Updates subject; supports file upload, URL, or clearing thumbnail |
-| `deleteSubject(subjectId)` | UUID string | Hard deletes subject; cascades to all curricula, lessons, and completions |
+| `deleteSubject(subjectId)` | UUID string | Hard deletes subject; sets `subject_id` to NULL on associated curricula (no cascade) |
 
 ### Pages
 
@@ -233,7 +233,7 @@ Uniqueness enforced at the database level on `name`. Deleting a subject cascades
 
 - **Global scope** — Subjects are not owned by any child. They are shared across the entire system. The `child_ids` array on list queries is derived from curriculum assignments, not direct ownership.
 - **Color presets** — The create form offers 10 preset colors. The edit modal uses a native color picker for full customization.
-- **Cascading delete** — Deleting a subject removes all its curricula, which cascades to curriculum assignments, lessons, lesson resources, and lesson completions.
+- **Safe deletion** — Deleting a subject sets `subject_id` to NULL on associated curricula (`ON DELETE SET NULL`). Curricula, lessons, and completions are preserved.
 - **Inline table editing** — In table view, name, color, and thumbnail URL can be edited directly without opening a modal.
 
 ---
@@ -260,17 +260,17 @@ Curricula and lessons form the core of Harmony Homeschool. A curriculum (course 
 
 ### Future Scope
 
-- **Prepped flag** — Boolean on curricula so the parent can mark when all planning and prep for a course is complete. Purely a tracking/organizational aid with no functional side effects.
+- **Prepped flag** — *(Implemented)* Boolean on curricula so the parent can mark when all planning and prep for a course is complete. Toggleable via the curriculum edit modal.
 - **Actual start/end dates** — Track when a course actually started and completed, separate from the planned dates. Useful for end-of-year reporting and understanding schedule drift.
 - **Curriculum tags** — New `curriculum_tags` junction table to extend the existing tag system to courses (currently only resources are taggable).
 - **Course-to-lesson resource flow** — Improved UI for managing curriculum-level resources: easily attach books and materials to a course, then when editing a lesson, select from the course's resource library rather than searching the global list.
 - **Combo grade type** — `grade_type = 'combo'` allowing per-lesson grade mode within a single curriculum
 - **Lesson tags** — `lesson_tags` junction table extending the tag system to individual lessons
-- **Safe curriculum deletion** — Replace cascade delete with a prompted workflow that preserves completed lesson records
+- **Safe curriculum deletion** — *(Implemented)* `deleteCurriculum` checks for completed lessons and requires `force=true` to proceed when completions exist
 - **Completed lesson archiving** — End-of-year process to archive completed lessons as permanent records, decoupled from the curriculum structure
-- **Smart auto-scheduling** — `autoScheduleLessons` should skip dates that already have a lesson scheduled for that curriculum, only assigning to open dates
-- **Per-curriculum default view** — Store a preferred view (board vs list) on the curriculum record so it opens in the right mode
-- **Per-curriculum default filter** — Store a preferred lesson filter (All / Incomplete / Completed) on the curriculum record so the list view opens with the right tab pre-selected
+- **Smart auto-scheduling** — *(Implemented)* `autoScheduleLessons` now skips dates that already have a lesson scheduled for that curriculum, only assigning to open dates
+- **Per-curriculum default view** — *(Implemented)* Stores a preferred view (board vs list) on the curriculum record; the `/curricula/[id]` redirect page uses `default_view` to route to the correct view
+- **Per-curriculum default filter** — *(Implemented)* Stores a preferred lesson filter (All / Incomplete / Completed) on the curriculum record so the list view opens with the right tab pre-selected
 - **Lesson templates** — Reusable lesson structures that can be applied to new curricula
 - **Curriculum sharing** — Export/import curricula between Harmony instances
 - **Completion-aware status** — Currently `lesson.status` is a single shared field even though completions are per-child; decouple so each child can have independent progress on shared curricula
@@ -283,7 +283,7 @@ Curricula and lessons form the core of Harmony Homeschool. A curriculum (course 
 | Field | Type | Status | Description |
 |---|---|---|---|
 | id | UUID | Exists | Primary key |
-| subject_id | UUID | Exists | Foreign key to subjects (cascading delete) |
+| subject_id | UUID (nullable) | Exists | Foreign key to subjects (`ON DELETE SET NULL`); null if subject deleted |
 | name | TEXT | Exists | Course name, required |
 | description | TEXT (nullable) | Exists | Course description |
 | order_index | INTEGER | Exists | Sort order within subject, default 0 |
@@ -294,7 +294,9 @@ Curricula and lessons form the core of Harmony Homeschool. A curriculum (course 
 | start_date | DATE (nullable) | Exists | Planned start date |
 | end_date | DATE (nullable) | Exists | Planned end date |
 | notes | TEXT (nullable) | Exists | Internal notes |
-| prepped | BOOLEAN | **Future** | Parent marks when course planning/prep is complete |
+| prepped | BOOLEAN | Exists | Parent marks when course planning/prep is complete; default false |
+| default_view | TEXT (nullable) | Exists | Preferred view mode (`board` or `list`); used by `/curricula/[id]` redirect |
+| default_filter | TEXT (nullable) | Exists | Preferred lesson filter (`all`, `incomplete`, or `completed`); used by list view |
 | actual_start_date | DATE | **Future** | Date the course actually started |
 | actual_end_date | DATE | **Future** | Date the course was actually completed |
 
@@ -420,14 +422,7 @@ Currently only `numeric` and `pass_fail` exist. `combo` is a future addition.
 
 ### Curriculum Deletion
 
-Current behavior: `ON DELETE CASCADE` removes all lessons and completions when a curriculum is deleted.
-
-**Desired behavior:**
-1. Prompt the user: "This curriculum has N lessons (M completed). Do you want to delete all lessons too?"
-2. If the curriculum has **completed lessons** for any child, **do not delete them by default**. Instead:
-   - Orphan completed lessons (set `curriculum_id` to null or move to an archive)
-   - Or preserve the curriculum in an archived state rather than deleting
-3. Completed lesson records should always be preserved for historical reference — the material studied should remain accessible regardless of whether the course structure is kept.
+`deleteCurriculum` checks for completed lesson records before proceeding. If the curriculum has any `lesson_completions`, deletion is blocked unless `force=true` is passed. The UI prompts the user with the number of completed lessons and requires confirmation to force-delete. When `force=true` is provided (or no completions exist), `ON DELETE CASCADE` removes all lessons and completions.
 
 ### Server Actions — Curricula
 
@@ -435,7 +430,7 @@ Current behavior: `ON DELETE CASCADE` removes all lessons and completions when a
 |---|---|---|
 | `createCurriculum(FormData)` | name, subject_id, description, course_type, grade_type, status, dates, notes, cover_image_file, child_id, school_year_id | Creates curriculum; optionally creates assignment |
 | `updateCurriculum(FormData)` | id + same fields | Updates curriculum; handles cover image upload/clear |
-| `deleteCurriculum(id)` | UUID | Hard deletes; cascades to assignments, lessons, completions |
+| `deleteCurriculum(id, force?)` | UUID + optional boolean | Checks for completed lessons; blocks unless `force=true` when completions exist; cascades to assignments, lessons, completions |
 | `assignCurriculum(FormData)` | curriculum_id, child_id, school_year_id | Creates assignment (upsert) |
 | `unassignCurriculum(id, childId)` | Two UUIDs | Removes assignment |
 
@@ -490,12 +485,13 @@ Current behavior: `ON DELETE CASCADE` removes all lessons and completions when a
 
 ### Key Behaviors
 
-- **Scheduling algorithm** — `autoScheduleLessons` walks forward from today (or school year start), skipping non-school days and date overrides, assigning one lesson per valid day. Custom assignment days take priority over school year defaults.
+- **Scheduling algorithm** — `autoScheduleLessons` walks forward from today (or school year start), skipping non-school days, date overrides, and dates that already have a lesson scheduled for that curriculum, assigning one lesson per valid open day. Custom assignment days take priority over school year defaults.
 - **Completion cascading** — When a lesson is completed ahead of schedule, `shiftLessonsAfterCompletion` shifts remaining incomplete lessons forward to fill the gap.
 - **Bump overdue** — `bumpOverdueLessons` finds overdue lessons per-curriculum and shifts them to the next valid dates. Can be triggered per-child or for all children.
 - **Completion copying** — When a curriculum is shared between children and one has more completions, `CompletionCopyBanner` detects the mismatch and offers one-click copying.
 - **Permission-aware completions** — Kid users with `mark_complete` permission create pending completions that require parent approval. Full-permission users complete immediately.
 - **Lesson status is shared** — `lesson.status` is a single field, not per-child. Marking complete for one child sets it to `completed` for all. This is a known limitation (see Future Scope).
+- **Prepped toggle** — The curriculum edit modal includes a checkbox to toggle the `prepped` boolean. This is a purely organizational aid with no functional side effects; it indicates that all planning and prep for the course is complete.
 - **Drag-and-drop** — Uses `@dnd-kit` for board card reordering. On drop, all affected cards get updated `order_index` and `section` values via `reorderLessons`.
 
 ### Data Flow
@@ -681,7 +677,7 @@ The Calendar provides a monthly view of scheduled lessons and external events, w
 
 - **Drag-and-drop rescheduling on calendar** — Move lessons between days by dragging on the monthly grid
 - **Multi-month or semester view** — Zoomed-out view showing completion density across months
-- **Show all subjects per day** — Currently each day cell shows a maximum of 2 subject indicators. The calendar should show ALL lesson subjects per day using a compact layout that scales.
+- **Show all subjects per day** — *(Implemented)* Day cells now show all lesson subjects per day with no limit, using a compact layout that scales.
 - **Improved day detail modal** — Denser day cells with a quick-access centered overlay for day detail
 
 ### Architecture
@@ -719,8 +715,7 @@ Returns RFC 5545 iCalendar file with future non-completed lessons as all-day eve
 Standard 7-column grid (Sun-Sat). Each day cell shows:
 - Day number (today highlighted with ring)
 - Up to 1 external event (color dot + school emoji)
-- Up to 2 subject indicators (color dots)
-- "+N more" overflow indicator
+- All subject indicators (color dots) for scheduled lessons, no limit
 
 Clicking a day opens a **Day Detail Modal** grouping lessons by Subject -> Curriculum. Each lesson is clickable to open the full Lesson Detail Modal.
 

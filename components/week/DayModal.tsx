@@ -18,11 +18,13 @@ export default function DayModal({
   onClose,
   title,
   subjects,
+  onLessonClick,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   subjects: ModalSubject[];
+  onLessonClick?: (id: string) => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -89,29 +91,41 @@ export default function DayModal({
                   {" "}
                   {subject.lessons.map((lesson) => {
                     const isCompleted = lesson.status === "completed";
-                    return (
-                      <Link
-                        key={lesson.id}
-                        href={`/lessons/${lesson.id}`}
-                        className="flex items-center gap-2 py-2.5 transition-colors hover:text-interactive"
-                        onClick={onClose}
-                      >
-                        {" "}
+                    const className = "flex w-full items-center gap-2 py-2.5 text-left transition-colors hover:text-interactive";
+                    const content = (
+                      <>
                         <span
                           className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${isCompleted ? "bg-[var(--success-solid)]" : lesson.status === "in_progress" ? "bg-[var(--warning-solid)]" : "bg-border"}`}
-                        />{" "}
+                        />
                         <span
                           className={`flex-1 text-sm ${isCompleted ? "text-muted line-through" : "text-secondary"}`}
                         >
-                          {" "}
-                          {lesson.title}{" "}
-                        </span>{" "}
+                          {lesson.title}
+                        </span>
                         {lesson.grade !== null && (
                           <span className="text-xs font-medium text-muted">
-                            {" "}
-                            {lesson.grade}%{" "}
+                            {lesson.grade}%
                           </span>
-                        )}{" "}
+                        )}
+                      </>
+                    );
+                    return onLessonClick ? (
+                      <button
+                        key={lesson.id}
+                        type="button"
+                        className={className}
+                        onClick={() => onLessonClick(lesson.id)}
+                      >
+                        {content}
+                      </button>
+                    ) : (
+                      <Link
+                        key={lesson.id}
+                        href={`/lessons/${lesson.id}`}
+                        className={className}
+                        onClick={onClose}
+                      >
+                        {content}
                       </Link>
                     );
                   })}{" "}

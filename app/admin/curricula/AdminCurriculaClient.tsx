@@ -174,7 +174,14 @@ export default function AdminCurriculaClient({
   async function handleDelete(curriculum: Curriculum) {
     setSubmitting(true);
     const result = await deleteCurriculum(curriculum.id);
-    if ("error" in result) {
+    if (result && "confirm" in result) {
+      const ok = window.confirm(
+        `This curriculum has ${result.lessonCount} lessons (${result.completedCount} with completion records). Deleting will permanently remove all lesson data. Continue?`
+      );
+      if (ok) {
+        await deleteCurriculum(curriculum.id, true);
+      }
+    } else if ("error" in result) {
       setError(result.error || "Failed to delete curriculum");
     }
     setSubmitting(false);

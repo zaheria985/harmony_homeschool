@@ -10,6 +10,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import DayModal from "./DayModal";
+import LessonDetailModal from "@/components/lessons/LessonDetailModal";
 import {
   formatWeekdayShort,
   formatShortDate,
@@ -140,6 +141,8 @@ export default function WeekGrid({
 }) {
   const router = useRouter();
   const [selectedDay, setSelectedDay] = useState<DayData | null>(null);
+  const [detailLessonId, setDetailLessonId] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [localWeeks, setLocalWeeks] = useState<WeekData[]>(weeks);
   const [draggingLesson, setDraggingLesson] = useState<DragLesson | null>(null);
   const [dropTargetDate, setDropTargetDate] = useState<string | null>(null);
@@ -269,7 +272,7 @@ export default function WeekGrid({
     }
   }
   function handleTouchStart(
-    event: TouchEvent<HTMLAnchorElement>,
+    event: TouchEvent<HTMLElement>,
     lesson: DragLesson,
   ) {
     if (isPending || event.touches.length !== 1) return;
@@ -280,7 +283,7 @@ export default function WeekGrid({
       setTouchDragging(true);
     }, 220);
   }
-  function handleTouchMove(event: TouchEvent<HTMLAnchorElement>) {
+  function handleTouchMove(event: TouchEvent<HTMLElement>) {
     if (!touchDragging || !draggingLesson) return;
     const touch = event.touches[0];
     if (!touch) return;
@@ -498,18 +501,20 @@ export default function WeekGrid({
                                   </Link>
                                   <div className="mt-0.5 space-y-0.5 pl-2">
                                     {courseGroup.lessons.map((lesson) => (
-                                      <Link
+                                      <button
                                         key={lesson.id}
-                                        href={`/lessons/${lesson.id}`}
+                                        type="button"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           if (
                                             touchDragging ||
                                             suppressNextClick.current
                                           ) {
-                                            e.preventDefault();
                                             suppressNextClick.current = false;
+                                            return;
                                           }
+                                          setDetailLessonId(lesson.id);
+                                          setDetailOpen(true);
                                         }}
                                         draggable={!isPending}
                                         onDragStart={(event) => {
@@ -536,11 +541,10 @@ export default function WeekGrid({
                                         onTouchMove={handleTouchMove}
                                         onTouchEnd={handleTouchEnd}
                                         onTouchCancel={handleTouchCancel}
-                                        className={`block line-clamp-2 text-sm leading-tight transition-colors hover:text-interactive md:text-xs ${lesson.status === "completed" ? "text-muted line-through" : "text-tertiary"}`}
+                                        className={`block text-left line-clamp-2 text-sm leading-tight transition-colors hover:text-interactive md:text-xs ${lesson.status === "completed" ? "text-muted line-through" : "text-tertiary"}`}
                                       >
-                                        {" "}
-                                        {lesson.title}{" "}
-                                      </Link>
+                                        {lesson.title}
+                                      </button>
                                     ))}
                                   </div>
                                 </div>
@@ -566,7 +570,22 @@ export default function WeekGrid({
             : ""
         }
         subjects={selectedDay?.subjects || []}
-      />{" "}
+        onLessonClick={(id) => {
+          setSelectedDay(null);
+          setDetailLessonId(id);
+          setDetailOpen(true);
+        }}
+      />
+      <LessonDetailModal
+        lessonId={detailLessonId}
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        onEdit={() => {}}
+        onChanged={() => {
+          setDetailOpen(false);
+          router.refresh();
+        }}
+      />
     </>
   );
 }

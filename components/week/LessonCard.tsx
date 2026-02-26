@@ -1,10 +1,11 @@
+"use client";
 import Link from "next/link";
 import Badge from "@/components/ui/Badge";
 import LessonCheckbox from "./LessonCheckbox";
 import RescheduleButton from "./RescheduleButton";
 import ResourceEmbed from "./ResourceEmbed";
 import type { DaySubjectLesson } from "@/lib/queries/week";
-export default function LessonCard({ lesson }: { lesson: DaySubjectLesson }) {
+export default function LessonCard({ lesson, onLessonClick }: { lesson: DaySubjectLesson; onLessonClick?: (id: string) => void }) {
   const isCompleted = lesson.status === "completed";
   return (
     <div
@@ -25,13 +26,22 @@ export default function LessonCard({ lesson }: { lesson: DaySubjectLesson }) {
           {" "}
           <div className="flex items-center gap-2">
             {" "}
-            <Link
-              href={`/lessons/${lesson.id}`}
-              className={`font-medium hover:underline ${isCompleted ? "text-muted line-through" : "text-interactive"}`}
-            >
-              {" "}
-              {lesson.title}{" "}
-            </Link>{" "}
+            {onLessonClick ? (
+              <button
+                type="button"
+                onClick={() => onLessonClick(lesson.id)}
+                className={`font-medium hover:underline text-left ${isCompleted ? "text-muted line-through" : "text-interactive"}`}
+              >
+                {lesson.title}
+              </button>
+            ) : (
+              <Link
+                href={`/lessons/${lesson.id}`}
+                className={`font-medium hover:underline ${isCompleted ? "text-muted line-through" : "text-interactive"}`}
+              >
+                {lesson.title}
+              </Link>
+            )}{" "}
             {isCompleted && <Badge variant="success">Done</Badge>}{" "}
             {lesson.status === "in_progress" && (
               <Badge variant="warning">In Progress</Badge>

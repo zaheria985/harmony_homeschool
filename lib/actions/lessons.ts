@@ -1164,9 +1164,25 @@ export async function reorderLessons(
   return { success: true };
 }
 
-export async function deleteCurriculum(curriculumId: string) {
+export async function deleteCurriculum(curriculumId: string, force = false) {
   const parsed = z.string().uuid().safeParse(curriculumId);
   if (!parsed.success) return { error: "Invalid curriculum ID" };
+
+  // Check for completed lessons before deleting
+  const statsRes = await pool.query(
+    `SELECT
+       COUNT(*)::int AS lesson_count,
+       COUNT(DISTINCT lc.id)::int AS completed_count
+     FROM lessons l
+     LEFT JOIN lesson_completions lc ON lc.lesson_id = l.id
+     WHERE l.curriculum_id = $1`,
+    [parsed.data]
+  );
+  const { lesson_count, completed_count } = statsRes.rows[0] as { lesson_count: number; completed_count: number };
+
+  if (completed_count > 0 && !force) {
+    return { confirm: true, lessonCount: lesson_count, completedCount: completed_count };
+  }
 
   await pool.query("DELETE FROM curricula WHERE id = $1", [parsed.data]);
 

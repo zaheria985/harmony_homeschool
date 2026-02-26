@@ -4,7 +4,7 @@ import {
   getSubjectById,
 } from "@/lib/queries/week";
 import { formatWeekday, formatShortDate } from "@/lib/utils/dates";
-import LessonCard from "@/components/week/LessonCard";
+import LessonCardList from "@/components/week/LessonCardList";
 import Breadcrumbs from "@/components/week/Breadcrumbs";
 import { getCurrentUser } from "@/lib/session";
 export const dynamic = "force-dynamic";
@@ -52,12 +52,7 @@ export default async function SubjectLessonsPage({
           No lessons for this subject today.
         </p>
       ) : (
-        <div className="space-y-3">
-          {" "}
-          {lessons.map((lesson) => (
-            <LessonCard key={lesson.id} lesson={lesson} />
-          ))}{" "}
-        </div>
+        <LessonCardList lessons={lessons} />
       )}{" "}
     </div>
   );

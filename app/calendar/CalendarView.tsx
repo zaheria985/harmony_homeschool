@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Card from "@/components/ui/Card";
 import Modal from "@/components/ui/Modal";
 import Badge from "@/components/ui/Badge";
-import LessonDetailModal from "./LessonDetailModal";
+import LessonDetailModal from "@/components/lessons/LessonDetailModal";
 import LessonFormModal from "./LessonFormModal";
 
 type Lesson = {
