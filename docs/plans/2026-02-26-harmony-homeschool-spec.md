@@ -110,8 +110,7 @@ Student Management tracks the children being homeschooled. Each child has a prof
 
 ### Future Scope
 
-- **Year-over-year progress** — Compare performance across school years (e.g. grade trends, completion rates by subject)
-- **Archived year reports** — Generate and export a summary report for a completed school year
+(No remaining items — all previously scoped items have been implemented.)
 
 ### Data Model
 
@@ -164,6 +163,8 @@ All actions validate with Zod, use parameterized SQL, and revalidate `/students`
 - **School year selector** — Dropdown on the student detail page allows browsing previous school years to review historical courses, grades, and completion rates. Filters curricula/completions by the selected year.
 - **Admin-only CRUD** — Create/edit/delete UI lives in `/admin/children`, not on the student pages themselves. Supports table and gallery views with an emoji picker (30 presets) and image upload.
 - **Cascading delete** — Deleting a child removes all curriculum assignments, lesson completions, and parent linkages via database cascades. Booklist `owner_child_id` is set to NULL.
+- **Year-over-year progress** — `YearOverYearChart` component compares performance across school years with SVG charts showing grade trends and completion rates by subject. Data from `getYearOverYearProgress()` in `lib/queries/students.ts`. Displayed on student detail page when data spans more than one year.
+- **Archived year reports** — Per-child, per-school-year summary report generation via `GET /api/reports/year-summary`. Returns formatted plain-text with completion stats, grade averages, and subject breakdowns.
 
 ---
 
@@ -186,12 +187,20 @@ Subjects are global categories (e.g. Mathematics, History, Science) that organiz
 
 ### Future Scope
 
-- **Multi-subject curricula** — Allow a curriculum to be tagged with one or more subjects (junction table) instead of the current single `subject_id` foreign key
-- **Safe subject deletion** — *(Implemented)* Subject deletion now uses `ON DELETE SET NULL` instead of CASCADE; deleting a subject unlinks it from curricula rather than cascade-deleting them
-- **Subject-level reports** — Per-subject progress reports across school years with grade trends and completion history
-- **Subject templates** — Pre-built subject structures for common homeschool approaches (Classical, Charlotte Mason, etc.)
+(No remaining items — all previously scoped items have been implemented.)
 
 ### Data Model
+
+**curriculum_subjects** (junction — multi-subject curricula)
+
+| Field | Type | Description |
+|---|---|---|
+| id | UUID | Primary key |
+| curriculum_id | UUID | Foreign key to curricula |
+| subject_id | UUID | Foreign key to subjects |
+| is_primary | BOOLEAN | Whether this is the primary subject, default false |
+
+Unique on (curriculum_id, subject_id). Created via migration 036; backfilled from existing `subject_id`. Enables tagging curricula with multiple subjects.
 
 **subjects**
 
@@ -235,6 +244,9 @@ Uniqueness enforced at the database level on `name`. Deleting a subject sets `su
 - **Color presets** — The create form offers 10 preset colors. The edit modal uses a native color picker for full customization.
 - **Safe deletion** — Deleting a subject sets `subject_id` to NULL on associated curricula (`ON DELETE SET NULL`). Curricula, lessons, and completions are preserved.
 - **Inline table editing** — In table view, name, color, and thumbnail URL can be edited directly without opening a modal.
+- **Multi-subject curricula** — Curricula can be tagged with multiple subjects via the `curriculum_subjects` junction table with an `is_primary` flag. Queries join and return `secondary_subjects` string for display.
+- **Subject-level reports** — `SubjectProgressReport` component shows per-subject progress across school years with grade trends and completion history. Displayed on `/subjects/[id]`.
+- **Subject templates** — `SubjectTemplateButton` provides pre-built subject sets for Classical, Charlotte Mason, and Traditional approaches. Server action `applySubjectTemplate` in `lib/actions/lessons.ts`.
 
 ---
 
@@ -260,11 +272,8 @@ Curricula and lessons form the core of Harmony Homeschool. A curriculum (course 
 
 ### Future Scope
 
-- **Completed lesson archiving** — End-of-year process to archive completed lessons as permanent records, decoupled from the curriculum structure
-- **Lesson templates** — Reusable lesson structures that can be applied to new curricula
-- **Curriculum sharing** — Export/import curricula between Harmony instances
 - **Completion-aware status** — Currently `lesson.status` is a single shared field even though completions are per-child; decouple so each child can have independent progress on shared curricula
-- **Recurring lessons** — Lessons that repeat on a schedule (e.g. daily reading) without creating individual records
+- **Recurring lessons (runtime expansion)** — Schema fields exist (`is_recurring`, `recurrence_rule`, `recurrence_end`) and the create/update actions store them, but runtime expansion of recurrence into occurrences is not yet implemented
 
 ### Data Model
 
@@ -347,6 +356,11 @@ Extends the tag system to curricula. Composite primary key on (curriculum_id, ta
 | status | TEXT | `planned`, `in_progress`, or `completed`, default `planned` |
 | section | TEXT (nullable) | Groups lessons into sections/chapters (added via migration) |
 | estimated_duration | (nullable) | Estimated time (added via migration) |
+| archived | BOOLEAN | Default false; completed lessons can be archived as permanent records |
+| grade_weight | NUMERIC(3,2) | Default 1.0; weighting for grade calculations within a curriculum |
+| is_recurring | BOOLEAN | Default false; marks lesson as recurring |
+| recurrence_rule | TEXT (nullable) | Recurrence pattern (e.g. daily, weekly) |
+| recurrence_end | DATE (nullable) | When recurrence stops |
 
 **lesson_completions**
 
@@ -386,6 +400,19 @@ Unique constraint on (lesson_id, child_id).
 
 Extends the tag system to individual lessons. Composite primary key on (lesson_id, tag_id).
 
+**lesson_templates**
+
+| Field | Type | Description |
+|---|---|---|
+| id | UUID | Primary key |
+| name | TEXT | Template name, required |
+| description | TEXT (nullable) | Template description |
+| lessons | JSONB | Array of lesson structures (title, description, order) |
+| created_at | TIMESTAMPTZ | Auto-set |
+| updated_at | TIMESTAMPTZ | Auto-set |
+
+Reusable lesson structures. Save a curriculum's lessons as a template, then apply to new curricula.
+
 ### Lessons — Key Behaviors
 
 **Student inheritance** — When a lesson is created within a curriculum, it automatically inherits all children assigned to that curriculum. Completion records are tracked per-child, but the lesson is available to all assigned students without manual assignment. If a new child is assigned to the curriculum later, they gain access to all existing lessons.
@@ -399,6 +426,12 @@ Extends the tag system to individual lessons. Composite primary key on (lesson_i
 These are derived via the relationship chain (`lesson -> curriculum -> subject`) and displayed on lesson views, not stored as denormalized fields.
 
 **Lesson tags** — Lessons can be tagged using the existing tag system via a new `lesson_tags` junction table.
+
+**Completed lesson archiving** — `archiveCompletedLessons` and `unarchiveLessons` server actions in `lib/actions/lessons.ts`. Marks completed lessons as archived (permanent records) scoped by curriculum or school year. `LessonArchiveCard` component in admin for managing archived lessons.
+
+**Lesson templates** — Save a curriculum's lesson structure as a reusable template. `LessonTemplateManager` component provides UI for browsing, saving, applying, and deleting templates. Server actions in `lib/actions/templates.ts`: `getLessonTemplates`, `saveAsTemplate`, `applyLessonTemplate`, `deleteLessonTemplate`.
+
+**Curriculum export/import** — Export a curriculum as JSON via `GET /api/export/curriculum?id=`. Import via `ImportCurriculumModal` component which accepts JSON and creates curriculum with lessons.
 
 ### Curricula — Grade Type
 
@@ -527,7 +560,7 @@ The Week Planner is the primary daily-use view for managing homeschool schedulin
 
 ### Future Scope
 
-- **Drag-and-drop between children** — Reassign a lesson from one child to another via drag
+(No remaining items — all previously scoped items have been implemented.)
 
 ### Route Structure
 
@@ -573,6 +606,7 @@ Full lesson detail cards with: completion checkbox, title, curriculum link, desc
 - **Bump notification banner** — Displays the count of auto-bumped overdue lessons in a visible banner after the bump runs.
 - **Weekly summary/notes** — A per-week notes field for the parent to jot down reflections or plans, stored via `weekly-notes` server actions.
 - **Checklist progress indicator** — Lesson cards in the week view display checklist completion counts when the lesson has checklist items.
+- **Lesson reassignment** — Lessons can be reassigned from one child to another via `reassignLessonToChild` server action, accessible from the week grid per-lesson menu.
 
 ### Queries
 
@@ -605,7 +639,7 @@ Grades, Reports, and Completed Lessons are three related read-heavy views that a
 
 ### Future Scope
 
-- **Weighted grades** — Support assignment weighting within a curriculum (e.g. tests worth more than homework)
+(No remaining items — all previously scoped items have been implemented.)
 
 ### Pages
 
@@ -665,6 +699,7 @@ Grades, Reports, and Completed Lessons are three related read-heavy views that a
 - **School year filter on reports** — Year selector on the reports page allows reviewing progress for any school year, not just the active one.
 - **Exportable PDF report cards** — Per-child PDF report card generation via pdfkit (`/api/reports/export`). Includes subject breakdown, grade averages, and completion stats for record-keeping or submission to school districts.
 - **Custom grading scales** — Configurable letter grade thresholds via `/settings`. Tables: `grading_scales` (name, is_default) and `grade_thresholds` (scale_id, letter, min_score, color). Default scale's thresholds are used to display letter grade badges on the grades page. Server actions in `lib/actions/grades.ts` (CRUD, set default). Utility function `getLetterGrade()` in `lib/utils/grading.ts` maps numeric grades to letters.
+- **Weighted grades** — `grade_weight` column on lessons (default 1.0) allows assignment weighting within a curriculum. Grade calculations use `SUM(grade * grade_weight) / SUM(grade_weight)` for weighted averages. Set via lesson form modal.
 
 ---
 
@@ -691,9 +726,6 @@ The Calendar provides a monthly view of scheduled lessons and external events, w
 ### Future Scope
 
 - **Drag-and-drop rescheduling on calendar** — Move lessons between days by dragging on the monthly grid
-- **Multi-month or semester view** — Zoomed-out view showing completion density across months
-- ~~**Improved day detail modal**~~ — DONE: Denser cells with completion counts, per-lesson titles, status badges, quick-complete buttons, grade display, event occurrence notes
-- **Event notes per occurrence** — Add notes to specific dates of recurring events (stored in `event_occurrence_notes` table)
 
 ### Architecture
 
@@ -791,6 +823,11 @@ Managed via admin panel (`/admin/calendar`). Controls which dates are valid for 
 | Create subjects / curricula | Yes | No |
 | iCal export | Via token URL | Via token URL |
 
+### Additional Key Behaviors
+
+- **Semester overview** — `SemesterOverview` component provides a zoomed-out heatmap view showing completion density across months. Accessible as a view mode (`calView === "semester"`) in `CalendarView.tsx`.
+- **Event notes per occurrence** — Notes can be added to specific dates of recurring events via `event_occurrence_notes` table. Inline note editor in calendar day modal. API endpoint: `GET /api/calendar/occurrence-notes`.
+
 ---
 
 ## Feature 7: Resources & Tags
@@ -814,9 +851,7 @@ Resources are a global library of learning materials — books, videos, PDFs, li
 
 ### Future Scope
 
-- **Resource usage analytics** — Track which resources are most/least used across curricula
-- **Asset vs resource separation** — Clearly distinguish between app assets (uploaded images for display purposes) and learning resources (materials used in instruction). Assets should have their own storage and management path, never appearing in the global resource library.
-- **Resource type: "local file"** — If local file attachments (worksheets, printables) need to be treated as resources, add a distinct `local_file` type so they can be filtered separately from external URLs.
+(No remaining items — all previously scoped items have been implemented.)
 
 ### Data Model
 
@@ -826,7 +861,8 @@ Resources are a global library of learning materials — books, videos, PDFs, li
 |---|---|---|
 | id | UUID | Primary key |
 | title | TEXT | Resource name, required |
-| type | TEXT | `book`, `video`, `pdf`, `link`, or `supply` |
+| type | TEXT | `book`, `video`, `pdf`, `link`, `supply`, or `local_file` |
+| category | TEXT | `learning` or `asset`, default `learning` |
 | author | TEXT (nullable) | Author name (primarily for books) |
 | url | TEXT (nullable) | Resource URL |
 | thumbnail_url | TEXT (nullable) | Cover image / thumbnail path |
@@ -938,6 +974,10 @@ Composite primary key on (resource_id, tag_id).
 - **Course-to-lesson resource flow** — When editing a lesson, a checklist of the parent curriculum's resources is shown for easy selection instead of searching the global library.
 - **Bulk tag assignment** — Tags can be applied to multiple selected resources at once from the list view.
 - **Promote inline to global** — Inline-only lesson resources can be converted into full library resources with one click.
+- **Resource usage analytics** — `ResourceUsageStats` component shows an expandable analytics table with lesson count, curriculum count, last used date per resource. Highlights unused resources.
+- **Asset vs resource separation** — Resources have a `category` column (`learning` or `asset`) to distinguish learning materials from app assets. Filterable in the resource list.
+- **Local file type** — `local_file` resource type for worksheets and printables. Filterable separately from external URLs.
+- **Bulk resource import** — `BulkResourceImportModal` allows paste-based bulk import of resources (books, links). Server action: `bulkImportResources` in `lib/actions/resources.ts`.
 
 ---
 
@@ -961,8 +1001,7 @@ Booklists are named collections of book-type resources, displayed as a kanban-st
 
 ### Future Scope
 
-- **Book recommendations** — Suggest books based on current subjects or tags
-- **Booklist sharing/export** — Export a booklist as a printable reading list or share between Harmony instances
+(No remaining items — all previously scoped items have been implemented.)
 
 ### Data Model
 
@@ -1020,6 +1059,8 @@ Composite primary key on (booklist_id, resource_id). Only `type = 'book'` resour
 - **Curriculum-linked booklists** — Booklists can be assigned to a curriculum as supplemental reading lists. The booklist appears on the curriculum view (board and list). A single booklist can be linked to multiple curricula.
 - **Bulk booklist import** — Import a list of books from a pasted text list, CSV, or external curriculum catalog for quick population of reading lists.
 - **Reading log** — Tracks pages read and time spent per book per child via the `reading_log` table. Accessible at `/reading` with a dedicated `ReadingLogClient` component. Server actions in `lib/actions/reading.ts` and queries in `lib/queries/reading.ts`.
+- **Book recommendations** — `BookRecommendations` component suggests books based on tag overlap with current booklist contents. Displays matching score, thumbnails, and author.
+- **Booklist export** — `BooklistExportButton` offers HTML print view and `.txt` download via `GET /api/export/booklist`.
 
 ---
 
@@ -1045,8 +1086,6 @@ External Events track non-lesson activities — co-ops, sports, classes, tutorin
 ### Future Scope
 
 - **Two-way calendar sync** — Sync external events with Google Calendar, Apple Calendar, or CalDAV
-- ~~**Event notes per occurrence**~~ — DONE: `event_occurrence_notes` table, inline note editor in calendar day modal
-- **Travel time / location** — Add location and estimated travel time to help with daily planning
 
 ### Data Model
 
@@ -1066,6 +1105,8 @@ External Events track non-lesson activities — co-ops, sports, classes, tutorin
 | all_day | BOOLEAN | Default false |
 | color | TEXT | Hex color code, default `#3b82f6` |
 | category | TEXT (nullable) | Event category: `co-op`, `sport`, `music`, `art`, `field-trip`, or `other` |
+| location | TEXT (nullable) | Event location for planning |
+| travel_minutes | INTEGER (nullable) | Estimated travel time in minutes |
 | created_at | TIMESTAMPTZ | Auto-set |
 
 **external_event_children** (junction)
@@ -1149,6 +1190,7 @@ All actions are parent-only (kid role blocked).
 Events are always scoped by child (or all children for parent view) and filtered to the displayed date range.
 
 - **Event categories** — Events can be categorized by type (`co-op`, `sport`, `music`, `art`, `field-trip`, `other`) for filtering and reporting.
+- **Travel time / location** — Events support `location` (text) and `travel_minutes` (integer) fields for daily planning. Displayed and editable in the external events management UI.
 
 ---
 
@@ -1284,8 +1326,7 @@ The Admin panel provides power-user tools for configuration, bulk operations, an
 
 ### Future Scope
 
-- **Bulk resource import** — Import resources (books, links) from a pasted list or CSV, not just via Trello
-- **Admin dashboard** — Richer analytics: completion trends, time-to-complete, subject balance across children
+(No remaining items — all previously scoped items have been implemented.)
 
 ### Admin Hub (`/admin`)
 
@@ -1367,6 +1408,7 @@ Covered in Feature 7. Full tag lifecycle: create, rename, merge, delete with res
 - **Platform import** — Generic CSV/JSON import for lessons and books from other homeschool platforms. Supports comma and tab delimited CSV, and JSON arrays. Lesson import creates a new curriculum assigned to the selected child and school year. Book import adds to the booklist as wishlist items. Accessible via "Import Data" card on the admin page (`/admin`). Server action: `importFromPlatform` in `lib/actions/import.ts`. Client component: `PlatformImportCard` in `components/admin/PlatformImportCard.tsx` with `PlatformImportModal`.
 - **Interactive checklists** — Lesson descriptions support functional, toggleable checklist items. Checklist items can be checked off as they are completed. Works across lesson detail, board, and week views.
 - **Checklist progress tracking** — Lesson cards in board and week views display checklist completion counts (e.g. "3/5 items done").
+- **Admin analytics** — `AdminAnalytics` component shows completion trends, time-to-complete analysis, and subject balance across children. Displayed on the admin hub.
 
 ---
 
@@ -1423,13 +1465,19 @@ Returns: `{ created, deleted, skipped }`.
 - Task unmarked -> deletes completion, resets status to `planned`
 - Signature verified via HMAC-SHA256 with `timingSafeEqual`
 
+### Integration: iCal Calendar Subscriptions (Implemented)
+
+- **Static iCal export** — `GET /api/calendar/ical` provides RFC 5545 iCalendar with future lessons as all-day events, including subject, child, curriculum, and reminders
+- **Per-child filtering** — `?kid=ChildName` parameter filters the feed
+- **Token auth** — Optional `ICAL_TOKEN` env var for URL-based authentication
+- **Admin UI** — `CalendarSubscriptions` component on admin page shows subscription URLs for each child and all-children feed
+- **External events included** — External events are included in the iCal feed alongside lessons
+
 ### Future Integration: Radicale CalDAV (replaces Vikunja)
 
 - **Live subscribable calendars** via CalDAV instead of static iCal file download
-- **Per-child calendars** for granular subscriptions
 - **Auto-publish on change** — push updates when lessons are created, rescheduled, or completed
 - **Two-way completion** — detect when a calendar event is marked done
-- **External events included** alongside lessons
 - Radicale runs as a separate container in docker-compose
 
 ### Integration 2: AI Lesson Suggestions
@@ -1456,11 +1504,11 @@ Uses an LLM to suggest lesson topics for a given subject and curriculum, avoidin
 - Parses response, strips markdown fences, validates as string array
 - Returns `{ suggestions: string[] }` or `{ error: string }`
 
-#### Future Scope
+#### Additional AI Capabilities (Implemented)
 
-- **AI-generated descriptions** — Suggest lesson descriptions and learning objectives, not just titles
-- **Curriculum planning assistant** — Given a subject and grade level, generate an entire curriculum outline
-- **Resource suggestions** — Recommend books, videos, or links for a given lesson topic
+- **AI-generated descriptions** — `generateLessonDescription` in `lib/actions/ai.ts` suggests 2-3 sentence lesson descriptions and learning objectives. Triggered from the lesson form modal.
+- **Curriculum planning assistant** — `generateCurriculumPlan` in `lib/actions/ai.ts` generates an entire curriculum outline given subject, grade level, and week count. `AICurriculumPlanModal` provides the UI.
+- **Resource suggestions** — `suggestResources` in `lib/actions/ai.ts` recommends 3-5 resources (books, videos, links) for a given lesson topic. Integrated into `CardViewModal`.
 
 ### Integration 3: Cron — Bump Overdue Lessons
 
