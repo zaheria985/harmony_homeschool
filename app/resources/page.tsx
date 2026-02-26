@@ -1,8 +1,9 @@
 export const dynamic = "force-dynamic";
 import PageHeader from "@/components/ui/PageHeader";
-import { getAllResources } from "@/lib/queries/resources";
+import { getAllResources, getResourceUsageStats } from "@/lib/queries/resources";
 import { getAllBooklists } from "@/lib/queries/booklists";
 import ResourcesClient from "@/components/resources/ResourcesClient";
+import ResourceUsageStats from "@/components/resources/ResourceUsageStats";
 export default async function ResourcesPage({
   searchParams,
 }: {
@@ -11,25 +12,26 @@ export default async function ResourcesPage({
   const type = searchParams.type || "";
   const search = searchParams.search || "";
   const tag = searchParams.tag || "";
-  const [resources, booklists] = await Promise.all([
+  const [resources, booklists, usageStats] = await Promise.all([
     getAllResources({
       type: type || undefined,
       search: search || undefined,
       tag: tag || undefined,
     }),
     getAllBooklists(),
+    getResourceUsageStats(),
   ]);
   return (
     <div>
-      {" "}
-      <PageHeader title="Resources" />{" "}
+      <PageHeader title="Resources" />
       <ResourcesClient
         resources={resources}
         booklists={booklists}
         initialTypeFilter={type}
         initialSearch={search}
         initialTagFilter={tag}
-      />{" "}
+      />
+      <ResourceUsageStats stats={usageStats} />
     </div>
   );
 }

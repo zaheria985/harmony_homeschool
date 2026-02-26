@@ -213,6 +213,3 @@ export async function setDefaultScale(formData: FormData) {
   }
 }
 
-// ── Utility (re-export from shared module) ───────────────────────────────
-
-export { getLetterGrade } from "@/lib/utils/grading";

@@ -515,6 +515,7 @@ const createLessonSchema = z.object({
   planned_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
   description: z.string().optional(),
   section: z.string().optional(),
+  grade_weight: z.coerce.number().min(0.1).max(10).default(1.0),
 });
 
 const bulkLessonItemSchema = z.object({
@@ -541,18 +542,19 @@ export async function createLesson(formData: FormData) {
     planned_date: formData.get("planned_date") || undefined,
     description: formData.get("description") || undefined,
     section: formData.get("section") || undefined,
+    grade_weight: formData.get("grade_weight") || 1.0,
   });
 
   if (!data.success) {
     return { error: data.error.errors[0]?.message || "Invalid input" };
   }
 
-  const { title, curriculum_id, planned_date, description, section } = data.data;
+  const { title, curriculum_id, planned_date, description, section, grade_weight } = data.data;
 
   const res = await pool.query(
-    `INSERT INTO lessons (title, curriculum_id, planned_date, description, section)
-     VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-    [title, curriculum_id, planned_date || null, description || null, section || null]
+    `INSERT INTO lessons (title, curriculum_id, planned_date, description, section, grade_weight)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+    [title, curriculum_id, planned_date || null, description || null, section || null, grade_weight]
   );
 
   const lessonId = res.rows[0].id;
@@ -712,6 +714,7 @@ const updateLessonSchema = z.object({
   curriculum_id: z.string().uuid(),
   planned_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
   description: z.string().optional(),
+  grade_weight: z.coerce.number().min(0.1).max(10).default(1.0),
 });
 
 export async function updateLesson(formData: FormData) {
@@ -721,19 +724,20 @@ export async function updateLesson(formData: FormData) {
     curriculum_id: formData.get("curriculum_id"),
     planned_date: formData.get("planned_date") || undefined,
     description: formData.get("description") || undefined,
+    grade_weight: formData.get("grade_weight") || 1.0,
   });
 
   if (!data.success) {
     return { error: data.error.errors[0]?.message || "Invalid input" };
   }
 
-  const { id, title, curriculum_id, planned_date, description } = data.data;
+  const { id, title, curriculum_id, planned_date, description, grade_weight } = data.data;
 
   try {
     await pool.query(
-      `UPDATE lessons SET title = $1, curriculum_id = $2, planned_date = $3, description = $4
-       WHERE id = $5`,
-      [title, curriculum_id, planned_date || null, description || null, id]
+      `UPDATE lessons SET title = $1, curriculum_id = $2, planned_date = $3, description = $4, grade_weight = $5
+       WHERE id = $6`,
+      [title, curriculum_id, planned_date || null, description || null, grade_weight, id]
     );
   } catch (err) {
     console.error("Failed to update lesson", { id, error: err instanceof Error ? err.message : String(err) });

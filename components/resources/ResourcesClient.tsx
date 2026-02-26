@@ -10,6 +10,7 @@ import RowActions from "@/components/ui/RowActions";
 import { Package } from "lucide-react";
 import ViewToggle from "@/components/ui/ViewToggle";
 import { createGlobalResource, bulkDeleteResources, bulkAddTagsToResources } from "@/lib/actions/resources";
+import BulkResourceImportModal from "@/components/resources/BulkResourceImportModal";
 
 type Resource = {
   id: string;
@@ -81,6 +82,7 @@ export default function ResourcesClient({
   const [showBulkTag, setShowBulkTag] = useState(false);
   const [bulkTagInput, setBulkTagInput] = useState("");
   const [isTagging, setIsTagging] = useState(false);
+  const [showBulkImport, setShowBulkImport] = useState(false);
 
   const allExistingTags = useMemo(() => {
     const set = new Set<string>();
@@ -240,6 +242,13 @@ export default function ResourcesClient({
             defaultView="table"
             onChange={setView}
           />
+          <button
+            type="button"
+            onClick={() => setShowBulkImport(true)}
+            className="rounded-lg border border-light bg-surface px-4 py-2 text-sm font-medium text-secondary hover:bg-surface-muted"
+          >
+            Bulk Import
+          </button>
           <button
             onClick={() => setShowCreate(true)}
             className="rounded-lg bg-interactive px-4 py-2 text-sm font-medium text-white hover:bg-interactive-hover"
@@ -561,6 +570,14 @@ export default function ResourcesClient({
           </div>
         </form>
       </Modal>
+
+      <BulkResourceImportModal
+        open={showBulkImport}
+        onClose={() => {
+          setShowBulkImport(false);
+          router.refresh();
+        }}
+      />
     </>
   );
 }

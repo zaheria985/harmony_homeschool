@@ -2,8 +2,9 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
-import { getAdminStats, getArchiveStats } from "@/lib/queries/admin";
+import { getAdminStats, getArchiveStats, getAdminAnalytics } from "@/lib/queries/admin";
 import LessonArchiveCard from "@/components/admin/LessonArchiveCard";
+import AdminAnalytics from "@/components/admin/AdminAnalytics";
 
 const sections = [
   {
@@ -16,9 +17,10 @@ const sections = [
 ];
 
 export default async function AdminPage() {
-  const [stats, archiveStats] = await Promise.all([
+  const [stats, archiveStats, analytics] = await Promise.all([
     getAdminStats(),
     getArchiveStats(),
+    getAdminAnalytics(),
   ]);
   return (
     <div>
@@ -256,6 +258,13 @@ export default async function AdminPage() {
           </ul>
         </Card>
       </div>
+
+      <AdminAnalytics
+        completionTrend={analytics.completionTrend}
+        subjectBalance={analytics.subjectBalance}
+        avgDaysToComplete={analytics.avgDaysToComplete}
+        activeChildren={analytics.activeChildren}
+      />
     </div>
   );
 }

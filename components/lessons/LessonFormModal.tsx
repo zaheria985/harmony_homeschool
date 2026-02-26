@@ -23,6 +23,7 @@ type LessonData = {
   subject_name?: string;
   child_id?: string;
   resources?: Resource[];
+  grade_weight?: number | null;
 };
 
 type Subject = { id: string; name: string };
@@ -49,6 +50,7 @@ export default function LessonFormModal({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [plannedDate, setPlannedDate] = useState("");
+  const [gradeWeight, setGradeWeight] = useState("1.0");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -67,12 +69,14 @@ export default function LessonFormModal({
           : "",
       );
       setCurriculumId(lesson.curriculum_id);
+      setGradeWeight(String(lesson.grade_weight ?? 1.0));
       // In edit mode, child/subject are pre-set and we load cascading data
       if (lesson.child_id) setChildId(lesson.child_id);
     } else {
       setTitle("");
       setDescription("");
       setPlannedDate("");
+      setGradeWeight("1.0");
       setCurriculumId("");
       setChildId("");
       setSubjectId("");
@@ -167,6 +171,7 @@ export default function LessonFormModal({
     formData.set("curriculum_id", curriculumId);
     formData.set("planned_date", plannedDate);
     formData.set("description", description);
+    formData.set("grade_weight", gradeWeight);
 
     if (isEdit && lesson) {
       formData.set("id", lesson.id);
@@ -326,17 +331,34 @@ export default function LessonFormModal({
           />
         </div>
 
-        {/* Planned date */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-secondary">
-            Planned Date
-          </label>
-          <input
-            type="date"
-            value={plannedDate}
-            onChange={(e) => setPlannedDate(e.target.value)}
-            className="w-full rounded-lg border px-3 py-2 text-sm"
-          />
+        {/* Planned date and Weight */}
+        <div className="flex gap-4">
+          <div className="flex-1">
+            <label className="mb-1 block text-sm font-medium text-secondary">
+              Planned Date
+            </label>
+            <input
+              type="date"
+              value={plannedDate}
+              onChange={(e) => setPlannedDate(e.target.value)}
+              className="w-full rounded-lg border px-3 py-2 text-sm"
+            />
+          </div>
+          <div className="w-24">
+            <label className="mb-1 block text-sm font-medium text-secondary">
+              Weight
+            </label>
+            <input
+              type="number"
+              step="0.1"
+              min="0.1"
+              max="10"
+              value={gradeWeight}
+              onChange={(e) => setGradeWeight(e.target.value)}
+              className="w-full rounded-lg border px-3 py-2 text-sm"
+              title="Grade weight for weighted average calculation"
+            />
+          </div>
         </div>
 
         {/* Error */}

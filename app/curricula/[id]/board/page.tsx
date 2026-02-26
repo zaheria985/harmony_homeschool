@@ -8,6 +8,7 @@ import { getCurriculumBoardData, getArchivedLessonCount } from "@/lib/queries/cu
 import { getLinkedBooklists, getAllBooklistSummaries } from "@/lib/queries/booklists";
 import { getCurrentUser } from "@/lib/session";
 import LinkedBooklists from "@/components/curricula/LinkedBooklists";
+import LessonTemplateManager from "@/components/curricula/LessonTemplateManager";
 export default async function CurriculumBoardPage({
   params,
   searchParams,
@@ -112,6 +113,14 @@ export default async function CurriculumBoardPage({
               Show archived ({archivedCount})
             </Link>
           )}
+        </div>
+      )}
+      {user.role === "parent" && (
+        <div className="mb-4">
+          <LessonTemplateManager
+            curriculumId={data.id}
+            lessonCount={data.lessons.length}
+          />
         </div>
       )}
       <CurriculumBoard

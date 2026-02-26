@@ -16,6 +16,7 @@ import {
 } from "@/lib/queries/curricula";
 import { getLinkedBooklists, getAllBooklistSummaries } from "@/lib/queries/booklists";
 import LinkedBooklists from "@/components/curricula/LinkedBooklists";
+import LessonTemplateManager from "@/components/curricula/LessonTemplateManager";
 import { getCurrentUser } from "@/lib/session";
 export default async function CurriculumDetailPage({
   params,
@@ -178,6 +179,14 @@ export default async function CurriculumDetailPage({
               Show archived ({archivedCount})
             </Link>
           )}
+        </div>
+      )}
+      {user.role === "parent" && (
+        <div className="mb-4">
+          <LessonTemplateManager
+            curriculumId={params.id}
+            lessonCount={curriculum.lessons.length}
+          />
         </div>
       )}
       <Card title="Lessons">

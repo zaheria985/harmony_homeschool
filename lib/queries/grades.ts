@@ -122,7 +122,7 @@ export async function getGradeSummary(childId: string, yearId?: string) {
        s.name AS subject_name,
        s.color AS subject_color,
        COUNT(lc.id)::int AS graded_count,
-       COALESCE(AVG(lc.grade), 0)::numeric(5,2) AS avg_grade,
+       COALESCE(ROUND(SUM(lc.grade * l.grade_weight) / NULLIF(SUM(l.grade_weight), 0), 1), 0)::numeric(5,2) AS avg_grade,
        COALESCE(MIN(lc.grade), 0)::numeric(5,2) AS min_grade,
        COALESCE(MAX(lc.grade), 0)::numeric(5,2) AS max_grade
      FROM curriculum_assignments ca

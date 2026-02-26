@@ -169,6 +169,68 @@ export async function getCurriculumScheduleExceptions() {
   });
 }
 
+export async function getAdminAnalytics() {
+  // Completion trend: lessons completed per week for last 12 weeks
+  const completionTrend = await pool.query(`
+    SELECT
+      DATE_TRUNC('week', lc.completed_at)::date AS week_start,
+      COUNT(*)::int AS count
+    FROM lesson_completions lc
+    WHERE lc.completed_at >= NOW() - INTERVAL '12 weeks'
+    GROUP BY DATE_TRUNC('week', lc.completed_at)
+    ORDER BY week_start
+  `);
+
+  // Subject balance: lesson count per subject
+  const subjectBalance = await pool.query(`
+    SELECT
+      s.name AS subject_name,
+      s.color AS subject_color,
+      COUNT(DISTINCT l.id)::int AS lesson_count
+    FROM subjects s
+    LEFT JOIN curricula cu ON cu.subject_id = s.id
+    LEFT JOIN lessons l ON l.curriculum_id = cu.id
+    GROUP BY s.id, s.name, s.color
+    HAVING COUNT(DISTINCT l.id) > 0
+    ORDER BY lesson_count DESC
+  `);
+
+  // Time to complete: avg days between scheduled_date and completion date
+  const timeToComplete = await pool.query(`
+    SELECT
+      ROUND(AVG(EXTRACT(EPOCH FROM (lc.completed_at - l.planned_date::timestamp)) / 86400), 1) AS avg_days
+    FROM lesson_completions lc
+    JOIN lessons l ON l.id = lc.lesson_id
+    WHERE l.planned_date IS NOT NULL
+      AND lc.completed_at IS NOT NULL
+  `);
+
+  // Active children: children with completions in the last 30 days
+  const activeChildren = await pool.query(`
+    SELECT DISTINCT c.id, c.name
+    FROM children c
+    JOIN lesson_completions lc ON lc.child_id = c.id
+    WHERE lc.completed_at >= NOW() - INTERVAL '30 days'
+    ORDER BY c.name
+  `);
+
+  return {
+    completionTrend: completionTrend.rows as Array<{
+      week_start: string;
+      count: number;
+    }>,
+    subjectBalance: subjectBalance.rows as Array<{
+      subject_name: string;
+      subject_color: string | null;
+      lesson_count: number;
+    }>,
+    avgDaysToComplete: timeToComplete.rows[0]?.avg_days
+      ? Number(timeToComplete.rows[0].avg_days)
+      : null,
+    activeChildren: activeChildren.rows as Array<{ id: string; name: string }>,
+  };
+}
+
 export async function getArchiveStats() {
   const res = await pool.query(`
     SELECT

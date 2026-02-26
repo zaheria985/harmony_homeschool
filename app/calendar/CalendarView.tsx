@@ -10,6 +10,7 @@ import LessonFormModal from "./LessonFormModal";
 import SemesterOverview from "@/components/calendar/SemesterOverview";
 import { markLessonComplete } from "@/lib/actions/completions";
 import { saveOccurrenceNote } from "@/lib/actions/external-events";
+import { rescheduleLesson } from "@/lib/actions/lessons";
 
 type Lesson = {
   id: string;
@@ -131,6 +132,11 @@ export default function CalendarView({
       title: string | null;
     }[];
   } | null>(null);
+
+  // Drag-and-drop rescheduling
+  const [draggedLesson, setDraggedLesson] = useState<{ id: string; date: string } | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const [isRescheduling, startRescheduling] = useTransition();
 
   const [fetchError, setFetchError] = useState("");
 
@@ -362,6 +368,14 @@ export default function CalendarView({
         </p>
       )}
 
+      {/* Rescheduling indicator */}
+      {isRescheduling && (
+        <div className="mb-2 flex items-center gap-2 rounded-lg bg-interactive/10 px-3 py-2 text-sm text-interactive">
+          <span className="h-3 w-3 animate-spin rounded-full border-2 border-interactive border-t-transparent" />
+          Rescheduling lesson...
+        </div>
+      )}
+
       {/* Calendar Grid */}
       {calView === "month" && <Card>
         <div className="grid grid-cols-7 gap-px">
@@ -390,18 +404,49 @@ export default function CalendarView({
               day === now.getDate() &&
               month === now.getMonth() + 1 &&
               year === now.getFullYear();
+            const isDropTarget = dropTarget === dateStr && draggedLesson?.date !== dateStr;
 
             return (
-              <button
+              <div
                 key={day}
                 onClick={() => {
-                  setSelectedDate(dateStr);
-                  setDayModalOpen(true);
+                  if (!draggedLesson) {
+                    setSelectedDate(dateStr);
+                    setDayModalOpen(true);
+                  }
                 }}
-                className={`min-h-[90px] border p-1.5 text-left transition-colors hover:bg-interactive-light ${
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  setDropTarget(dateStr);
+                }}
+                onDragLeave={(e) => {
+                  // Only clear if leaving the cell entirely (not entering a child)
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setDropTarget(null);
+                  }
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const lessonId = e.dataTransfer.getData("text/plain");
+                  const fromDate = draggedLesson?.date;
+                  setDropTarget(null);
+                  setDraggedLesson(null);
+                  if (lessonId && fromDate && fromDate !== dateStr) {
+                    startRescheduling(async () => {
+                      await rescheduleLesson(lessonId, dateStr);
+                      fetchLessons();
+                    });
+                  }
+                }}
+                className={`min-h-[90px] cursor-pointer border p-1.5 text-left transition-colors hover:bg-interactive-light ${
                   isToday
                     ? "bg-interactive-light ring-2 ring-[var(--interactive-border)]"
                     : "bg-surface"
+                } ${
+                  isDropTarget
+                    ? "ring-2 ring-dashed ring-interactive bg-interactive/10"
+                    : ""
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -433,26 +478,46 @@ export default function CalendarView({
                   {dayEvents.length > 2 && (
                     <span className="text-[9px] text-muted">+{dayEvents.length - 2} more</span>
                   )}
-                  {dayLessons.slice(0, 3).map((l) => (
-                    <div key={l.id} className="flex items-center gap-0.5">
-                      <span
-                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                          l.status === "completed" ? "ring-1 ring-[var(--success-text)]" : ""
-                        }`}
-                        style={{ backgroundColor: l.subject_color }}
-                      />
-                      <span className={`truncate text-[10px] leading-tight ${
-                        l.status === "completed" ? "text-muted line-through" : "text-tertiary"
-                      }`}>
-                        {l.title}
-                      </span>
-                    </div>
-                  ))}
+                  {dayLessons.slice(0, 3).map((l) => {
+                    const isDraggable = !readOnly && l.status !== "completed";
+                    const isBeingDragged = draggedLesson?.id === l.id;
+                    return (
+                      <div
+                        key={l.id}
+                        draggable={isDraggable}
+                        onDragStart={(e) => {
+                          if (!isDraggable) return;
+                          e.dataTransfer.setData("text/plain", l.id);
+                          e.dataTransfer.effectAllowed = "move";
+                          setDraggedLesson({ id: l.id, date: dateStr });
+                        }}
+                        onDragEnd={() => {
+                          setDraggedLesson(null);
+                          setDropTarget(null);
+                        }}
+                        className={`flex items-center gap-0.5 ${
+                          isDraggable ? "cursor-grab active:cursor-grabbing" : ""
+                        } ${isBeingDragged ? "opacity-50 ring-1 ring-interactive rounded" : ""}`}
+                      >
+                        <span
+                          className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                            l.status === "completed" ? "ring-1 ring-[var(--success-text)]" : ""
+                          }`}
+                          style={{ backgroundColor: l.subject_color }}
+                        />
+                        <span className={`truncate text-[10px] leading-tight ${
+                          l.status === "completed" ? "text-muted line-through" : "text-tertiary"
+                        }`}>
+                          {l.title}
+                        </span>
+                      </div>
+                    );
+                  })}
                   {dayLessons.length > 3 && (
                     <span className="text-[9px] text-muted">+{dayLessons.length - 3} more</span>
                   )}
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>

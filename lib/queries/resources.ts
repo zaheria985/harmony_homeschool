@@ -154,6 +154,28 @@ export async function getAllTagNames(): Promise<string[]> {
   return res.rows.map((r: { name: string }) => r.name);
 }
 
+export async function getResourceUsageStats() {
+  const res = await pool.query(
+    `SELECT r.id, r.title, r.type,
+       COUNT(DISTINCT lr.lesson_id)::int AS lesson_count,
+       COUNT(DISTINCT l.curriculum_id)::int AS curriculum_count,
+       MAX(lr.created_at) AS last_used
+     FROM resources r
+     LEFT JOIN lesson_resources lr ON lr.resource_id = r.id
+     LEFT JOIN lessons l ON l.id = lr.lesson_id
+     GROUP BY r.id, r.title, r.type
+     ORDER BY lesson_count DESC`
+  );
+  return res.rows as Array<{
+    id: string;
+    title: string;
+    type: string;
+    lesson_count: number;
+    curriculum_count: number;
+    last_used: string | null;
+  }>;
+}
+
 export async function getAllBookResources() {
   const res = await pool.query(
     `SELECT

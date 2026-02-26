@@ -5,7 +5,13 @@ import { z } from "zod";
 import pool from "@/lib/db";
 import { saveUploadedImage } from "@/lib/server/uploads";
 import { getCurrentUser } from "@/lib/session";
-import { verifyParentOwnsChild } from "@/lib/permissions";
+async function verifyParentOwnsChild(parentUserId: string, childId: string): Promise<boolean> {
+  const res = await pool.query(
+    "SELECT 1 FROM parent_children WHERE parent_id = $1 AND child_id = $2",
+    [parentUserId, childId],
+  );
+  return res.rows.length > 0;
+}
 
 const nameSchema = z.string().min(1).max(100);
 

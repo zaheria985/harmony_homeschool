@@ -812,6 +812,83 @@ export async function promoteInlineResource(lessonResourceId: string) {
   }
 }
 
+const bulkImportSchema = z.object({
+  text: z.string().min(1, "Paste at least one line"),
+});
+
+export async function bulkImportResources(formData: FormData) {
+  const parsed = bulkImportSchema.safeParse({
+    text: formData.get("text"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.errors[0]?.message || "Invalid input" };
+  }
+
+  const lines = parsed.data.text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length === 0) return { error: "No lines found" };
+
+  const validTypes = new Set(["book", "video", "pdf", "link", "supply"]);
+  let imported = 0;
+  let skipped = 0;
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    for (const line of lines) {
+      // Support pipe-separated or CSV
+      const parts = line.includes("|")
+        ? line.split("|").map((p) => p.trim())
+        : line.split(",").map((p) => p.trim());
+
+      const title = parts[0] || "";
+      const rawType = (parts[1] || "link").toLowerCase();
+      const url = parts[2] || "";
+
+      if (!title) {
+        skipped++;
+        continue;
+      }
+
+      const type = validTypes.has(rawType) ? rawType : "link";
+
+      // Check for duplicate by title+url
+      const existing = await client.query(
+        `SELECT id FROM resources WHERE title = $1 AND COALESCE(url, '') = $2`,
+        [title, url]
+      );
+      if (existing.rows.length > 0) {
+        skipped++;
+        continue;
+      }
+
+      await client.query(
+        `INSERT INTO resources (title, type, url) VALUES ($1, $2, $3)`,
+        [title, type, url || null]
+      );
+      imported++;
+    }
+
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Failed to bulk import resources", {
+      lineCount: lines.length,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { error: "Failed to import resources" };
+  } finally {
+    client.release();
+  }
+
+  revalidatePath("/resources");
+  return { success: true, imported, skipped };
+}
+
 export async function bulkAddTagsToResources(resourceIds: string[], tagNames: string[]) {
   const parsedIds = z.array(z.string().uuid()).min(1).safeParse(resourceIds);
   const parsedTags = z.array(z.string().min(1)).min(1).safeParse(tagNames);

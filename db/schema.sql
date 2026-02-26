@@ -116,7 +116,8 @@ CREATE TABLE lessons (
     status          TEXT NOT NULL DEFAULT 'planned'
                         CHECK (status IN ('planned', 'in_progress', 'completed')),
     checklist_state JSONB NOT NULL DEFAULT '{}'::jsonb,
-    archived        BOOLEAN NOT NULL DEFAULT false
+    archived        BOOLEAN NOT NULL DEFAULT false,
+    grade_weight    NUMERIC(3,2) NOT NULL DEFAULT 1.0
 );
 
 -- ============================================================================
@@ -287,6 +288,19 @@ CREATE TABLE event_occurrence_notes (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE(event_id, occurrence_date)
+);
+
+-- ============================================================================
+-- LESSON TEMPLATES
+-- ============================================================================
+
+CREATE TABLE lesson_templates (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name        TEXT NOT NULL,
+    description TEXT,
+    lessons     JSONB NOT NULL DEFAULT '[]',
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ============================================================================
