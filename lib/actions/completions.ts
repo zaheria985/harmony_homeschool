@@ -365,6 +365,7 @@ export async function approvePendingCompletion(pendingId: string) {
   revalidatePath("/calendar");
   revalidatePath("/students");
   revalidatePath("/reports");
+  revalidatePath("/approvals");
   return { success: true };
 }
 
@@ -388,6 +389,7 @@ export async function rejectPendingCompletion(pendingId: string) {
   revalidatePath("/week");
   revalidatePath("/dashboard");
   revalidatePath("/curricula");
+  revalidatePath("/approvals");
   return { success: true };
 }
 

@@ -5,6 +5,7 @@ import { z } from "zod";
 import pool from "@/lib/db";
 import { saveUploadedImage } from "@/lib/server/uploads";
 import { getCurrentUser } from "@/lib/session";
+import { verifyParentOwnsChild } from "@/lib/permissions";
 
 const nameSchema = z.string().min(1).max(100);
 
@@ -82,6 +83,12 @@ export async function updateChild(formData: FormData) {
 export async function deleteChild(childId: string) {
   const parsed = z.string().uuid().safeParse(childId);
   if (!parsed.success) return { error: "Invalid child ID" };
+
+  const user = await getCurrentUser();
+  if (user.role === "parent" && user.id) {
+    const owns = await verifyParentOwnsChild(user.id, parsed.data);
+    if (!owns) return { error: "Not authorized to delete this student" };
+  }
 
   try {
     await pool.query("DELETE FROM children WHERE id = $1", [parsed.data]);

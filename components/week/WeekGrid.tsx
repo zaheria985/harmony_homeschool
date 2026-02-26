@@ -18,13 +18,16 @@ import {
 } from "@/lib/utils/dates";
 import { rescheduleLesson } from "@/lib/actions/lessons";
 import { saveWeeklyNote } from "@/lib/actions/weekly-notes";
+import { parseChecklist, checklistProgress } from "@/components/lessons/InteractiveChecklist";
 interface GridLesson {
   id: string;
   title: string;
+  description: string | null;
   status: string;
   curriculum_id: string;
   curriculum_name: string;
   grade: number | null;
+  checklist_state: Record<string, boolean> | null;
 }
 interface GridSubject {
   subjectName: string;
@@ -592,9 +595,19 @@ export default function WeekGrid({
                                         onTouchMove={handleTouchMove}
                                         onTouchEnd={handleTouchEnd}
                                         onTouchCancel={handleTouchCancel}
-                                        className={`block text-left line-clamp-2 text-sm leading-tight transition-colors hover:text-interactive md:text-xs ${lesson.status === "completed" ? "text-muted line-through" : "text-tertiary"}`}
+                                        className={`block text-left text-sm leading-tight transition-colors hover:text-interactive md:text-xs ${lesson.status === "completed" ? "text-muted line-through" : "text-tertiary"}`}
                                       >
-                                        {lesson.title}
+                                        <span className="line-clamp-2">{lesson.title}</span>
+                                        {(() => {
+                                          const items = parseChecklist(lesson.description);
+                                          if (items.length === 0) return null;
+                                          const { checked, total } = checklistProgress(items, lesson.checklist_state || {});
+                                          return (
+                                            <span className="mt-0.5 flex items-center gap-1 text-[10px] text-muted no-underline" style={{ textDecoration: 'none' }}>
+                                              <span className="text-[var(--success-solid)]">&#10003;</span> {checked}/{total}
+                                            </span>
+                                          );
+                                        })()}
                                       </button>
                                     ))}
                                   </div>

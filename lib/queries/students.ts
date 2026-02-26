@@ -97,7 +97,13 @@ export async function getChildSubjects(childId: string, yearId?: string) {
   return res.rows;
 }
 
-export async function getCompletedCurricula(childId: string) {
+export async function getCompletedCurricula(childId: string, yearId?: string) {
+  const yearFilter = yearId
+    ? "AND ca.school_year_id = $2"
+    : "AND ca.school_year_id IN (SELECT id FROM school_years WHERE CURRENT_DATE BETWEEN start_date AND end_date)";
+  const params: string[] = [childId];
+  if (yearId) params.push(yearId);
+
   const res = await pool.query(
     `SELECT
        cu.id AS curriculum_id,
@@ -113,15 +119,14 @@ export async function getCompletedCurricula(childId: string) {
      FROM curriculum_assignments ca
      JOIN curricula cu ON cu.id = ca.curriculum_id
      JOIN subjects s ON s.id = cu.subject_id
-      LEFT JOIN school_years sy ON sy.id = ca.school_year_id
+     LEFT JOIN school_years sy ON sy.id = ca.school_year_id
      JOIN lessons l ON l.curriculum_id = cu.id
      LEFT JOIN lesson_completions lc ON lc.lesson_id = l.id AND lc.child_id = $1
-      WHERE ca.child_id = $1
-      AND ca.school_year_id IN (SELECT id FROM school_years WHERE CURRENT_DATE BETWEEN start_date AND end_date)
+     WHERE ca.child_id = $1 ${yearFilter}
      GROUP BY cu.id, cu.name, s.id, s.name, s.color, sy.label
-      HAVING COUNT(l.id) > 0
+     HAVING COUNT(l.id) > 0
      ORDER BY s.name, cu.name`,
-    [childId]
+    params
   );
   return res.rows;
 }

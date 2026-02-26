@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import pool from "@/lib/db";
 import { saveUploadedImage } from "@/lib/server/uploads";
+import { getCurrentUser } from "@/lib/session";
 import {
   addDays,
   formatDateKey,
@@ -804,6 +805,9 @@ export async function deleteLesson(lessonId: string) {
   const parsed = z.string().uuid().safeParse(lessonId);
   if (!parsed.success) return { error: "Invalid lesson ID" };
 
+  const user = await getCurrentUser();
+  if (user.role !== "parent") return { error: "Not authorized to delete lessons" };
+
   try {
     await pool.query("DELETE FROM lessons WHERE id = $1", [parsed.data]);
   } catch (err) {
@@ -1263,6 +1267,9 @@ export async function reorderLessons(
 export async function deleteCurriculum(curriculumId: string, force = false) {
   const parsed = z.string().uuid().safeParse(curriculumId);
   if (!parsed.success) return { error: "Invalid curriculum ID" };
+
+  const user = await getCurrentUser();
+  if (user.role !== "parent") return { error: "Not authorized to delete curricula" };
 
   // Check for completed lessons before deleting
   const statsRes = await pool.query(

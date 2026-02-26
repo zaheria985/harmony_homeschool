@@ -6,6 +6,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import ProgressBar from "@/components/ui/ProgressBar";
 import Badge from "@/components/ui/Badge";
+import SchoolYearSelector from "@/components/students/SchoolYearSelector";
 import {
   getActiveSchoolYear,
   getChildById,
@@ -14,19 +15,28 @@ import {
   getCompletedCurricula,
 } from "@/lib/queries/students";
 import { getUpcomingLessons } from "@/lib/queries/lessons";
+import { getAllSchoolYearsForReports } from "@/lib/queries/reports";
 export default async function StudentDetailPage({
   params,
+  searchParams,
 }: {
   params: { id: string };
+  searchParams: { yearId?: string };
 }) {
   const child = await getChildById(params.id);
   if (!child) notFound();
+  const schoolYears = await getAllSchoolYearsForReports();
+  const yearId = schoolYears.some(
+    (y: Record<string, string>) => y.id === searchParams.yearId
+  )
+    ? searchParams.yearId
+    : undefined;
   const [progress, subjects, upcoming, completedCurricula, activeYear] =
     await Promise.all([
-      getChildProgress(params.id),
-      getChildSubjects(params.id),
+      getChildProgress(params.id, yearId),
+      getChildSubjects(params.id, yearId),
       getUpcomingLessons(params.id, 5),
-      getCompletedCurricula(params.id),
+      getCompletedCurricula(params.id, yearId),
       getActiveSchoolYear(),
     ]);
   const completionPct =
@@ -49,9 +59,17 @@ export default async function StudentDetailPage({
           />{" "}
         </div>
       )}{" "}
-      <PageHeader
-        title={`${child.emoji ? child.emoji + "" : ""}${child.name}`}
-      />{" "}
+      <div className="mb-6 flex items-center justify-between">
+        <PageHeader
+          title={`${child.emoji ? child.emoji + "" : ""}${child.name}`}
+        />
+        {schoolYears.length > 0 && (
+          <SchoolYearSelector
+            schoolYears={schoolYears}
+            currentYearId={yearId || ""}
+          />
+        )}
+      </div>{" "}
       {/* Overview stats */}{" "}
       <div className="mb-8 grid gap-4 sm:grid-cols-4">
         {" "}
@@ -183,10 +201,18 @@ export default async function StudentDetailPage({
         </Card>{" "}
       </div>{" "}
       {/* Current Courses */}{" "}
-      {activeYear && completedCurricula.length > 0 && (
+      {(yearId || activeYear) && completedCurricula.length > 0 && (
         <div className="mt-6">
           {" "}
-          <Card title={`Current Courses for ${activeYear.label}`}>
+          <Card
+            title={`Courses for ${
+              yearId
+                ? schoolYears.find(
+                    (y: Record<string, string>) => y.id === yearId
+                  )?.label || "Selected Year"
+                : activeYear.label
+            }`}
+          >
             {" "}
             <div className="space-y-3">
               {" "}
@@ -247,13 +273,24 @@ export default async function StudentDetailPage({
           </Card>{" "}
         </div>
       )}{" "}
-      {!activeYear && (
+      {!yearId && !activeYear && (
         <div className="mt-6">
           {" "}
           <Card title="Current Courses">
             {" "}
             <p className="text-sm text-muted">
               No active school year is configured right now.
+            </p>{" "}
+          </Card>{" "}
+        </div>
+      )}{" "}
+      {(yearId || activeYear) && completedCurricula.length === 0 && (
+        <div className="mt-6">
+          {" "}
+          <Card title="Courses">
+            {" "}
+            <p className="text-sm text-muted">
+              No curricula assigned for this school year.
             </p>{" "}
           </Card>{" "}
         </div>

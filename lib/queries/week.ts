@@ -3,6 +3,7 @@ import pool from "@/lib/db";
 export interface WeekLesson {
   id: string;
   title: string;
+  description: string | null;
   status: string;
   planned_date: string;
   curriculum_id: string;
@@ -11,6 +12,7 @@ export interface WeekLesson {
   subject_name: string;
   subject_color: string | null;
   grade: number | null;
+  checklist_state: Record<string, boolean> | null;
   child_name?: string;
 }
 
@@ -25,7 +27,8 @@ export async function getWeekLessons(
 ): Promise<WeekLesson[]> {
   const res = await pool.query(
     `SELECT
-       l.id, l.title, l.status, l.planned_date::text,
+       l.id, l.title, l.description, l.status, l.planned_date::text,
+       l.checklist_state,
        cu.id AS curriculum_id, cu.name AS curriculum_name,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        lc.grade
@@ -55,7 +58,8 @@ export async function getAllWeekLessons(
 ): Promise<WeekLesson[]> {
   const res = await pool.query(
     `SELECT
-       l.id, l.title, l.status, l.planned_date::text,
+       l.id, l.title, l.description, l.status, l.planned_date::text,
+       l.checklist_state,
        cu.id AS curriculum_id, cu.name AS curriculum_name,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        c.name AS child_name,

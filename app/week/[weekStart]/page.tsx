@@ -131,10 +131,12 @@ export default async function WeeklyBoardPage({
           lessons: group.lessons.map((l: WeekLesson) => ({
             id: l.id,
             title: l.title,
+            description: l.description,
             status: l.status,
             curriculum_id: l.curriculum_id,
             curriculum_name: l.curriculum_name,
             grade: l.grade,
+            checklist_state: l.checklist_state,
           })),
         })),
         externalEvents: externalEventsByDate.get(date) || [],

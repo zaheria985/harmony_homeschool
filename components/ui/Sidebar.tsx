@@ -27,6 +27,7 @@ import {
   LogOut,
   Menu,
   X,
+  ClipboardCheck,
 } from "lucide-react";
 
 const mainNavItems = [
@@ -42,6 +43,7 @@ const mainNavItems = [
   { href: "/tags", label: "Tags", icon: Tags },
   { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/reports", label: "Progress Reports", icon: TrendingUp },
+  { href: "/approvals", label: "Approvals", icon: ClipboardCheck },
 ];
 const adminNavItem = { href: "/admin", label: "Admin", icon: Settings };
 const settingsNavItem = { href: "/settings/users", label: "Users", icon: Users };
