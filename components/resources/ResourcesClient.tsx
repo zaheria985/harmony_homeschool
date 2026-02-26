@@ -9,7 +9,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import RowActions from "@/components/ui/RowActions";
 import { Package } from "lucide-react";
 import ViewToggle from "@/components/ui/ViewToggle";
-import { createGlobalResource, bulkDeleteResources } from "@/lib/actions/resources";
+import { createGlobalResource, bulkDeleteResources, bulkAddTagsToResources } from "@/lib/actions/resources";
 
 type Resource = {
   id: string;
@@ -78,6 +78,17 @@ export default function ResourcesClient({
   const [error, setError] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showBulkTag, setShowBulkTag] = useState(false);
+  const [bulkTagInput, setBulkTagInput] = useState("");
+  const [isTagging, setIsTagging] = useState(false);
+
+  const allExistingTags = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of resources) {
+      if (r.tags) for (const t of r.tags) set.add(t);
+    }
+    return Array.from(set).sort();
+  }, [resources]);
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -147,6 +158,22 @@ export default function ResourcesClient({
       console.error("Bulk delete error:", err);
     } finally {
       setIsDeleting(false);
+      router.refresh();
+    }
+  }
+
+  async function handleBulkTag() {
+    if (selectedIds.size === 0 || !bulkTagInput.trim()) return;
+    const tagNames = bulkTagInput.split(",").map(t => t.trim().toLowerCase()).filter(Boolean);
+    if (tagNames.length === 0) return;
+    setIsTagging(true);
+    const result = await bulkAddTagsToResources(Array.from(selectedIds), tagNames);
+    setIsTagging(false);
+    if (result && "error" in result) {
+      setError(result.error || "Failed to tag resources");
+    } else {
+      setBulkTagInput("");
+      setShowBulkTag(false);
       router.refresh();
     }
   }
@@ -249,9 +276,41 @@ export default function ResourcesClient({
             </button>
           )}
           {selectedIds.size > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowBulkTag(!showBulkTag)}
+              className="rounded-lg border border-light bg-surface px-3 py-1.5 text-xs font-medium text-secondary hover:bg-surface-muted"
+            >
+              Tag selected ({selectedIds.size})
+            </button>
+          )}
+          {selectedIds.size > 0 && (
             <span className="text-xs text-muted">
               {selectedIds.size} of {filtered.length} selected
             </span>
+          )}
+          {showBulkTag && selectedIds.size > 0 && (
+            <div className="flex w-full items-center gap-2 pt-1">
+              <input
+                value={bulkTagInput}
+                onChange={(e) => setBulkTagInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleBulkTag(); } }}
+                placeholder="tag1, tag2, ..."
+                list="bulk-tag-suggestions"
+                className="flex-1 rounded-lg border border-light bg-surface px-3 py-1.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-focus"
+              />
+              <datalist id="bulk-tag-suggestions">
+                {allExistingTags.map(t => <option key={t} value={t} />)}
+              </datalist>
+              <button
+                type="button"
+                onClick={handleBulkTag}
+                disabled={isTagging || !bulkTagInput.trim()}
+                className="rounded-lg bg-interactive px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
+              >
+                {isTagging ? "..." : "Apply"}
+              </button>
+            </div>
           )}
         </div>
       )}

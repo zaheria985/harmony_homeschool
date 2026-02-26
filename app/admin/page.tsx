@@ -174,6 +174,32 @@ export default async function AdminPage() {
           </Card>
         </Link>
 
+        <Card className="transition-shadow hover:shadow-md">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">💾</span>
+            <div>
+              <h3 className="text-lg font-semibold">Data Export</h3>
+              <p className="mb-2 text-sm text-muted">
+                Download all data for backup or migration
+              </p>
+              <div className="flex gap-2">
+                <a
+                  href="/api/export?format=json"
+                  className="rounded-lg bg-interactive px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
+                >
+                  Export JSON
+                </a>
+                <a
+                  href="/api/export?format=csv"
+                  className="rounded-lg border border-light bg-surface px-3 py-1.5 text-xs font-medium text-secondary hover:bg-surface-muted"
+                >
+                  Export CSV
+                </a>
+              </div>
+            </div>
+          </div>
+        </Card>
+
         <Card>
           <h3 className="mb-2 text-lg font-semibold">Moved to Sidebar</h3>
           <p className="text-sm text-muted">

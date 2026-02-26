@@ -17,6 +17,7 @@ import {
   isToday,
 } from "@/lib/utils/dates";
 import { rescheduleLesson } from "@/lib/actions/lessons";
+import { saveWeeklyNote } from "@/lib/actions/weekly-notes";
 interface GridLesson {
   id: string;
   title: string;
@@ -135,9 +136,11 @@ function moveLesson(
 export default function WeekGrid({
   weeks,
   bumpedCount = 0,
+  weeklyNotes = {},
 }: {
   weeks: WeekData[];
   bumpedCount?: number;
+  weeklyNotes?: Record<string, string>;
 }) {
   const router = useRouter();
   const [selectedDay, setSelectedDay] = useState<DayData | null>(null);
@@ -152,6 +155,9 @@ export default function WeekGrid({
   const longPressTimerRef = useRef<number | null>(null);
   const [subjectFilter, setSubjectFilter] = useState("");
   const [courseFilter, setCourseFilter] = useState("");
+  const [localNotes, setLocalNotes] = useState<Record<string, string>>(weeklyNotes);
+  const [editingNoteWeek, setEditingNoteWeek] = useState<string | null>(null);
+  const [savingNote, setSavingNote] = useState(false);
   useEffect(() => {
     setLocalWeeks(weeks);
   }, [weeks]);
@@ -355,10 +361,55 @@ export default function WeekGrid({
         {displayWeeks.map((week) => (
           <div key={week.weekStart}>
             {" "}
-            <h3 className="mb-2 text-sm font-semibold text-tertiary">
-              {" "}
-              {week.label}{" "}
-            </h3>{" "}
+            <div className="mb-2 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-tertiary">
+                {week.label}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setEditingNoteWeek(editingNoteWeek === week.weekStart ? null : week.weekStart)}
+                className="text-xs text-muted hover:text-interactive"
+              >
+                {localNotes[week.weekStart] ? "📝" : "＋ note"}
+              </button>
+            </div>
+            {editingNoteWeek === week.weekStart && (
+              <div className="mb-3 rounded-lg border border-light bg-surface p-2">
+                <textarea
+                  value={localNotes[week.weekStart] || ""}
+                  onChange={(e) => setLocalNotes((prev) => ({ ...prev, [week.weekStart]: e.target.value }))}
+                  placeholder="Week reflections, plans, notes..."
+                  rows={2}
+                  className="w-full rounded border border-light bg-surface px-2 py-1 text-sm text-primary placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-focus"
+                />
+                <div className="mt-1 flex gap-2">
+                  <button
+                    type="button"
+                    disabled={savingNote}
+                    onClick={async () => {
+                      setSavingNote(true);
+                      await saveWeeklyNote(week.weekStart, localNotes[week.weekStart] || "");
+                      setSavingNote(false);
+                      setEditingNoteWeek(null);
+                    }}
+                    className="rounded bg-interactive px-2 py-1 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
+                  >
+                    {savingNote ? "Saving..." : "Save"}
+                  </button>
+                  <button type="button" onClick={() => setEditingNoteWeek(null)} className="text-xs text-muted hover:text-primary">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+            {!editingNoteWeek && localNotes[week.weekStart] && (
+              <p
+                className="mb-2 cursor-pointer rounded-lg bg-surface-muted px-2 py-1 text-xs text-tertiary italic hover:bg-surface-subtle"
+                onClick={() => setEditingNoteWeek(week.weekStart)}
+              >
+                {localNotes[week.weekStart]}
+              </p>
+            )}
             <div className="grid grid-cols-2 gap-2 md:grid-cols-7">
               {" "}
               {week.days.map((day) => {
@@ -570,6 +621,7 @@ export default function WeekGrid({
             : ""
         }
         subjects={selectedDay?.subjects || []}
+        externalEvents={selectedDay?.externalEvents || []}
         onLessonClick={(id) => {
           setSelectedDay(null);
           setDetailLessonId(id);

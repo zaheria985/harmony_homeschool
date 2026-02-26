@@ -32,6 +32,7 @@ export default function ExternalEventsClient({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [color, setColor] = useState("#3b82f6");
+  const [category, setCategory] = useState("other");
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("14:00");
   const [allDay, setAllDay] = useState(false);
@@ -54,6 +55,7 @@ export default function ExternalEventsClient({
     setTitle("");
     setDescription("");
     setColor("#3b82f6");
+    setCategory("other");
     setStartTime("09:00");
     setEndTime("14:00");
     setAllDay(false);
@@ -66,6 +68,7 @@ export default function ExternalEventsClient({
     setTitle(event.title);
     setDescription(event.description || "");
     setColor(event.color || "#3b82f6");
+    setCategory((event as Record<string, unknown>).category as string || "other");
     setStartTime(event.start_time || "");
     setEndTime(event.end_time || "");
     setAllDay(event.all_day);
@@ -92,6 +95,7 @@ export default function ExternalEventsClient({
       formData.set("title", title);
       formData.set("description", description);
       formData.set("color", color);
+      formData.set("category", category);
       formData.set("start_time", startTime);
       formData.set("end_time", endTime);
       formData.set("all_day", allDay ? "true" : "false");
@@ -116,6 +120,7 @@ export default function ExternalEventsClient({
       formData.set("title", title);
       formData.set("description", description);
       formData.set("color", color);
+      formData.set("category", category);
       formData.set("start_time", startTime);
       formData.set("end_time", endTime);
       formData.set("all_day", allDay ? "true" : "false");
@@ -194,7 +199,15 @@ export default function ExternalEventsClient({
                     />{" "}
                     <h3 className="text-sm font-semibold text-primary">
                       {event.title}
-                    </h3>{" "}
+                    </h3>
+                    {(() => {
+                      const cat = String((event as Record<string, unknown>).category || "");
+                      return cat && cat !== "other" ? (
+                        <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[10px] font-medium text-tertiary">
+                          {cat}
+                        </span>
+                      ) : null;
+                    })()}
                   </div>{" "}
                   <p className="mt-1 text-xs text-muted">
                     {" "}
@@ -341,6 +354,23 @@ export default function ExternalEventsClient({
               />{" "}
             </div>{" "}
           </div>{" "}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-secondary">
+              Category
+            </label>
+            <select
+              value={category}
+              onChange={(event) => setCategory(event.target.value)}
+              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary"
+            >
+              <option value="other">Other</option>
+              <option value="co-op">Co-op</option>
+              <option value="sport">Sport</option>
+              <option value="music">Music</option>
+              <option value="art">Art</option>
+              <option value="field-trip">Field Trip</option>
+            </select>
+          </div>
           <label className="flex items-center gap-2 text-sm text-tertiary">
             {" "}
             <input
@@ -556,6 +586,23 @@ export default function ExternalEventsClient({
               />{" "}
             </div>{" "}
           </div>{" "}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-secondary">
+              Category
+            </label>
+            <select
+              value={category}
+              onChange={(event) => setCategory(event.target.value)}
+              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary"
+            >
+              <option value="other">Other</option>
+              <option value="co-op">Co-op</option>
+              <option value="sport">Sport</option>
+              <option value="music">Music</option>
+              <option value="art">Art</option>
+              <option value="field-trip">Field Trip</option>
+            </select>
+          </div>
           <label className="flex items-center gap-2 text-sm text-tertiary">
             {" "}
             <input

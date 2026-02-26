@@ -13,17 +13,43 @@ interface ModalSubject {
   subjectColor: string | null;
   lessons: ModalLesson[];
 }
+interface ModalExternalEvent {
+  event_id: string;
+  title: string;
+  color: string;
+  start_time: string | null;
+  end_time: string | null;
+  all_day: boolean;
+}
+
+function formatTimeRange(startTime: string | null, endTime: string | null, allDay: boolean) {
+  if (allDay) return "All day";
+  if (!startTime && !endTime) return "";
+  const format = (time: string) => {
+    const [hourRaw, minute] = time.split(":");
+    const hour = Number(hourRaw);
+    const suffix = hour >= 12 ? "PM" : "AM";
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${minute} ${suffix}`;
+  };
+  if (startTime && endTime) return `${format(startTime)} – ${format(endTime)}`;
+  if (startTime) return `Starts ${format(startTime)}`;
+  return `Until ${format(endTime as string)}`;
+}
+
 export default function DayModal({
   open,
   onClose,
   title,
   subjects,
+  externalEvents = [],
   onLessonClick,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   subjects: ModalSubject[];
+  externalEvents?: ModalExternalEvent[];
   onLessonClick?: (id: string) => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -53,11 +79,30 @@ export default function DayModal({
             ✕{" "}
           </button>{" "}
         </div>{" "}
-        {subjects.length === 0 ? (
+        {externalEvents.length > 0 && (
+          <div className="mb-4 space-y-2">
+            {externalEvents.map((event) => (
+              <div
+                key={event.event_id}
+                className="flex items-center gap-2 rounded-lg border border-dashed border-border bg-surface-muted px-3 py-2"
+              >
+                <span className="text-sm">🏫</span>
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: event.color }} />
+                <span className="text-sm font-medium text-secondary">{event.title}</span>
+                {formatTimeRange(event.start_time, event.end_time, event.all_day) && (
+                  <span className="ml-auto text-xs text-muted">
+                    {formatTimeRange(event.start_time, event.end_time, event.all_day)}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        {subjects.length === 0 && externalEvents.length === 0 ? (
           <p className="py-8 text-center text-muted">
             No lessons scheduled for this day.
           </p>
-        ) : (
+        ) : subjects.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {" "}
             {subjects.map((subject) => (
@@ -133,7 +178,7 @@ export default function DayModal({
               </div>
             ))}{" "}
           </div>
-        )}{" "}
+        ) : null}{" "}
       </div>{" "}
     </dialog>
   );

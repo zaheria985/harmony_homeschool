@@ -208,6 +208,20 @@ CREATE TABLE curriculum_tags (
     PRIMARY KEY (curriculum_id, tag_id)
 );
 
+CREATE TABLE lesson_tags (
+    lesson_id       UUID NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+    tag_id          UUID NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    PRIMARY KEY (lesson_id, tag_id)
+);
+
+CREATE TABLE weekly_notes (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    week_start      DATE NOT NULL UNIQUE,
+    content         TEXT NOT NULL DEFAULT '',
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- ============================================================================
 -- INDEXES
 -- ============================================================================
@@ -237,6 +251,7 @@ CREATE INDEX idx_lesson_completions_child           ON lesson_completions(child_
 CREATE INDEX idx_resource_tags_resource             ON resource_tags(resource_id);
 CREATE INDEX idx_resource_tags_tag                  ON resource_tags(tag_id);
 CREATE INDEX idx_curriculum_tags_tag                ON curriculum_tags(tag_id);
+CREATE INDEX idx_lesson_tags_tag                    ON lesson_tags(tag_id);
 
 CREATE INDEX idx_booklist_resources_booklist ON booklist_resources(booklist_id);
 CREATE INDEX idx_booklist_resources_resource ON booklist_resources(resource_id);

@@ -9,9 +9,12 @@ import { parseImportedDates } from "@/lib/utils/recurrence";
 
 const recurrenceSchema = z.enum(["once", "weekly", "biweekly", "monthly"]);
 
+const categorySchema = z.enum(["co-op", "sport", "music", "art", "field-trip", "other"]);
+
 const createSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
+  category: categorySchema.default("other"),
   recurrence_type: recurrenceSchema.optional(),
   day_of_week: z.coerce.number().min(0).max(6).optional(),
   start_date: z.string().optional(),
@@ -74,6 +77,7 @@ export async function createExternalEvent(formData: FormData) {
   const data = createSchema.safeParse({
     title: formData.get("title"),
     description: formData.get("description") || undefined,
+    category: formData.get("category") || "other",
     recurrence_type: formData.get("recurrence_type") || undefined,
     day_of_week: formData.get("day_of_week") || undefined,
     start_date: formData.get("start_date") || undefined,
@@ -119,6 +123,7 @@ export async function createExternalEvent(formData: FormData) {
       `INSERT INTO external_events (
         title,
         description,
+        category,
         recurrence_type,
         day_of_week,
         start_date,
@@ -127,11 +132,12 @@ export async function createExternalEvent(formData: FormData) {
         end_time,
         all_day,
         color
-      ) VALUES ($1, $2, $3, $4, $5::date, $6::date, $7::time, $8::time, $9, $10)
+      ) VALUES ($1, $2, $3, $4, $5, $6::date, $7::date, $8::time, $9::time, $10, $11)
       RETURNING id`,
       [
         data.data.title.trim(),
         data.data.description?.trim() || null,
+        data.data.category,
         recurrenceType,
         dayOfWeek,
         startDate,
@@ -184,6 +190,7 @@ export async function updateExternalEvent(formData: FormData) {
     id: formData.get("id"),
     title: formData.get("title"),
     description: formData.get("description") || undefined,
+    category: formData.get("category") || "other",
     recurrence_type: formData.get("recurrence_type"),
     day_of_week: formData.get("day_of_week") || undefined,
     start_date: formData.get("start_date"),
@@ -210,18 +217,20 @@ export async function updateExternalEvent(formData: FormData) {
       `UPDATE external_events
        SET title = $1,
            description = $2,
-           recurrence_type = $3,
-           day_of_week = $4,
-           start_date = $5::date,
-           end_date = $6::date,
-           start_time = $7::time,
-           end_time = $8::time,
-           all_day = $9,
-           color = $10
-       WHERE id = $11`,
+           category = $3,
+           recurrence_type = $4,
+           day_of_week = $5,
+           start_date = $6::date,
+           end_date = $7::date,
+           start_time = $8::time,
+           end_time = $9::time,
+           all_day = $10,
+           color = $11
+       WHERE id = $12`,
       [
         data.data.title.trim(),
         data.data.description?.trim() || null,
+        data.data.category,
         data.data.recurrence_type,
         data.data.day_of_week ?? null,
         data.data.start_date,

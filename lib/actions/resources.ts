@@ -772,3 +772,77 @@ export async function detachResourceFromCurriculum(
   revalidatePath("/lessons");
   return { success: true };
 }
+
+export async function promoteInlineResource(lessonResourceId: string) {
+  const parsed = z.string().uuid().safeParse(lessonResourceId);
+  if (!parsed.success) return { error: "Invalid ID" };
+
+  const lrRes = await pool.query(
+    `SELECT lr.id, lr.lesson_id, lr.type, lr.url, lr.title, lr.thumbnail_url, lr.resource_id
+     FROM lesson_resources lr WHERE lr.id = $1`,
+    [parsed.data]
+  );
+  if (lrRes.rows.length === 0) return { error: "Lesson resource not found" };
+  const lr = lrRes.rows[0];
+  if (lr.resource_id) return { error: "Already linked to a global resource" };
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const globalRes = await client.query(
+      `INSERT INTO resources (title, type, url, thumbnail_url, is_global)
+       VALUES ($1, $2, $3, $4, true) RETURNING id`,
+      [lr.title || "Untitled", lr.type || "link", lr.url, lr.thumbnail_url]
+    );
+    const globalId = globalRes.rows[0].id;
+    await client.query(
+      `UPDATE lesson_resources SET resource_id = $1 WHERE id = $2`,
+      [globalId, parsed.data]
+    );
+    await client.query("COMMIT");
+    revalidatePath("/resources");
+    revalidatePath("/lessons");
+    revalidatePath("/curricula");
+    return { success: true, resourceId: globalId };
+  } catch (err) {
+    await client.query("ROLLBACK");
+    return { error: "Failed to promote resource" };
+  } finally {
+    client.release();
+  }
+}
+
+export async function bulkAddTagsToResources(resourceIds: string[], tagNames: string[]) {
+  const parsedIds = z.array(z.string().uuid()).min(1).safeParse(resourceIds);
+  const parsedTags = z.array(z.string().min(1)).min(1).safeParse(tagNames);
+  if (!parsedIds.success || !parsedTags.success) return { error: "Invalid input" };
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    for (const tagName of parsedTags.data) {
+      const tagRes = await client.query(
+        `INSERT INTO tags (name) VALUES ($1)
+         ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id`,
+        [tagName.toLowerCase().trim()]
+      );
+      const tagId = tagRes.rows[0].id;
+      for (const resourceId of parsedIds.data) {
+        await client.query(
+          `INSERT INTO resource_tags (resource_id, tag_id)
+           VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [resourceId, tagId]
+        );
+      }
+    }
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    return { error: "Failed to add tags" };
+  } finally {
+    client.release();
+  }
+
+  revalidatePath("/resources");
+  return { success: true };
+}

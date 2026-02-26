@@ -94,7 +94,13 @@ export async function getCurriculumBoardData(id: string) {
   const lessons = await pool.query(
     `SELECT
        l.id, l.title, l.description, l.status, l.planned_date,
-       l.order_index, l.estimated_duration, l.section, l.checklist_state
+       l.order_index, l.estimated_duration, l.section, l.checklist_state,
+       COALESCE(
+         (SELECT string_agg(t.name, ',' ORDER BY t.name)
+          FROM lesson_tags lt JOIN tags t ON t.id = lt.tag_id
+          WHERE lt.lesson_id = l.id),
+         ''
+       ) AS tags
      FROM lessons l
      WHERE l.curriculum_id = $1
      ORDER BY l.order_index, l.planned_date ASC NULLS LAST`,

@@ -7,6 +7,7 @@ import {
   toDateStr,
 } from "@/lib/utils/dates";
 import { bumpOverdueLessons } from "@/lib/actions/lessons";
+import { getWeeklyNotes } from "@/lib/actions/weekly-notes";
 import WeekGrid from "@/components/week/WeekGrid";
 import type { WeekLesson } from "@/lib/queries/week";
 import { getExternalEventOccurrencesForRange } from "@/lib/queries/external-events";
@@ -69,6 +70,7 @@ export default async function WeeklyBoardPage({
       parentId,
     ),
   ]);
+  const weeklyNotes = await getWeeklyNotes(weekStarts);
 
   const externalEventsByDate = new Map<string, typeof externalEvents>();
   for (const event of externalEvents) {
@@ -142,5 +144,5 @@ export default async function WeeklyBoardPage({
     return { weekStart, label: formatWeekLabel(weekStart), days };
   });
 
-  return <WeekGrid weeks={weeks} bumpedCount={bumpedCount} />;
+  return <WeekGrid weeks={weeks} bumpedCount={bumpedCount} weeklyNotes={weeklyNotes} />;
 }

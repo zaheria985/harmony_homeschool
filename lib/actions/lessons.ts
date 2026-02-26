@@ -554,8 +554,26 @@ export async function createLesson(formData: FormData) {
     [title, curriculum_id, planned_date || null, description || null, section || null]
   );
 
+  const lessonId = res.rows[0].id;
+  const rawTags = formData.get("tags");
+  if (typeof rawTags === "string" && rawTags.trim()) {
+    const { parseTagNames } = await import("@/lib/utils/resource-tags");
+    const tagNames = parseTagNames(rawTags);
+    for (const tagName of tagNames) {
+      const tagRes = await pool.query(
+        `INSERT INTO tags (name) VALUES ($1)
+         ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id`,
+        [tagName]
+      );
+      await pool.query(
+        `INSERT INTO lesson_tags (lesson_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+        [lessonId, tagRes.rows[0].id]
+      );
+    }
+  }
+
   revalidateAll();
-  return { success: true, id: res.rows[0].id };
+  return { success: true, id: lessonId };
 }
 
 export async function bulkCreateLessons(
@@ -719,6 +737,24 @@ export async function updateLesson(formData: FormData) {
   } catch (err) {
     console.error("Failed to update lesson", { id, error: err instanceof Error ? err.message : String(err) });
     return { error: "Failed to update lesson" };
+  }
+
+  const rawTags = formData.get("tags");
+  if (typeof rawTags === "string") {
+    const { parseTagNames } = await import("@/lib/utils/resource-tags");
+    const tagNames = parseTagNames(rawTags || undefined);
+    await pool.query("DELETE FROM lesson_tags WHERE lesson_id = $1", [id]);
+    for (const tagName of tagNames) {
+      const tagRes = await pool.query(
+        `INSERT INTO tags (name) VALUES ($1)
+         ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id`,
+        [tagName]
+      );
+      await pool.query(
+        `INSERT INTO lesson_tags (lesson_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+        [id, tagRes.rows[0].id]
+      );
+    }
   }
 
   revalidateAll();
