@@ -1525,3 +1525,227 @@ export async function unarchiveLessons(formData: FormData) {
     return { error: "Failed to unarchive lessons" };
   }
 }
+
+const importCurriculumSchema = z.object({
+  json: z.string().min(1, "JSON is required"),
+  subjectId: z.string().uuid("Invalid subject ID"),
+});
+
+export async function importCurriculum(formData: FormData) {
+  const parsed = importCurriculumSchema.safeParse({
+    json: formData.get("json"),
+    subjectId: formData.get("subjectId"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.errors[0]?.message || "Invalid input" };
+  }
+
+  let data: {
+    harmony_curriculum_export?: boolean;
+    name?: string;
+    description?: string | null;
+    cover_image?: string | null;
+    course_type?: string;
+    grade_type?: string;
+    lessons?: Array<{
+      title: string;
+      description?: string | null;
+      order_index?: number;
+      section?: string | null;
+      estimated_duration?: number | null;
+    }>;
+    resources?: Array<{
+      title: string;
+      type: string;
+      url: string;
+      author?: string | null;
+      description?: string | null;
+    }>;
+    curriculum_resources?: Array<{
+      title: string;
+      type: string;
+      url: string;
+      author?: string | null;
+      description?: string | null;
+    }>;
+  };
+
+  try {
+    data = JSON.parse(parsed.data.json);
+  } catch {
+    return { error: "Invalid JSON format" };
+  }
+
+  if (!data.harmony_curriculum_export) {
+    return { error: "Not a valid Harmony curriculum export file" };
+  }
+
+  if (!data.name) {
+    return { error: "Curriculum name is required" };
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Create the curriculum
+    const currRes = await client.query(
+      `INSERT INTO curricula (name, description, cover_image, subject_id, course_type, grade_type, status)
+       VALUES ($1, $2, $3, $4, $5, $6, 'active')
+       RETURNING id`,
+      [
+        data.name,
+        data.description || null,
+        data.cover_image || null,
+        parsed.data.subjectId,
+        data.course_type || "curriculum",
+        data.grade_type || "numeric",
+      ]
+    );
+    const curriculumId = currRes.rows[0].id;
+
+    // Create lessons
+    if (data.lessons && data.lessons.length > 0) {
+      for (const lesson of data.lessons) {
+        await client.query(
+          `INSERT INTO lessons (curriculum_id, title, description, order_index, section, estimated_duration, status)
+           VALUES ($1, $2, $3, $4, $5, $6, 'planned')`,
+          [
+            curriculumId,
+            lesson.title,
+            lesson.description || null,
+            lesson.order_index ?? 0,
+            lesson.section || null,
+            lesson.estimated_duration || null,
+          ]
+        );
+      }
+    }
+
+    // Create global resources and link them to the curriculum
+    const allResources = [
+      ...(data.resources || []),
+      ...(data.curriculum_resources || []),
+    ];
+
+    for (const resource of allResources) {
+      if (!resource.url) continue;
+
+      // Check if a resource with this URL already exists
+      const existingRes = await client.query(
+        `SELECT id FROM resources WHERE url = $1 LIMIT 1`,
+        [resource.url]
+      );
+
+      let resourceId: string;
+      if (existingRes.rows.length > 0) {
+        resourceId = existingRes.rows[0].id;
+      } else {
+        const newRes = await client.query(
+          `INSERT INTO resources (title, type, url, author, description)
+           VALUES ($1, $2, $3, $4, $5)
+           RETURNING id`,
+          [
+            resource.title || resource.url,
+            resource.type || "link",
+            resource.url,
+            resource.author || null,
+            resource.description || null,
+          ]
+        );
+        resourceId = newRes.rows[0].id;
+      }
+
+      // Link resource to curriculum
+      await client.query(
+        `INSERT INTO curriculum_resources (curriculum_id, resource_id)
+         VALUES ($1, $2)
+         ON CONFLICT DO NOTHING`,
+        [curriculumId, resourceId]
+      );
+    }
+
+    await client.query("COMMIT");
+    revalidateAll();
+    return { success: true, curriculumId };
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Failed to import curriculum", err instanceof Error ? err.message : String(err));
+    return { error: "Failed to import curriculum" };
+  } finally {
+    client.release();
+  }
+}
+
+const reassignSchema = z.object({
+  lessonId: z.string().uuid("Invalid lesson ID"),
+  newChildId: z.string().uuid("Invalid child ID"),
+});
+
+export async function reassignLessonToChild(lessonId: string, newChildId: string) {
+  const parsed = reassignSchema.safeParse({ lessonId, newChildId });
+  if (!parsed.success) {
+    return { error: parsed.error.errors[0]?.message || "Invalid input" };
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Find the lesson's curriculum and current assignment
+    const lessonRes = await client.query(
+      `SELECT l.curriculum_id, ca.id AS assignment_id, ca.child_id, ca.school_year_id
+       FROM lessons l
+       JOIN curriculum_assignments ca ON ca.curriculum_id = l.curriculum_id
+       WHERE l.id = $1
+       LIMIT 1`,
+      [parsed.data.lessonId]
+    );
+
+    if (lessonRes.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return { error: "Lesson or assignment not found" };
+    }
+
+    const { curriculum_id, child_id: currentChildId, school_year_id } = lessonRes.rows[0];
+
+    if (currentChildId === parsed.data.newChildId) {
+      await client.query("ROLLBACK");
+      return { error: "Lesson is already assigned to this child" };
+    }
+
+    // Check if the new child already has an assignment for this curriculum
+    const existingAssignment = await client.query(
+      `SELECT id FROM curriculum_assignments
+       WHERE curriculum_id = $1 AND child_id = $2`,
+      [curriculum_id, parsed.data.newChildId]
+    );
+
+    if (existingAssignment.rows.length === 0) {
+      // Create a new assignment for the new child
+      await client.query(
+        `INSERT INTO curriculum_assignments (curriculum_id, child_id, school_year_id)
+         VALUES ($1, $2, $3)`,
+        [curriculum_id, parsed.data.newChildId, school_year_id]
+      );
+    }
+
+    // Move any existing completions for this lesson from old child to new child
+    await client.query(
+      `UPDATE lesson_completions
+       SET child_id = $1
+       WHERE lesson_id = $2 AND child_id = $3`,
+      [parsed.data.newChildId, parsed.data.lessonId, currentChildId]
+    );
+
+    await client.query("COMMIT");
+    revalidateAll();
+    return { success: true };
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Failed to reassign lesson", err instanceof Error ? err.message : String(err));
+    return { error: "Failed to reassign lesson" };
+  } finally {
+    client.release();
+  }
+}

@@ -6,6 +6,7 @@ import MarkdownContent from "@/components/ui/MarkdownContent";
 import ResourcePreviewModal from "@/components/ui/ResourcePreviewModal";
 import InteractiveChecklist, { parseChecklist } from "@/components/lessons/InteractiveChecklist";
 import { attachResourceToLessons } from "@/lib/actions/resources";
+import { suggestResources } from "@/lib/actions/ai";
 
 type CurriculumResource = {
   id: string;
@@ -14,6 +15,12 @@ type CurriculumResource = {
   url: string | null;
   thumbnail_url: string | null;
   description: string | null;
+};
+
+type AISuggestion = {
+  title: string;
+  type: string;
+  description: string;
 };
 
 type CardViewModalProps = {
@@ -34,6 +41,7 @@ type CardViewModalProps = {
     }[];
   } | null;
   curriculumResources?: CurriculumResource[];
+  subjectName?: string;
   onClose: () => void;
 };
 
@@ -133,7 +141,7 @@ function ResourceCard({
   );
 }
 
-export default function CardViewModal({ lesson, curriculumResources = [], onClose }: CardViewModalProps) {
+export default function CardViewModal({ lesson, curriculumResources = [], subjectName = "General", onClose }: CardViewModalProps) {
   const [previewResource, setPreviewResource] = useState<{
     title: string;
     type: string;
@@ -142,6 +150,9 @@ export default function CardViewModal({ lesson, curriculumResources = [], onClos
   } | null>(null);
   const [isPending, startTransition] = useTransition();
   const [recentlyAttached, setRecentlyAttached] = useState<Set<string>>(new Set());
+  const [aiSuggestions, setAiSuggestions] = useState<AISuggestion[]>([]);
+  const [suggestingResources, setSuggestingResources] = useState(false);
+  const [aiError, setAiError] = useState("");
 
   // Filter curriculum resources to only show those NOT already attached to this lesson
   const attachedResourceIds = new Set(
@@ -163,11 +174,34 @@ export default function CardViewModal({ lesson, curriculumResources = [], onClos
     });
   }
 
+  async function handleSuggestResources() {
+    if (!lesson) return;
+    setSuggestingResources(true);
+    setAiError("");
+    try {
+      const fd = new FormData();
+      fd.set("lessonTitle", lesson.title);
+      fd.set("subject", subjectName);
+      const result = await suggestResources(fd);
+      if ("error" in result) {
+        setAiError(result.error);
+      } else {
+        setAiSuggestions(result.suggestions);
+      }
+    } catch {
+      setAiError("Failed to get suggestions");
+    } finally {
+      setSuggestingResources(false);
+    }
+  }
+
   return (
     <Modal
       open={!!lesson}
       onClose={() => {
         setRecentlyAttached(new Set());
+        setAiSuggestions([]);
+        setAiError("");
         onClose();
       }}
       title={lesson?.title || ""}
@@ -278,6 +312,56 @@ export default function CardViewModal({ lesson, curriculumResources = [], onClos
               </div>
             </div>
           )}
+
+          {/* AI Resource Suggestions */}
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted">
+                AI Suggestions
+              </h4>
+              <button
+                type="button"
+                onClick={handleSuggestResources}
+                disabled={suggestingResources}
+                className="rounded-md bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700 hover:bg-purple-200 disabled:opacity-50 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/50"
+              >
+                {suggestingResources ? "Thinking..." : "Suggest Resources"}
+              </button>
+            </div>
+            {aiError && (
+              <p className="mb-2 text-xs text-red-600">{aiError}</p>
+            )}
+            {aiSuggestions.length > 0 && (
+              <div className="space-y-2">
+                {aiSuggestions.map((suggestion, i) => {
+                  const cfg = typeConfig[suggestion.type] || typeConfig.url;
+                  return (
+                    <div
+                      key={i}
+                      className="rounded-lg border border-dashed border-purple-200 bg-purple-50/50 p-3 text-sm dark:border-purple-800 dark:bg-purple-900/10"
+                    >
+                      <div className="flex items-start gap-2">
+                        <span
+                          className={`mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded bg-gradient-to-br ${cfg.bg} text-sm`}
+                        >
+                          {cfg.icon}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-primary">{suggestion.title}</p>
+                          <p className="mt-0.5 text-xs text-muted">
+                            <span className="mr-1 rounded bg-purple-100 px-1 py-0.5 text-[10px] font-medium uppercase text-purple-600 dark:bg-purple-900/30 dark:text-purple-300">
+                              {suggestion.type}
+                            </span>
+                            {suggestion.description}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       )}
       <ResourcePreviewModal

@@ -147,5 +147,5 @@ export default async function WeeklyBoardPage({
     return { weekStart, label: formatWeekLabel(weekStart), days };
   });
 
-  return <WeekGrid weeks={weeks} bumpedCount={bumpedCount} weeklyNotes={weeklyNotes} />;
+  return <WeekGrid weeks={weeks} bumpedCount={bumpedCount} weeklyNotes={weeklyNotes} allChildren={children} />;
 }

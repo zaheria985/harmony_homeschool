@@ -9,6 +9,7 @@ import { getLinkedBooklists, getAllBooklistSummaries } from "@/lib/queries/bookl
 import { getCurrentUser } from "@/lib/session";
 import LinkedBooklists from "@/components/curricula/LinkedBooklists";
 import LessonTemplateManager from "@/components/curricula/LessonTemplateManager";
+import AICurriculumPlanModal from "@/components/curricula/AICurriculumPlanModal";
 export default async function CurriculumBoardPage({
   params,
   searchParams,
@@ -44,6 +45,13 @@ export default async function CurriculumBoardPage({
         <div className="flex items-center gap-2">
           {" "}
           <CurriculumViewToggle curriculumId={params.id} />{" "}
+          <a
+            href={`/api/export/curriculum?id=${params.id}`}
+            download
+            className="rounded-lg border px-3 py-1.5 text-sm text-tertiary hover:bg-surface-muted"
+          >
+            Export
+          </a>{" "}
           <Link
             href={`/subjects/${data.subject_id}`}
             className="rounded-lg border px-3 py-1.5 text-sm text-tertiary hover:bg-surface-muted"
@@ -116,16 +124,21 @@ export default async function CurriculumBoardPage({
         </div>
       )}
       {user.role === "parent" && (
-        <div className="mb-4">
+        <div className="mb-4 flex items-center gap-2">
           <LessonTemplateManager
             curriculumId={data.id}
             lessonCount={data.lessons.length}
+          />
+          <AICurriculumPlanModal
+            curriculumId={data.id}
+            subjectName={data.subject_name}
           />
         </div>
       )}
       <CurriculumBoard
         curriculumId={data.id}
         subjectColor={data.subject_color}
+        subjectName={data.subject_name}
         lessons={data.lessons}
         children={data.children}
         curriculumResources={data.curriculumResources}

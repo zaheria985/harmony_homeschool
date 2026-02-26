@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Modal from "@/components/ui/Modal";
 import { createLesson, updateLesson } from "@/lib/actions/lessons";
 import { addResource, deleteResource } from "@/lib/actions/resources";
+import { generateLessonDescription } from "@/lib/actions/ai";
 
 type Child = { id: string; name: string };
 
@@ -56,6 +57,7 @@ export default function LessonFormModal({
   const [recurrenceEnd, setRecurrenceEnd] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [generatingDescription, setGeneratingDescription] = useState(false);
 
   // Reset form when modal opens
   useEffect(() => {
@@ -166,6 +168,29 @@ export default function LessonFormModal({
       setResourceError("");
     }
   }, [open, lesson]);
+
+  async function handleGenerateDescription() {
+    if (!title.trim()) return;
+    setGeneratingDescription(true);
+    try {
+      const selectedSubject = subjects.find((s) => s.id === subjectId);
+      const selectedCurriculum = curricula.find((c) => c.id === curriculumId);
+      const fd = new FormData();
+      fd.set("title", title);
+      fd.set("subject", selectedSubject?.name || lesson?.subject_name || "General");
+      fd.set("curriculum", selectedCurriculum?.name || "General");
+      const result = await generateLessonDescription(fd);
+      if ("error" in result) {
+        setError(result.error);
+      } else {
+        setDescription(result.description);
+      }
+    } catch {
+      setError("Failed to generate description");
+    } finally {
+      setGeneratingDescription(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -330,9 +355,19 @@ export default function LessonFormModal({
 
         {/* Description */}
         <div>
-          <label className="mb-1 block text-sm font-medium text-secondary">
-            Description
-          </label>
+          <div className="mb-1 flex items-center justify-between">
+            <label className="block text-sm font-medium text-secondary">
+              Description
+            </label>
+            <button
+              type="button"
+              onClick={handleGenerateDescription}
+              disabled={generatingDescription || !title.trim()}
+              className="rounded-md bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700 hover:bg-purple-200 disabled:opacity-50 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/50"
+            >
+              {generatingDescription ? "Generating..." : "AI Generate"}
+            </button>
+          </div>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}

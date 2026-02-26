@@ -23,6 +23,8 @@ const createSchema = z.object({
   end_time: z.string().optional(),
   all_day: z.string().optional(),
   color: z.string().default("#3b82f6"),
+  location: z.string().optional(),
+  travel_minutes: z.coerce.number().int().min(0).optional(),
   child_ids: z.array(z.string().uuid()).min(1, "Select at least one student"),
   pasted_dates: z.string().optional(),
 });
@@ -86,6 +88,8 @@ export async function createExternalEvent(formData: FormData) {
     end_time: formData.get("end_time") || undefined,
     all_day: formData.get("all_day") || undefined,
     color: formData.get("color") || "#3b82f6",
+    location: formData.get("location") || undefined,
+    travel_minutes: formData.get("travel_minutes") || undefined,
     child_ids: formData.getAll("child_ids"),
     pasted_dates: formData.get("pasted_dates") || undefined,
   });
@@ -131,8 +135,10 @@ export async function createExternalEvent(formData: FormData) {
         start_time,
         end_time,
         all_day,
-        color
-      ) VALUES ($1, $2, $3, $4, $5, $6::date, $7::date, $8::time, $9::time, $10, $11)
+        color,
+        location,
+        travel_minutes
+      ) VALUES ($1, $2, $3, $4, $5, $6::date, $7::date, $8::time, $9::time, $10, $11, $12, $13)
       RETURNING id`,
       [
         data.data.title.trim(),
@@ -146,6 +152,8 @@ export async function createExternalEvent(formData: FormData) {
         data.data.end_time || null,
         data.data.all_day === "true",
         data.data.color,
+        data.data.location?.trim() || null,
+        data.data.travel_minutes || null,
       ]
     );
 
@@ -199,6 +207,8 @@ export async function updateExternalEvent(formData: FormData) {
     end_time: formData.get("end_time") || undefined,
     all_day: formData.get("all_day") || undefined,
     color: formData.get("color") || "#3b82f6",
+    location: formData.get("location") || undefined,
+    travel_minutes: formData.get("travel_minutes") || undefined,
     child_ids: formData.getAll("child_ids"),
     pasted_dates: undefined,
   });
@@ -225,8 +235,10 @@ export async function updateExternalEvent(formData: FormData) {
            start_time = $8::time,
            end_time = $9::time,
            all_day = $10,
-           color = $11
-       WHERE id = $12`,
+           color = $11,
+           location = $12,
+           travel_minutes = $13
+       WHERE id = $14`,
       [
         data.data.title.trim(),
         data.data.description?.trim() || null,
@@ -239,6 +251,8 @@ export async function updateExternalEvent(formData: FormData) {
         data.data.end_time || null,
         data.data.all_day === "true",
         data.data.color,
+        data.data.location?.trim() || null,
+        data.data.travel_minutes || null,
         data.data.id,
       ]
     );

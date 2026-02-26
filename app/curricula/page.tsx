@@ -7,6 +7,7 @@ import { getSchoolYears } from "@/lib/queries/calendar";
 import { getAllTagNames } from "@/lib/queries/resources";
 import CurriculaView from "@/components/curricula/CurriculaView";
 import NewCurriculumButton from "@/components/curricula/NewCurriculumButton";
+import ImportCurriculumModal from "@/components/curricula/ImportCurriculumModal";
 import { getCurrentUser } from "@/lib/session";
 export default async function CurriculaPage() {
   const user = await getCurrentUser();
@@ -36,7 +37,10 @@ export default async function CurriculaPage() {
       {" "}
       <PageHeader title="Courses">
         {" "}
-        <NewCurriculumButton children={children} schoolYears={years} />{" "}
+        <div className="flex items-center gap-2">
+          <ImportCurriculumModal subjects={subjects} />
+          <NewCurriculumButton children={children} schoolYears={years} />
+        </div>{" "}
       </PageHeader>{" "}
       <CurriculaView
         curricula={curricula}

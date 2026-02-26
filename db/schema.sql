@@ -267,6 +267,8 @@ CREATE TABLE external_events (
     end_time        TIME,
     all_day         BOOLEAN NOT NULL DEFAULT false,
     color           TEXT NOT NULL DEFAULT '#3b82f6',
+    location        TEXT,
+    travel_minutes  INTEGER,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

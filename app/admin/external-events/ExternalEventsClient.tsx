@@ -37,6 +37,8 @@ export default function ExternalEventsClient({
   const [endTime, setEndTime] = useState("14:00");
   const [allDay, setAllDay] = useState(false);
   const [selectedChildren, setSelectedChildren] = useState<string[]>([]);
+  const [location, setLocation] = useState("");
+  const [travelMinutes, setTravelMinutes] = useState("");
   const [pastedDates, setPastedDates] = useState("");
   const [editRecurrence, setEditRecurrence] = useState<
     "once" | "weekly" | "biweekly" | "monthly"
@@ -59,6 +61,8 @@ export default function ExternalEventsClient({
     setStartTime("09:00");
     setEndTime("14:00");
     setAllDay(false);
+    setLocation("");
+    setTravelMinutes("");
     setSelectedChildren([]);
     setPastedDates("");
     setError("");
@@ -72,6 +76,8 @@ export default function ExternalEventsClient({
     setStartTime(event.start_time || "");
     setEndTime(event.end_time || "");
     setAllDay(event.all_day);
+    setLocation(event.location || "");
+    setTravelMinutes(event.travel_minutes ? String(event.travel_minutes) : "");
     setSelectedChildren(event.children.map((child) => child.id));
     setEditRecurrence(event.recurrence_type);
     setEditDayOfWeek(String(event.day_of_week ?? 1));
@@ -99,6 +105,8 @@ export default function ExternalEventsClient({
       formData.set("start_time", startTime);
       formData.set("end_time", endTime);
       formData.set("all_day", allDay ? "true" : "false");
+      formData.set("location", location);
+      formData.set("travel_minutes", travelMinutes);
       formData.set("pasted_dates", pastedDates);
       for (const childId of selectedChildren)
         formData.append("child_ids", childId);
@@ -124,6 +132,8 @@ export default function ExternalEventsClient({
       formData.set("start_time", startTime);
       formData.set("end_time", endTime);
       formData.set("all_day", allDay ? "true" : "false");
+      formData.set("location", location);
+      formData.set("travel_minutes", travelMinutes);
       formData.set("recurrence_type", editRecurrence);
       formData.set("day_of_week", editDayOfWeek);
       formData.set("start_date", editStartDate);
@@ -224,6 +234,16 @@ export default function ExternalEventsClient({
                       event.all_day,
                     )}{" "}
                   </p>{" "}
+                  {event.location && (
+                    <p className="text-xs text-muted">
+                      Location: {event.location}
+                    </p>
+                  )}
+                  {event.travel_minutes != null && event.travel_minutes > 0 && (
+                    <p className="text-xs text-muted">
+                      Travel: {event.travel_minutes} min
+                    </p>
+                  )}
                   <p className="text-xs text-muted">
                     {" "}
                     Students:{" "}
@@ -370,6 +390,32 @@ export default function ExternalEventsClient({
               <option value="art">Art</option>
               <option value="field-trip">Field Trip</option>
             </select>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-secondary">
+                Location
+              </label>
+              <input
+                value={location}
+                onChange={(event) => setLocation(event.target.value)}
+                className={fieldClass}
+                placeholder="Address or venue name"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-secondary">
+                Travel Time (minutes)
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={travelMinutes}
+                onChange={(event) => setTravelMinutes(event.target.value)}
+                className={fieldClass}
+                placeholder="e.g. 30"
+              />
+            </div>
           </div>
           <label className="flex items-center gap-2 text-sm text-tertiary">
             {" "}
@@ -602,6 +648,32 @@ export default function ExternalEventsClient({
               <option value="art">Art</option>
               <option value="field-trip">Field Trip</option>
             </select>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-secondary">
+                Location
+              </label>
+              <input
+                value={location}
+                onChange={(event) => setLocation(event.target.value)}
+                className={fieldClass}
+                placeholder="Address or venue name"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-secondary">
+                Travel Time (minutes)
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={travelMinutes}
+                onChange={(event) => setTravelMinutes(event.target.value)}
+                className={fieldClass}
+                placeholder="e.g. 30"
+              />
+            </div>
           </div>
           <label className="flex items-center gap-2 text-sm text-tertiary">
             {" "}

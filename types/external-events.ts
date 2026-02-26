@@ -12,6 +12,8 @@ export type ExternalEvent = {
   end_time: string | null;
   all_day: boolean;
   color: string;
+  location: string | null;
+  travel_minutes: number | null;
   created_at: string;
   children: { id: string; name: string }[];
   exception_dates: string[];

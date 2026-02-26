@@ -16,7 +16,7 @@ import {
   formatShortDate,
   isToday,
 } from "@/lib/utils/dates";
-import { rescheduleLesson } from "@/lib/actions/lessons";
+import { rescheduleLesson, reassignLessonToChild } from "@/lib/actions/lessons";
 import { saveWeeklyNote } from "@/lib/actions/weekly-notes";
 import { parseChecklist, checklistProgress } from "@/components/lessons/InteractiveChecklist";
 interface GridLesson {
@@ -141,10 +141,12 @@ export default function WeekGrid({
   weeks,
   bumpedCount = 0,
   weeklyNotes = {},
+  allChildren = [],
 }: {
   weeks: WeekData[];
   bumpedCount?: number;
   weeklyNotes?: Record<string, string>;
+  allChildren?: { id: string; name: string }[];
 }) {
   const router = useRouter();
   const [selectedDay, setSelectedDay] = useState<DayData | null>(null);
@@ -162,6 +164,21 @@ export default function WeekGrid({
   const [localNotes, setLocalNotes] = useState<Record<string, string>>(weeklyNotes);
   const [editingNoteWeek, setEditingNoteWeek] = useState<string | null>(null);
   const [savingNote, setSavingNote] = useState(false);
+  const [reassignLessonId, setReassignLessonId] = useState<string | null>(null);
+  const [reassigning, setReassigning] = useState(false);
+
+  async function handleReassign(lessonId: string, newChildId: string) {
+    setReassigning(true);
+    const result = await reassignLessonToChild(lessonId, newChildId);
+    setReassigning(false);
+    setReassignLessonId(null);
+    if (result && "error" in result) {
+      console.error("Reassign failed:", result.error);
+    } else {
+      router.refresh();
+    }
+  }
+
   useEffect(() => {
     setLocalWeeks(weeks);
   }, [weeks]);
@@ -556,60 +573,95 @@ export default function WeekGrid({
                                   </Link>
                                   <div className="mt-0.5 space-y-0.5 pl-2">
                                     {courseGroup.lessons.map((lesson) => (
-                                      <button
-                                        key={lesson.id}
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          if (
-                                            touchDragging ||
-                                            suppressNextClick.current
-                                          ) {
-                                            suppressNextClick.current = false;
-                                            return;
+                                      <div key={lesson.id} className="group/lesson relative">
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (
+                                              touchDragging ||
+                                              suppressNextClick.current
+                                            ) {
+                                              suppressNextClick.current = false;
+                                              return;
+                                            }
+                                            setDetailLessonId(lesson.id);
+                                            setDetailOpen(true);
+                                          }}
+                                          draggable={!isPending}
+                                          onDragStart={(event) => {
+                                            event.stopPropagation();
+                                            setDraggingLesson({
+                                              id: lesson.id,
+                                              fromDate: day.date,
+                                              subjectName: subject.subjectName,
+                                              subjectColor: subject.subjectColor,
+                                            });
+                                          }}
+                                          onDragEnd={() => {
+                                            setDraggingLesson(null);
+                                            setDropTargetDate(null);
+                                          }}
+                                          onTouchStart={(event) =>
+                                            handleTouchStart(event, {
+                                              id: lesson.id,
+                                              fromDate: day.date,
+                                              subjectName: subject.subjectName,
+                                              subjectColor: subject.subjectColor,
+                                            })
                                           }
-                                          setDetailLessonId(lesson.id);
-                                          setDetailOpen(true);
-                                        }}
-                                        draggable={!isPending}
-                                        onDragStart={(event) => {
-                                          event.stopPropagation();
-                                          setDraggingLesson({
-                                            id: lesson.id,
-                                            fromDate: day.date,
-                                            subjectName: subject.subjectName,
-                                            subjectColor: subject.subjectColor,
-                                          });
-                                        }}
-                                        onDragEnd={() => {
-                                          setDraggingLesson(null);
-                                          setDropTargetDate(null);
-                                        }}
-                                        onTouchStart={(event) =>
-                                          handleTouchStart(event, {
-                                            id: lesson.id,
-                                            fromDate: day.date,
-                                            subjectName: subject.subjectName,
-                                            subjectColor: subject.subjectColor,
-                                          })
-                                        }
-                                        onTouchMove={handleTouchMove}
-                                        onTouchEnd={handleTouchEnd}
-                                        onTouchCancel={handleTouchCancel}
-                                        className={`block text-left text-sm leading-tight transition-colors hover:text-interactive md:text-xs ${(lesson.effective_status || lesson.status) === "completed" ? "text-muted line-through" : "text-tertiary"}`}
-                                      >
-                                        <span className="line-clamp-2">{lesson.title}</span>
-                                        {(() => {
-                                          const items = parseChecklist(lesson.description);
-                                          if (items.length === 0) return null;
-                                          const { checked, total } = checklistProgress(items, lesson.checklist_state || {});
-                                          return (
-                                            <span className="mt-0.5 flex items-center gap-1 text-[10px] text-muted no-underline" style={{ textDecoration: 'none' }}>
-                                              <span className="text-[var(--success-solid)]">&#10003;</span> {checked}/{total}
-                                            </span>
-                                          );
-                                        })()}
-                                      </button>
+                                          onTouchMove={handleTouchMove}
+                                          onTouchEnd={handleTouchEnd}
+                                          onTouchCancel={handleTouchCancel}
+                                          className={`block text-left text-sm leading-tight transition-colors hover:text-interactive md:text-xs ${(lesson.effective_status || lesson.status) === "completed" ? "text-muted line-through" : "text-tertiary"}`}
+                                        >
+                                          <span className="line-clamp-2">{lesson.title}</span>
+                                          {(() => {
+                                            const items = parseChecklist(lesson.description);
+                                            if (items.length === 0) return null;
+                                            const { checked, total } = checklistProgress(items, lesson.checklist_state || {});
+                                            return (
+                                              <span className="mt-0.5 flex items-center gap-1 text-[10px] text-muted no-underline" style={{ textDecoration: 'none' }}>
+                                                <span className="text-[var(--success-solid)]">&#10003;</span> {checked}/{total}
+                                              </span>
+                                            );
+                                          })()}
+                                        </button>
+                                        {allChildren.length > 1 && (
+                                          <div className="absolute -right-0.5 top-0 hidden group-hover/lesson:block">
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setReassignLessonId(reassignLessonId === lesson.id ? null : lesson.id);
+                                              }}
+                                              className="rounded p-0.5 text-[10px] text-muted hover:bg-surface-muted hover:text-interactive"
+                                              title="Reassign to another child"
+                                            >
+                                              &#x21C4;
+                                            </button>
+                                            {reassignLessonId === lesson.id && (
+                                              <div className="absolute right-0 top-full z-20 mt-0.5 w-32 rounded-lg border border-light bg-surface py-1 shadow-lg">
+                                                <p className="px-2 py-0.5 text-[10px] font-semibold text-muted">Move to:</p>
+                                                {allChildren.map((child) => (
+                                                  <button
+                                                    key={child.id}
+                                                    type="button"
+                                                    disabled={reassigning}
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      handleReassign(lesson.id, child.id);
+                                                    }}
+                                                    className="block w-full px-2 py-1 text-left text-xs text-primary hover:bg-surface-muted disabled:opacity-50"
+                                                  >
+                                                    {child.name}
+                                                  </button>
+                                                ))}
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
                                     ))}
                                   </div>
                                 </div>

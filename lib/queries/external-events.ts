@@ -14,6 +14,8 @@ type RawExternalEvent = {
   end_time: string | null;
   all_day: boolean;
   color: string;
+  location: string | null;
+  travel_minutes: number | null;
   created_at: string;
   children: { id: string; name: string }[];
   exception_dates: string[];
@@ -53,6 +55,8 @@ export async function getExternalEventsForAdmin(parentId?: string): Promise<Exte
        e.end_time::text,
        e.all_day,
        e.color,
+       e.location,
+       e.travel_minutes,
        e.created_at::text,
        COALESCE(
          json_agg(
@@ -125,6 +129,8 @@ export async function getExternalEventOccurrencesForRange(
        e.end_time::text,
        e.all_day,
        e.color,
+       e.location,
+       e.travel_minutes,
        e.created_at::text,
        COALESCE(
          json_agg(
