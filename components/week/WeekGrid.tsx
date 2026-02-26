@@ -24,6 +24,7 @@ interface GridLesson {
   title: string;
   description: string | null;
   status: string;
+  effective_status?: string;
   curriculum_id: string;
   curriculum_name: string;
   grade: number | null;
@@ -214,7 +215,7 @@ export default function WeekGrid({
         for (const subject of day.subjects) {
           totalLessons += subject.lessons.length;
           for (const lesson of subject.lessons) {
-            if (lesson.status === "completed") completedLessons += 1;
+            if ((lesson.effective_status || lesson.status) === "completed") completedLessons += 1;
           }
         }
         stats.set(day.date, { totalLessons, completedLessons });
@@ -595,7 +596,7 @@ export default function WeekGrid({
                                         onTouchMove={handleTouchMove}
                                         onTouchEnd={handleTouchEnd}
                                         onTouchCancel={handleTouchCancel}
-                                        className={`block text-left text-sm leading-tight transition-colors hover:text-interactive md:text-xs ${lesson.status === "completed" ? "text-muted line-through" : "text-tertiary"}`}
+                                        className={`block text-left text-sm leading-tight transition-colors hover:text-interactive md:text-xs ${(lesson.effective_status || lesson.status) === "completed" ? "text-muted line-through" : "text-tertiary"}`}
                                       >
                                         <span className="line-clamp-2">{lesson.title}</span>
                                         {(() => {

@@ -4,6 +4,7 @@ import { getAllSubjects } from "@/lib/queries/subjects";
 import { getAllChildren } from "@/lib/queries/students";
 import SubjectsView from "@/components/subjects/SubjectsView";
 import NewSubjectButton from "@/components/subjects/NewSubjectButton";
+import SubjectTemplateButton from "@/components/subjects/SubjectTemplateButton";
 import { getCurrentUser } from "@/lib/session";
 export default async function SubjectsPage() {
   const user = await getCurrentUser();
@@ -15,8 +16,10 @@ export default async function SubjectsPage() {
     <div>
       {" "}
       <PageHeader title="Subjects">
-        {" "}
-        <NewSubjectButton />{" "}
+        <div className="flex items-center gap-2">
+          <SubjectTemplateButton />
+          <NewSubjectButton />
+        </div>
       </PageHeader>{" "}
       <SubjectsView
         subjects={subjects}

@@ -4,6 +4,7 @@ export async function getAllResources(filters?: {
   type?: string;
   search?: string;
   tag?: string;
+  category?: string;
 }) {
   const conditions: string[] = [];
   const params: string[] = [];
@@ -30,6 +31,10 @@ export async function getAllResources(filters?: {
     params.push(filters.tag.toLowerCase());
     idx++;
   }
+  if (filters?.category) {
+    conditions.push(`r.category = $${idx++}`);
+    params.push(filters.category);
+  }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
@@ -43,6 +48,7 @@ export async function getAllResources(filters?: {
          r.url,
          r.thumbnail_url,
          r.description,
+         r.category,
          r.created_at,
          COALESCE(u.usage_count, 0)::int AS usage_count,
          COALESCE(t.tags, ARRAY[]::text[]) AS tags,
@@ -74,6 +80,7 @@ export async function getAllResources(filters?: {
          lr.url,
          lr.thumbnail_url,
          NULL::text AS description,
+         'learning'::text AS category,
          now() AS created_at,
          COUNT(DISTINCT lr.lesson_id)::int AS usage_count,
          ARRAY[]::text[] AS tags,

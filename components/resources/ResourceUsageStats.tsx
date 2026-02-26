@@ -17,6 +17,7 @@ const typeIcons: Record<string, string> = {
   pdf: "📄",
   link: "🔗",
   supply: "🧰",
+  local_file: "📝",
 };
 
 export default function ResourceUsageStats({ stats }: { stats: UsageStat[] }) {

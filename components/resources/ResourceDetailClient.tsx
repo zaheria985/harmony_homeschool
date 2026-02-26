@@ -41,13 +41,14 @@ type AvailableLesson = {
   subject_name: string;
 };
 type Booklist = { id: string; name: string };
-const RESOURCE_TYPES = ["book", "video", "pdf", "link", "supply"] as const;
+const RESOURCE_TYPES = ["book", "video", "pdf", "link", "supply", "local_file"] as const;
 const typeIcons: Record<string, string> = {
   book: "📕",
   video: "🎬",
   pdf: "📄",
   link: "🔗",
   supply: "🧰",
+  local_file: "📝",
 };
 const tagStyles = [
   "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200",
@@ -449,7 +450,7 @@ export default function ResourceDetailClient({
               {RESOURCE_TYPES.map((t) => (
                 <option key={t} value={t}>
                   {" "}
-                  {t.charAt(0).toUpperCase() + t.slice(1)}{" "}
+                  {t === "local_file" ? "Local File" : t.charAt(0).toUpperCase() + t.slice(1)}{" "}
                 </option>
               ))}{" "}
             </select>{" "}

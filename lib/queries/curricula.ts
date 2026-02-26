@@ -71,7 +71,12 @@ export async function getCurriculumDetail(id: string, showArchived = false) {
     `SELECT
        l.id, l.title, l.status, l.planned_date, l.order_index, l.description, l.checklist_state,
        l.archived,
-       lc.grade, lc.completed_at
+       lc.grade, lc.completed_at,
+       CASE
+         WHEN lc.id IS NOT NULL THEN 'completed'
+         WHEN l.status = 'in_progress' THEN 'in_progress'
+         ELSE 'planned'
+       END AS effective_status
      FROM lessons l
      LEFT JOIN lesson_completions lc ON lc.lesson_id = l.id ${childId ? "AND lc.child_id = $1" : ""}
      WHERE l.curriculum_id = $${childId ? 2 : 1}${archivedFilter}
@@ -109,6 +114,8 @@ export async function getCurriculumBoardData(id: string, showArchived = false) {
   const curriculum = res.rows[0];
 
   // Lessons with resources and completions
+  // Join completions for the primary assigned child to compute effective_status
+  const childId = curriculum.child_id;
   const lessons = await pool.query(
     `SELECT
        l.id, l.title, l.description, l.status, l.planned_date,
@@ -119,11 +126,17 @@ export async function getCurriculumBoardData(id: string, showArchived = false) {
           FROM lesson_tags lt JOIN tags t ON t.id = lt.tag_id
           WHERE lt.lesson_id = l.id),
          ''
-       ) AS tags
+       ) AS tags,
+       CASE
+         WHEN lc.id IS NOT NULL THEN 'completed'
+         WHEN l.status = 'in_progress' THEN 'in_progress'
+         ELSE 'planned'
+       END AS effective_status
      FROM lessons l
+     LEFT JOIN lesson_completions lc ON lc.lesson_id = l.id${childId ? " AND lc.child_id = $2" : ""}
      WHERE l.curriculum_id = $1${showArchived ? "" : " AND l.archived = false"}
      ORDER BY l.order_index, l.planned_date ASC NULLS LAST`,
-    [id]
+    childId ? [id, childId] : [id]
   );
 
   // All lesson resources for this curriculum's lessons

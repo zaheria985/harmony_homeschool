@@ -57,7 +57,7 @@ export default async function DailyViewPage({
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {subjects.map(([subjectId, group]) => {
             const completed = group.lessons.filter(
-              (l) => l.status === "completed",
+              (l) => (l.effective_status || l.status) === "completed",
             ).length;
             const total = group.lessons.length;
             const allDone = completed === total && total > 0;
@@ -88,17 +88,17 @@ export default async function DailyViewPage({
                     >
                       <span
                         className={`${
-                          lesson.status === "completed"
+                          (lesson.effective_status || lesson.status) === "completed"
                             ? "text-muted line-through"
                             : "text-secondary"
                         }`}
                       >
                         {lesson.title}
                       </span>
-                      {lesson.status === "completed" && (
+                      {(lesson.effective_status || lesson.status) === "completed" && (
                         <Badge variant="success">Done</Badge>
                       )}
-                      {lesson.status === "in_progress" && (
+                      {(lesson.effective_status || lesson.status) === "in_progress" && (
                         <Badge variant="warning">In Progress</Badge>
                       )}
                     </div>

@@ -5,6 +5,7 @@ export interface WeekLesson {
   title: string;
   description: string | null;
   status: string;
+  effective_status: string;
   planned_date: string;
   curriculum_id: string;
   curriculum_name: string;
@@ -14,6 +15,8 @@ export interface WeekLesson {
   grade: number | null;
   checklist_state: Record<string, boolean> | null;
   child_name?: string;
+  is_recurring?: boolean;
+  recurrence_rule?: string | null;
 }
 
 /**
@@ -29,9 +32,15 @@ export async function getWeekLessons(
     `SELECT
        l.id, l.title, l.description, l.status, l.planned_date::text,
        l.checklist_state,
+       l.is_recurring, l.recurrence_rule,
        cu.id AS curriculum_id, cu.name AS curriculum_name,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
-       lc.grade
+       lc.grade,
+       CASE
+         WHEN lc.id IS NOT NULL THEN 'completed'
+         WHEN l.status = 'in_progress' THEN 'in_progress'
+         ELSE 'planned'
+       END AS effective_status
      FROM lessons l
      JOIN curricula cu ON cu.id = l.curriculum_id
      JOIN subjects s ON s.id = cu.subject_id
@@ -61,10 +70,16 @@ export async function getAllWeekLessons(
     `SELECT
        l.id, l.title, l.description, l.status, l.planned_date::text,
        l.checklist_state,
+       l.is_recurring, l.recurrence_rule,
        cu.id AS curriculum_id, cu.name AS curriculum_name,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        c.name AS child_name,
-       lc.grade
+       lc.grade,
+       CASE
+         WHEN lc.id IS NOT NULL THEN 'completed'
+         WHEN l.status = 'in_progress' THEN 'in_progress'
+         ELSE 'planned'
+       END AS effective_status
      FROM lessons l
      JOIN curricula cu ON cu.id = l.curriculum_id
      JOIN subjects s ON s.id = cu.subject_id
@@ -85,6 +100,7 @@ export interface DaySubjectLesson {
   title: string;
   description: string | null;
   status: string;
+  effective_status: string;
   planned_date: string;
   order_index: number;
   curriculum_id: string;
@@ -97,6 +113,8 @@ export interface DaySubjectLesson {
   completion_id: string | null;
   child_id: string;
   resources: LessonResource[];
+  is_recurring?: boolean;
+  recurrence_rule?: string | null;
 }
 
 export interface LessonResource {
@@ -119,10 +137,16 @@ export async function getDaySubjectLessons(
     `SELECT
        l.id, l.title, l.description, l.status, l.planned_date::text,
        l.order_index,
+       l.is_recurring, l.recurrence_rule,
        cu.id AS curriculum_id, cu.name AS curriculum_name,
        s.name AS subject_name, s.color AS subject_color,
        ca.child_id,
-       lc.id AS completion_id, lc.grade, lc.notes AS completion_notes, lc.completed_at
+       lc.id AS completion_id, lc.grade, lc.notes AS completion_notes, lc.completed_at,
+       CASE
+         WHEN lc.id IS NOT NULL THEN 'completed'
+         WHEN l.status = 'in_progress' THEN 'in_progress'
+         ELSE 'planned'
+       END AS effective_status
      FROM lessons l
      JOIN curricula cu ON cu.id = l.curriculum_id
      JOIN subjects s ON s.id = cu.subject_id

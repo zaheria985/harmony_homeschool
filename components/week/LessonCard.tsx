@@ -6,7 +6,8 @@ import RescheduleButton from "./RescheduleButton";
 import ResourceEmbed from "./ResourceEmbed";
 import type { DaySubjectLesson } from "@/lib/queries/week";
 export default function LessonCard({ lesson, onLessonClick }: { lesson: DaySubjectLesson; onLessonClick?: (id: string) => void }) {
-  const isCompleted = lesson.status === "completed";
+  const effectiveStatus = lesson.effective_status || lesson.status;
+  const isCompleted = effectiveStatus === "completed";
   return (
     <div
       className={`rounded-2xl border p-4 ${isCompleted ? "border-success-200 bg-[var(--success-bg)]/30 dark:border-success-900/40/20" : "border-light bg-surface-slate"}`}
@@ -42,8 +43,13 @@ export default function LessonCard({ lesson, onLessonClick }: { lesson: DaySubje
                 {lesson.title}
               </Link>
             )}{" "}
+            {lesson.is_recurring && (
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-medium text-violet-700 dark:bg-violet-900/40 dark:text-violet-300" title={`Repeats ${lesson.recurrence_rule || "weekly"}`}>
+                ↻ {lesson.recurrence_rule || "weekly"}
+              </span>
+            )}{" "}
             {isCompleted && <Badge variant="success">Done</Badge>}{" "}
-            {lesson.status === "in_progress" && (
+            {effectiveStatus === "in_progress" && (
               <Badge variant="warning">In Progress</Badge>
             )}{" "}
           </div>{" "}

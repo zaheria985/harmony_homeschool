@@ -117,7 +117,10 @@ CREATE TABLE lessons (
                         CHECK (status IN ('planned', 'in_progress', 'completed')),
     checklist_state JSONB NOT NULL DEFAULT '{}'::jsonb,
     archived        BOOLEAN NOT NULL DEFAULT false,
-    grade_weight    NUMERIC(3,2) NOT NULL DEFAULT 1.0
+    grade_weight    NUMERIC(3,2) NOT NULL DEFAULT 1.0,
+    is_recurring    BOOLEAN NOT NULL DEFAULT false,
+    recurrence_rule TEXT,                                    -- e.g. 'weekly', 'daily', 'MWF', 'TTh'
+    recurrence_end  DATE
 );
 
 -- ============================================================================
@@ -128,11 +131,13 @@ CREATE TABLE resources (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title           TEXT NOT NULL,
     type            TEXT NOT NULL
-                        CHECK (type IN ('book', 'video', 'pdf', 'link', 'supply')),
+                        CHECK (type IN ('book', 'video', 'pdf', 'link', 'supply', 'local_file')),
     author          TEXT,
     url             TEXT,
     thumbnail_url   TEXT,
     description     TEXT,
+    category        TEXT NOT NULL DEFAULT 'learning'
+                        CHECK (category IN ('learning', 'asset')),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

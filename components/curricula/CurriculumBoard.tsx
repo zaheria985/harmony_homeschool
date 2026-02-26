@@ -61,6 +61,7 @@ type Lesson = {
   title: string;
   description: string | null;
   status: string;
+  effective_status?: string;
   planned_date: string | null;
   order_index: number;
   estimated_duration: number | null;
@@ -289,9 +290,13 @@ function LessonMiniCard({
   const allCompleted =
     assignedChildren.length > 0 &&
     assignedChildren.every((c) => completedChildIds.has(c.id));
+  // Compute display status: prefer per-child effective_status over global status
+  const displayStatus = allCompleted
+    ? "completed"
+    : lesson.effective_status || lesson.status;
   const borderColor = allCompleted
     ? "border-success-400"
-    : statusColors[lesson.status] || "border-light";
+    : statusColors[displayStatus] || "border-light";
 
   // Find cover image (first image-type resource)
   const coverResource = lesson.resources.find((r) => isImageResource(r)) || null;
@@ -342,10 +347,10 @@ function LessonMiniCard({
           )}
         </div>
         <div className="mt-1.5 flex items-center gap-2">
-          <Badge variant={statusBadge[lesson.status] || "default"}>
-            {lesson.status === "in_progress"
+          <Badge variant={statusBadge[displayStatus] || "default"}>
+            {displayStatus === "in_progress"
               ? "In Progress"
-              : lesson.status.charAt(0).toUpperCase() + lesson.status.slice(1)}
+              : displayStatus.charAt(0).toUpperCase() + displayStatus.slice(1)}
           </Badge>
           {lesson.planned_date && (
             <span className="text-[10px] text-muted">
@@ -1345,9 +1350,13 @@ export default function CurriculumBoard({
           const allCompleted =
             assignedChildren.length > 0 &&
             assignedChildren.every((c) => completedChildIds.has(c.id));
+          // Compute display status: prefer per-child effective_status over global status
+          const colDisplayStatus = allCompleted
+            ? "completed"
+            : lesson.effective_status || lesson.status;
           const borderColor = allCompleted
             ? "border-success-400"
-            : statusColors[lesson.status] || "border-light";
+            : statusColors[colDisplayStatus] || "border-light";
 
           return (
             <div
@@ -1368,11 +1377,11 @@ export default function CurriculumBoard({
                     Card {idx + 1}
                   </span>
                   <div className="flex items-center gap-1">
-                    <Badge variant={statusBadge[lesson.status] || "default"}>
-                      {lesson.status === "in_progress"
+                    <Badge variant={statusBadge[colDisplayStatus] || "default"}>
+                      {colDisplayStatus === "in_progress"
                         ? "In Progress"
-                        : lesson.status.charAt(0).toUpperCase() +
-                          lesson.status.slice(1)}
+                        : colDisplayStatus.charAt(0).toUpperCase() +
+                          colDisplayStatus.slice(1)}
                     </Badge>
                     {showRowActions && (
                       <RowActions

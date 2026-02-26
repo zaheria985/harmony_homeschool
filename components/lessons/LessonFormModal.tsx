@@ -51,6 +51,9 @@ export default function LessonFormModal({
   const [description, setDescription] = useState("");
   const [plannedDate, setPlannedDate] = useState("");
   const [gradeWeight, setGradeWeight] = useState("1.0");
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurrenceRule, setRecurrenceRule] = useState("weekly");
+  const [recurrenceEnd, setRecurrenceEnd] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -77,6 +80,9 @@ export default function LessonFormModal({
       setDescription("");
       setPlannedDate("");
       setGradeWeight("1.0");
+      setIsRecurring(false);
+      setRecurrenceRule("weekly");
+      setRecurrenceEnd("");
       setCurriculumId("");
       setChildId("");
       setSubjectId("");
@@ -172,6 +178,11 @@ export default function LessonFormModal({
     formData.set("planned_date", plannedDate);
     formData.set("description", description);
     formData.set("grade_weight", gradeWeight);
+    formData.set("is_recurring", isRecurring ? "true" : "false");
+    if (isRecurring) {
+      formData.set("recurrence_rule", recurrenceRule);
+      formData.set("recurrence_end", recurrenceEnd);
+    }
 
     if (isEdit && lesson) {
       formData.set("id", lesson.id);
@@ -360,6 +371,51 @@ export default function LessonFormModal({
             />
           </div>
         </div>
+
+        {/* Recurring */}
+        {!isEdit && (
+          <div className="space-y-3">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={isRecurring}
+                onChange={(e) => setIsRecurring(e.target.checked)}
+                className="rounded border-border text-interactive focus:ring-focus"
+              />
+              <span className="font-medium text-secondary">Recurring lesson</span>
+            </label>
+            {isRecurring && (
+              <div className="flex gap-4 pl-6">
+                <div className="flex-1">
+                  <label className="mb-1 block text-sm font-medium text-secondary">
+                    Frequency
+                  </label>
+                  <select
+                    value={recurrenceRule}
+                    onChange={(e) => setRecurrenceRule(e.target.value)}
+                    className="w-full rounded-lg border px-3 py-2 text-sm"
+                  >
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="MWF">Mon / Wed / Fri</option>
+                    <option value="TTh">Tue / Thu</option>
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <label className="mb-1 block text-sm font-medium text-secondary">
+                    End Date
+                  </label>
+                  <input
+                    type="date"
+                    value={recurrenceEnd}
+                    onChange={(e) => setRecurrenceEnd(e.target.value)}
+                    className="w-full rounded-lg border px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Error */}
         {error && <p className="text-sm text-red-600">{error}</p>}

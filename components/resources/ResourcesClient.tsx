@@ -28,7 +28,7 @@ type Resource = {
 
 type Booklist = { id: string; name: string };
 
-const RESOURCE_TYPES = ["book", "video", "pdf", "link", "supply"] as const;
+const RESOURCE_TYPES = ["book", "video", "pdf", "link", "supply", "local_file"] as const;
 
 const typeIcons: Record<string, string> = {
   book: "📕",
@@ -36,6 +36,7 @@ const typeIcons: Record<string, string> = {
   pdf: "📄",
   link: "🔗",
   supply: "🧰",
+  local_file: "📝",
 };
 
 const typeBadgeVariant: Record<string, string> = {
@@ -44,6 +45,7 @@ const typeBadgeVariant: Record<string, string> = {
   pdf: "danger",
   link: "info",
   supply: "default",
+  local_file: "success",
 };
 
 function isImageUrl(url: string | null): boolean {
@@ -56,15 +58,18 @@ export default function ResourcesClient({
   initialTypeFilter = "",
   initialSearch = "",
   initialTagFilter = "",
+  initialCategory = "learning",
 }: {
   resources: Resource[];
   booklists?: Booklist[];
   initialTypeFilter?: string;
   initialSearch?: string;
   initialTagFilter?: string;
+  initialCategory?: string;
 }) {
   const router = useRouter();
   const [search, setSearch] = useState(initialSearch);
+  const [category, setCategory] = useState(initialCategory);
   const allTypes = useMemo(() => {
     const types = new Set<string>();
     for (const r of resources) types.add(r.type);
@@ -231,6 +236,22 @@ export default function ResourcesClient({
           onChange={(e) => setTagFilter(e.target.value)}
           className="rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"
         />
+
+        <select
+          value={category}
+          onChange={(e) => {
+            setCategory(e.target.value);
+            const params = new URLSearchParams(window.location.search);
+            params.set("category", e.target.value);
+            router.push(`/resources?${params.toString()}`);
+          }}
+          className="rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"
+          aria-label="Filter by category"
+        >
+          <option value="learning">Learning Resources</option>
+          <option value="asset">Assets</option>
+          <option value="all">All</option>
+        </select>
 
         <div className="ml-auto flex items-center gap-2">
           <ViewToggle
@@ -500,7 +521,7 @@ export default function ResourcesClient({
             >
               {RESOURCE_TYPES.map((t) => (
                 <option key={t} value={t}>
-                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                  {t === "local_file" ? "Local File" : t.charAt(0).toUpperCase() + t.slice(1)}
                 </option>
               ))}
             </select>

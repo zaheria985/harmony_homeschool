@@ -7,16 +7,18 @@ import ResourceUsageStats from "@/components/resources/ResourceUsageStats";
 export default async function ResourcesPage({
   searchParams,
 }: {
-  searchParams: { type?: string; search?: string; tag?: string };
+  searchParams: { type?: string; search?: string; tag?: string; category?: string };
 }) {
   const type = searchParams.type || "";
   const search = searchParams.search || "";
   const tag = searchParams.tag || "";
+  const category = searchParams.category || "learning";
   const [resources, booklists, usageStats] = await Promise.all([
     getAllResources({
       type: type || undefined,
       search: search || undefined,
       tag: tag || undefined,
+      category: category === "all" ? undefined : category,
     }),
     getAllBooklists(),
     getResourceUsageStats(),
@@ -30,6 +32,7 @@ export default async function ResourcesPage({
         initialTypeFilter={type}
         initialSearch={search}
         initialTagFilter={tag}
+        initialCategory={category}
       />
       <ResourceUsageStats stats={usageStats} />
     </div>

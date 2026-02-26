@@ -220,7 +220,7 @@ export { deleteLessonResource as deleteResource };
 // GLOBAL RESOURCE LIBRARY
 // ============================================================================
 
-const resourceTypeSchema = z.enum(["book", "video", "pdf", "link", "supply"]);
+const resourceTypeSchema = z.enum(["book", "video", "pdf", "link", "supply", "local_file"]);
 
 const createGlobalResourceSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -231,6 +231,7 @@ const createGlobalResourceSchema = z.object({
   description: z.string().optional(),
   tags: z.string().optional(),
   booklist_ids: z.array(z.string().uuid()).default([]),
+  category: z.enum(["learning", "asset"]).default("learning"),
 });
 
 export async function createGlobalResource(formData: FormData) {
@@ -243,13 +244,14 @@ export async function createGlobalResource(formData: FormData) {
     description: formData.get("description") || undefined,
     tags: formData.get("tags") || undefined,
     booklist_ids: formData.getAll("booklist_ids"),
+    category: formData.get("category") || "learning",
   });
 
   if (!data.success) {
     return { error: data.error.errors[0]?.message || "Invalid input" };
   }
 
-  const { title, type, author, url, thumbnail_url, description, tags, booklist_ids } = data.data;
+  const { title, type, author, url, thumbnail_url, description, tags, booklist_ids, category } = data.data;
   const normalizedAuthor = type === "book" ? (author || "").trim() : "";
   const finalTags = mergeTagNames(tags, normalizedAuthor ? [normalizedAuthor] : []);
 
@@ -292,9 +294,9 @@ export async function createGlobalResource(formData: FormData) {
   try {
     await client.query("BEGIN");
     const res = await client.query(
-      `INSERT INTO resources (title, type, author, url, thumbnail_url, description)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-      [title, type, normalizedAuthor || null, url || null, nextThumbnailUrl, description || null]
+      `INSERT INTO resources (title, type, author, url, thumbnail_url, description, category)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+      [title, type, normalizedAuthor || null, url || null, nextThumbnailUrl, description || null, category]
     );
     id = res.rows[0].id;
     await syncResourceTags(client, id, finalTags.join(", "));
@@ -831,7 +833,7 @@ export async function bulkImportResources(formData: FormData) {
 
   if (lines.length === 0) return { error: "No lines found" };
 
-  const validTypes = new Set(["book", "video", "pdf", "link", "supply"]);
+  const validTypes = new Set(["book", "video", "pdf", "link", "supply", "local_file"]);
   let imported = 0;
   let skipped = 0;
 

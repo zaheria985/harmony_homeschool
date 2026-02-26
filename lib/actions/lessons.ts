@@ -516,6 +516,9 @@ const createLessonSchema = z.object({
   description: z.string().optional(),
   section: z.string().optional(),
   grade_weight: z.coerce.number().min(0.1).max(10).default(1.0),
+  is_recurring: z.coerce.boolean().default(false),
+  recurrence_rule: z.enum(["daily", "weekly", "MWF", "TTh"]).optional(),
+  recurrence_end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
 });
 
 const bulkLessonItemSchema = z.object({
@@ -543,18 +546,21 @@ export async function createLesson(formData: FormData) {
     description: formData.get("description") || undefined,
     section: formData.get("section") || undefined,
     grade_weight: formData.get("grade_weight") || 1.0,
+    is_recurring: formData.get("is_recurring") === "true" || formData.get("is_recurring") === "on",
+    recurrence_rule: formData.get("recurrence_rule") || undefined,
+    recurrence_end: formData.get("recurrence_end") || undefined,
   });
 
   if (!data.success) {
     return { error: data.error.errors[0]?.message || "Invalid input" };
   }
 
-  const { title, curriculum_id, planned_date, description, section, grade_weight } = data.data;
+  const { title, curriculum_id, planned_date, description, section, grade_weight, is_recurring, recurrence_rule, recurrence_end } = data.data;
 
   const res = await pool.query(
-    `INSERT INTO lessons (title, curriculum_id, planned_date, description, section, grade_weight)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-    [title, curriculum_id, planned_date || null, description || null, section || null, grade_weight]
+    `INSERT INTO lessons (title, curriculum_id, planned_date, description, section, grade_weight, is_recurring, recurrence_rule, recurrence_end)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+    [title, curriculum_id, planned_date || null, description || null, section || null, grade_weight, is_recurring, recurrence_rule || null, recurrence_end || null]
   );
 
   const lessonId = res.rows[0].id;
@@ -873,6 +879,91 @@ export async function createSubject(formData: FormData) {
 
   revalidateAll();
   return { success: true, id: res.rows[0].id };
+}
+
+const SUBJECT_TEMPLATES: Record<string, { name: string; subjects: { name: string; color: string }[] }> = {
+  classical: {
+    name: "Classical",
+    subjects: [
+      { name: "Latin", color: "#8B5CF6" },
+      { name: "Logic", color: "#6366F1" },
+      { name: "Rhetoric", color: "#4F46E5" },
+      { name: "Grammar", color: "#7C3AED" },
+      { name: "Mathematics", color: "#2563EB" },
+      { name: "History", color: "#B45309" },
+      { name: "Science", color: "#059669" },
+      { name: "Theology", color: "#9333EA" },
+    ],
+  },
+  charlotte_mason: {
+    name: "Charlotte Mason",
+    subjects: [
+      { name: "Living Books", color: "#7C3AED" },
+      { name: "Nature Study", color: "#059669" },
+      { name: "Narration", color: "#2563EB" },
+      { name: "Copywork", color: "#B45309" },
+      { name: "Handicrafts", color: "#DC2626" },
+      { name: "Picture Study", color: "#DB2777" },
+      { name: "Music Appreciation", color: "#9333EA" },
+      { name: "Mathematics", color: "#0891B2" },
+    ],
+  },
+  traditional: {
+    name: "Traditional",
+    subjects: [
+      { name: "Math", color: "#2563EB" },
+      { name: "Science", color: "#059669" },
+      { name: "English/Language Arts", color: "#7C3AED" },
+      { name: "History/Social Studies", color: "#B45309" },
+      { name: "Reading", color: "#DC2626" },
+      { name: "Writing", color: "#0891B2" },
+      { name: "Art", color: "#DB2777" },
+      { name: "Music", color: "#9333EA" },
+      { name: "Physical Education", color: "#F59E0B" },
+    ],
+  },
+};
+
+const applyTemplateSchema = z.object({
+  templateKey: z.string().min(1, "Template key is required"),
+});
+
+export async function applySubjectTemplate(templateKey: string) {
+  const data = applyTemplateSchema.safeParse({ templateKey });
+  if (!data.success) {
+    return { error: data.error.errors[0]?.message || "Invalid input" };
+  }
+
+  const template = SUBJECT_TEMPLATES[data.data.templateKey];
+  if (!template) {
+    return { error: "Unknown template" };
+  }
+
+  // Get existing subject names to skip duplicates
+  const existing = await pool.query(`SELECT LOWER(name) AS name FROM subjects`);
+  const existingNames = new Set(existing.rows.map((r: { name: string }) => r.name));
+
+  const toCreate = template.subjects.filter(
+    (s) => !existingNames.has(s.name.toLowerCase())
+  );
+
+  if (toCreate.length === 0) {
+    return { success: true, created: 0, skipped: template.subjects.length };
+  }
+
+  for (const s of toCreate) {
+    await pool.query(
+      `INSERT INTO subjects (name, color) VALUES ($1, $2)`,
+      [s.name, s.color]
+    );
+  }
+
+  revalidateAll();
+  return {
+    success: true,
+    created: toCreate.length,
+    skipped: template.subjects.length - toCreate.length,
+  };
 }
 
 const createCurriculumSchema = z.object({

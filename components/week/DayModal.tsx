@@ -5,6 +5,7 @@ interface ModalLesson {
   id: string;
   title: string;
   status: string;
+  effective_status?: string;
   curriculum_name: string;
   grade: number | null;
 }
@@ -126,7 +127,7 @@ export default function DayModal({
                   <span className="ml-auto text-xs text-muted">
                     {" "}
                     {
-                      subject.lessons.filter((l) => l.status === "completed")
+                      subject.lessons.filter((l) => (l.effective_status || l.status) === "completed")
                         .length
                     }
                     / {subject.lessons.length}{" "}
@@ -135,12 +136,13 @@ export default function DayModal({
                 <div className="divide-y divide-border px-4 py-2">
                   {" "}
                   {subject.lessons.map((lesson) => {
-                    const isCompleted = lesson.status === "completed";
+                    const eStatus = lesson.effective_status || lesson.status;
+                    const isCompleted = eStatus === "completed";
                     const className = "flex w-full items-center gap-2 py-2.5 text-left transition-colors hover:text-interactive";
                     const content = (
                       <>
                         <span
-                          className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${isCompleted ? "bg-[var(--success-solid)]" : lesson.status === "in_progress" ? "bg-[var(--warning-solid)]" : "bg-border"}`}
+                          className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${isCompleted ? "bg-[var(--success-solid)]" : eStatus === "in_progress" ? "bg-[var(--warning-solid)]" : "bg-border"}`}
                         />
                         <span
                           className={`flex-1 text-sm ${isCompleted ? "text-muted line-through" : "text-secondary"}`}
