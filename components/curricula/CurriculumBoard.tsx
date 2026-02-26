@@ -87,6 +87,7 @@ type Child = {
 
 type BoardProps = {
   curriculumId: string;
+  curriculumName?: string;
   subjectColor: string | null;
   subjectName?: string;
   lessons: Lesson[];
@@ -907,6 +908,7 @@ function StatusFilterBar({
 
 export default function CurriculumBoard({
   curriculumId,
+  curriculumName,
   subjectColor,
   subjectName = "General",
   lessons,
@@ -1331,6 +1333,7 @@ export default function CurriculumBoard({
           lesson={viewingLesson}
           curriculumResources={curriculumResources}
           subjectName={subjectName}
+          curriculumName={curriculumName}
           onClose={() => setViewingLesson(null)}
         />
 
@@ -1567,6 +1570,8 @@ export default function CurriculumBoard({
       <CardViewModal
         lesson={viewingLesson}
         curriculumResources={curriculumResources}
+        subjectName={subjectName}
+        curriculumName={curriculumName}
         onClose={() => setViewingLesson(null)}
       />
 

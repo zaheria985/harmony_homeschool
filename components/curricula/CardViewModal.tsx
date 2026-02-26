@@ -42,6 +42,7 @@ type CardViewModalProps = {
   } | null;
   curriculumResources?: CurriculumResource[];
   subjectName?: string;
+  curriculumName?: string;
   onClose: () => void;
 };
 
@@ -141,7 +142,7 @@ function ResourceCard({
   );
 }
 
-export default function CardViewModal({ lesson, curriculumResources = [], subjectName = "General", onClose }: CardViewModalProps) {
+export default function CardViewModal({ lesson, curriculumResources = [], subjectName = "General", curriculumName, onClose }: CardViewModalProps) {
   const [previewResource, setPreviewResource] = useState<{
     title: string;
     type: string;
@@ -209,6 +210,18 @@ export default function CardViewModal({ lesson, curriculumResources = [], subjec
     >
       {lesson && (
         <div className="space-y-5">
+          {/* Subject & Curriculum context */}
+          {(subjectName || curriculumName) && (
+            <div className="flex items-center gap-2 text-xs text-muted">
+              {subjectName && <span className="rounded-full bg-surface-muted px-2.5 py-0.5 font-medium">{subjectName}</span>}
+              {curriculumName && (
+                <>
+                  <span className="text-border">·</span>
+                  <span>{curriculumName}</span>
+                </>
+              )}
+            </div>
+          )}
           {/* Description */}
           {lesson.description && (
             <div className="whitespace-pre-wrap">

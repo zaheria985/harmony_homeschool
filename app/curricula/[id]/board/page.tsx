@@ -137,6 +137,7 @@ export default async function CurriculumBoardPage({
       )}
       <CurriculumBoard
         curriculumId={data.id}
+        curriculumName={data.name}
         subjectColor={data.subject_color}
         subjectName={data.subject_name}
         lessons={data.lessons}
