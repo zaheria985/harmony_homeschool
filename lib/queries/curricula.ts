@@ -17,12 +17,18 @@ export async function getAllCurricula() {
           FROM curriculum_tags ct JOIN tags t ON t.id = ct.tag_id
           WHERE ct.curriculum_id = cu.id),
          ''
-       ) AS tags
+       ) AS tags,
+       COALESCE(
+         (SELECT string_agg(s2.name || ':' || COALESCE(s2.color, '') || ':' || s2.id, '|' ORDER BY s2.name)
+          FROM curriculum_subjects cs2 JOIN subjects s2 ON s2.id = cs2.subject_id
+          WHERE cs2.curriculum_id = cu.id AND cs2.is_primary = false),
+         ''
+       ) AS secondary_subjects
      FROM curricula cu
      LEFT JOIN subjects s ON s.id = cu.subject_id
      LEFT JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id
      LEFT JOIN children c ON c.id = ca.child_id
-     LEFT JOIN lessons l ON l.curriculum_id = cu.id
+     LEFT JOIN lessons l ON l.curriculum_id = cu.id AND l.archived = false
       GROUP BY cu.id, cu.name, cu.description, cu.order_index, cu.cover_image,
                cu.course_type, cu.grade_type, cu.status, cu.start_date, cu.end_date,
                cu.actual_start_date, cu.actual_end_date,
@@ -33,7 +39,7 @@ export async function getAllCurricula() {
   return res.rows;
 }
 
-export async function getCurriculumDetail(id: string) {
+export async function getCurriculumDetail(id: string, showArchived = false) {
   const res = await pool.query(
     `SELECT
        cu.id, cu.name, cu.description, cu.order_index, cu.cover_image,
@@ -42,7 +48,13 @@ export async function getCurriculumDetail(id: string) {
        cu.prepped, cu.default_view, cu.default_filter,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        ca.child_id,
-       c.name AS child_name
+       c.name AS child_name,
+       COALESCE(
+         (SELECT string_agg(s2.name || ':' || COALESCE(s2.color, '') || ':' || s2.id, '|' ORDER BY s2.name)
+          FROM curriculum_subjects cs2 JOIN subjects s2 ON s2.id = cs2.subject_id
+          WHERE cs2.curriculum_id = cu.id AND cs2.is_primary = false),
+         ''
+       ) AS secondary_subjects
      FROM curricula cu
      LEFT JOIN subjects s ON s.id = cu.subject_id
      LEFT JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id
@@ -54,13 +66,15 @@ export async function getCurriculumDetail(id: string) {
   if (!res.rows[0]) return null;
 
   const childId = res.rows[0].child_id;
+  const archivedFilter = showArchived ? "" : " AND l.archived = false";
   const lessons = await pool.query(
     `SELECT
        l.id, l.title, l.status, l.planned_date, l.order_index, l.description, l.checklist_state,
+       l.archived,
        lc.grade, lc.completed_at
      FROM lessons l
      LEFT JOIN lesson_completions lc ON lc.lesson_id = l.id ${childId ? "AND lc.child_id = $1" : ""}
-     WHERE l.curriculum_id = $${childId ? 2 : 1}
+     WHERE l.curriculum_id = $${childId ? 2 : 1}${archivedFilter}
      ORDER BY l.order_index, l.planned_date ASC NULLS LAST`,
     childId ? [childId, id] : [id]
   );
@@ -71,7 +85,7 @@ export async function getCurriculumDetail(id: string) {
   };
 }
 
-export async function getCurriculumBoardData(id: string) {
+export async function getCurriculumBoardData(id: string, showArchived = false) {
   // Curriculum info
   const res = await pool.query(
     `SELECT
@@ -99,6 +113,7 @@ export async function getCurriculumBoardData(id: string) {
     `SELECT
        l.id, l.title, l.description, l.status, l.planned_date,
        l.order_index, l.estimated_duration, l.section, l.checklist_state,
+       l.archived,
        COALESCE(
          (SELECT string_agg(t.name, ',' ORDER BY t.name)
           FROM lesson_tags lt JOIN tags t ON t.id = lt.tag_id
@@ -106,7 +121,7 @@ export async function getCurriculumBoardData(id: string) {
          ''
        ) AS tags
      FROM lessons l
-     WHERE l.curriculum_id = $1
+     WHERE l.curriculum_id = $1${showArchived ? "" : " AND l.archived = false"}
      ORDER BY l.order_index, l.planned_date ASC NULLS LAST`,
     [id]
   );
@@ -252,4 +267,12 @@ export async function getCompletionMismatches(curriculumId: string) {
     [curriculumId]
   );
   return res.rows;
+}
+
+export async function getArchivedLessonCount(curriculumId: string): Promise<number> {
+  const res = await pool.query(
+    `SELECT COUNT(*)::int AS count FROM lessons WHERE curriculum_id = $1 AND archived = true`,
+    [curriculumId]
+  );
+  return res.rows[0].count;
 }

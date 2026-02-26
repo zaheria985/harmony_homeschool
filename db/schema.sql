@@ -115,7 +115,8 @@ CREATE TABLE lessons (
     planned_date    DATE,
     status          TEXT NOT NULL DEFAULT 'planned'
                         CHECK (status IN ('planned', 'in_progress', 'completed')),
-    checklist_state JSONB NOT NULL DEFAULT '{}'::jsonb
+    checklist_state JSONB NOT NULL DEFAULT '{}'::jsonb,
+    archived        BOOLEAN NOT NULL DEFAULT false
 );
 
 -- ============================================================================
@@ -204,6 +205,13 @@ CREATE TABLE curriculum_booklists (
     PRIMARY KEY (curriculum_id, booklist_id)
 );
 
+CREATE TABLE curriculum_subjects (
+    curriculum_id   UUID NOT NULL REFERENCES curricula(id) ON DELETE CASCADE,
+    subject_id      UUID NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+    is_primary      BOOLEAN NOT NULL DEFAULT false,
+    PRIMARY KEY (curriculum_id, subject_id)
+);
+
 CREATE TABLE curriculum_tags (
     curriculum_id   UUID NOT NULL REFERENCES curricula(id) ON DELETE CASCADE,
     tag_id          UUID NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
@@ -233,6 +241,52 @@ CREATE TABLE reading_log (
     minutes_read    INTEGER,
     notes           TEXT,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ============================================================================
+-- EXTERNAL EVENTS
+-- ============================================================================
+
+CREATE TABLE external_events (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title           TEXT NOT NULL,
+    description     TEXT,
+    category        TEXT NOT NULL DEFAULT 'other'
+                        CHECK (category IN ('co-op', 'sport', 'music', 'art', 'field-trip', 'other')),
+    recurrence_type TEXT NOT NULL CHECK (recurrence_type IN ('once', 'weekly', 'biweekly', 'monthly')),
+    day_of_week     INTEGER,
+    start_date      DATE NOT NULL,
+    end_date        DATE,
+    start_time      TIME,
+    end_time        TIME,
+    all_day         BOOLEAN NOT NULL DEFAULT false,
+    color           TEXT NOT NULL DEFAULT '#3b82f6',
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE external_event_children (
+    external_event_id UUID NOT NULL REFERENCES external_events(id) ON DELETE CASCADE,
+    child_id          UUID NOT NULL REFERENCES children(id) ON DELETE CASCADE,
+    PRIMARY KEY (external_event_id, child_id)
+);
+
+CREATE TABLE external_event_exceptions (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    external_event_id   UUID NOT NULL REFERENCES external_events(id) ON DELETE CASCADE,
+    exception_date      DATE NOT NULL,
+    reason              TEXT,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (external_event_id, exception_date)
+);
+
+CREATE TABLE event_occurrence_notes (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_id        UUID NOT NULL REFERENCES external_events(id) ON DELETE CASCADE,
+    occurrence_date DATE NOT NULL,
+    notes           TEXT NOT NULL DEFAULT '',
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE(event_id, occurrence_date)
 );
 
 -- ============================================================================
@@ -272,6 +326,7 @@ CREATE INDEX idx_cad_assignment        ON curriculum_assignment_days(assignment_
 CREATE INDEX idx_lessons_curriculum    ON lessons(curriculum_id);
 CREATE INDEX idx_lessons_planned_date  ON lessons(planned_date);
 CREATE INDEX idx_lessons_status        ON lessons(status);
+CREATE INDEX idx_lessons_archived      ON lessons(archived) WHERE archived = true;
 
 -- resources & completions
 CREATE INDEX idx_resources_type                    ON resources(type);
@@ -286,11 +341,18 @@ CREATE INDEX idx_resource_tags_tag                  ON resource_tags(tag_id);
 CREATE INDEX idx_reading_log_resource               ON reading_log(resource_id);
 CREATE INDEX idx_reading_log_child                  ON reading_log(child_id);
 CREATE INDEX idx_reading_log_date                   ON reading_log(date);
+CREATE INDEX idx_curriculum_subjects_subject         ON curriculum_subjects(subject_id);
 CREATE INDEX idx_curriculum_tags_tag                ON curriculum_tags(tag_id);
 CREATE INDEX idx_lesson_tags_tag                    ON lesson_tags(tag_id);
 
 CREATE INDEX idx_booklist_resources_booklist ON booklist_resources(booklist_id);
 CREATE INDEX idx_booklist_resources_resource ON booklist_resources(resource_id);
+
+-- external events
+CREATE INDEX idx_external_events_dates              ON external_events(start_date, end_date);
+CREATE INDEX idx_external_event_children_child_id   ON external_event_children(child_id);
+CREATE INDEX idx_external_event_exceptions_event_id ON external_event_exceptions(external_event_id);
+CREATE INDEX idx_event_occurrence_notes_event_id    ON event_occurrence_notes(event_id);
 
 -- grading scales
 CREATE INDEX idx_grade_thresholds_scale_id ON grade_thresholds(scale_id);

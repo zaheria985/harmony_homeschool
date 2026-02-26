@@ -2,7 +2,8 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
-import { getAdminStats } from "@/lib/queries/admin";
+import { getAdminStats, getArchiveStats } from "@/lib/queries/admin";
+import LessonArchiveCard from "@/components/admin/LessonArchiveCard";
 
 const sections = [
   {
@@ -15,7 +16,10 @@ const sections = [
 ];
 
 export default async function AdminPage() {
-  const stats = await getAdminStats();
+  const [stats, archiveStats] = await Promise.all([
+    getAdminStats(),
+    getArchiveStats(),
+  ]);
   return (
     <div>
       <PageHeader title="Admin" />
@@ -173,6 +177,12 @@ export default async function AdminPage() {
             </div>
           </Card>
         </Link>
+
+        <LessonArchiveCard
+          archivableCount={archiveStats.archivable_count}
+          archivedCount={archiveStats.archived_count}
+          byYear={archiveStats.byYear}
+        />
 
         <Card className="transition-shadow hover:shadow-md">
           <div className="flex items-center gap-3">

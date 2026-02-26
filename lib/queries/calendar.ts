@@ -14,7 +14,7 @@ export async function getLessonsForMonth(
       : `${year}-${String(month + 1).padStart(2, "0")}-01`;
 
   const params: (string | number)[] = [startDate, endDate];
-  const conditions: string[] = [];
+  const conditions: string[] = ["l.archived = false"];
 
   if (viewMode === "completed") {
     conditions.push("l.status = 'completed'");
@@ -58,7 +58,10 @@ export async function getLessonsForMonth(
        s.name AS subject_name, s.color AS subject_color,
        cu.name AS curriculum_name,
        c.name AS child_name,
-       s.id AS subject_id
+       c.id AS child_id,
+       s.id AS subject_id,
+       lc.grade,
+       lc.pass_fail
      FROM lessons l
      JOIN curricula cu ON cu.id = l.curriculum_id
      JOIN subjects s ON s.id = cu.subject_id
@@ -183,6 +186,7 @@ export async function getSemesterOverview(
   const conditions: string[] = [
     "l.planned_date >= $1::date",
     "l.planned_date < ($1::date + ($2 || ' months')::interval)",
+    "l.archived = false",
   ];
 
   if (childId) {

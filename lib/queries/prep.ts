@@ -26,6 +26,7 @@ export async function getUpcomingPrepMaterials(daysAhead = 7, childId?: string) 
      JOIN lesson_resources lr ON lr.lesson_id = l.id
      LEFT JOIN resources r ON r.id = lr.resource_id
      WHERE l.status != 'completed'
+       AND l.archived = false
        AND l.planned_date >= CURRENT_DATE
        AND l.planned_date < CURRENT_DATE + (($1::text || ' days')::interval)
        AND COALESCE(r.type, lr.type) IN ('book', 'supply')
@@ -55,6 +56,7 @@ export async function getUpcomingPrepMaterials(daysAhead = 7, childId?: string) 
      JOIN curriculum_resources cr ON cr.curriculum_id = cu.id
      JOIN resources r ON r.id = cr.resource_id
      WHERE l.status != 'completed'
+       AND l.archived = false
        AND l.planned_date >= CURRENT_DATE
        AND l.planned_date < CURRENT_DATE + (($1::text || ' days')::interval)
        AND r.type IN ('book', 'supply')

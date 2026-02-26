@@ -291,3 +291,77 @@ export async function previewImportedExternalDates(raw: string) {
   if (denied) return denied;
   return parseImportedDates(raw);
 }
+
+const occurrenceNoteSchema = z.object({
+  eventId: z.string().uuid(),
+  occurrenceDate: z.string().min(1, "Date is required"),
+  notes: z.string(),
+});
+
+export async function saveOccurrenceNote(formData: FormData) {
+  const denied = await ensureAdmin();
+  if (denied) return denied;
+
+  const data = occurrenceNoteSchema.safeParse({
+    eventId: formData.get("eventId"),
+    occurrenceDate: formData.get("occurrenceDate"),
+    notes: formData.get("notes"),
+  });
+
+  if (!data.success) {
+    return { error: data.error.issues[0]?.message || "Invalid input" };
+  }
+
+  const { eventId, occurrenceDate, notes } = data.data;
+
+  try {
+    if (notes.trim() === "") {
+      // Delete note if empty
+      await pool.query(
+        `DELETE FROM event_occurrence_notes WHERE event_id = $1 AND occurrence_date = $2::date`,
+        [eventId, occurrenceDate]
+      );
+    } else {
+      await pool.query(
+        `INSERT INTO event_occurrence_notes (event_id, occurrence_date, notes, updated_at)
+         VALUES ($1, $2::date, $3, now())
+         ON CONFLICT (event_id, occurrence_date)
+         DO UPDATE SET notes = EXCLUDED.notes, updated_at = now()`,
+        [eventId, occurrenceDate, notes.trim()]
+      );
+    }
+  } catch (error) {
+    console.error("Failed to save occurrence note", {
+      eventId,
+      occurrenceDate,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return { error: "Failed to save note" };
+  }
+
+  revalidatePath("/calendar");
+  return { success: true };
+}
+
+export async function getOccurrenceNotes(eventIds: string[], date: string) {
+  if (eventIds.length === 0) return [];
+
+  const placeholders = eventIds.map((_, i) => `$${i + 1}`).join(", ");
+  const params = [...eventIds, date];
+
+  try {
+    const res = await pool.query(
+      `SELECT id, event_id, occurrence_date::text, notes
+       FROM event_occurrence_notes
+       WHERE event_id IN (${placeholders})
+         AND occurrence_date = $${params.length}::date`,
+      params
+    );
+    return res.rows as { id: string; event_id: string; occurrence_date: string; notes: string }[];
+  } catch (error) {
+    console.error("Failed to fetch occurrence notes", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return [];
+  }
+}

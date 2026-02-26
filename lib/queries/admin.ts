@@ -168,3 +168,34 @@ export async function getCurriculumScheduleExceptions() {
     return row.configured_weekdays.join(",") !== row.school_weekdays.join(",");
   });
 }
+
+export async function getArchiveStats() {
+  const res = await pool.query(`
+    SELECT
+      (SELECT COUNT(*)::int FROM lessons WHERE status = 'completed' AND archived = false) AS archivable_count,
+      (SELECT COUNT(*)::int FROM lessons WHERE archived = true) AS archived_count
+  `);
+
+  const byYear = await pool.query(`
+    SELECT
+      sy.id AS year_id,
+      sy.label AS year_label,
+      COUNT(DISTINCT CASE WHEN l.status = 'completed' AND l.archived = false THEN l.id END)::int AS archivable_count,
+      COUNT(DISTINCT CASE WHEN l.archived = true THEN l.id END)::int AS archived_count
+    FROM school_years sy
+    JOIN curriculum_assignments ca ON ca.school_year_id = sy.id
+    JOIN lessons l ON l.curriculum_id = ca.curriculum_id
+    GROUP BY sy.id, sy.label
+    ORDER BY sy.label DESC
+  `);
+
+  return {
+    ...res.rows[0],
+    byYear: byYear.rows as Array<{
+      year_id: string;
+      year_label: string;
+      archivable_count: number;
+      archived_count: number;
+    }>,
+  };
+}

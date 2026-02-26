@@ -4,7 +4,7 @@ export async function getLessonsByChild(
   childId: string,
   filters?: { status?: string; subjectId?: string }
 ) {
-  const conditions = ["ca.child_id = $1"];
+  const conditions = ["ca.child_id = $1", "l.archived = false"];
   const params: string[] = [childId];
   let idx = 2;
 
@@ -36,7 +36,7 @@ export async function getLessonsByChild(
 }
 
 export async function getAllLessons(filters?: { status?: string; childId?: string }) {
-  const conditions: string[] = [];
+  const conditions: string[] = ["l.archived = false"];
   const params: string[] = [];
   let idx = 1;
 
@@ -49,7 +49,7 @@ export async function getAllLessons(filters?: { status?: string; childId?: strin
     params.push(filters.status);
   }
 
-  const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  const where = `WHERE ${conditions.join(" AND ")}`;
 
   const res = await pool.query(
     `SELECT
@@ -141,7 +141,7 @@ export async function getAllLessonsWithResources(filters?: {
   status?: string;
   childId?: string;
 }) {
-  const conditions: string[] = [];
+  const conditions: string[] = ["l.archived = false"];
   const params: string[] = [];
   let idx = 1;
 
@@ -154,7 +154,7 @@ export async function getAllLessonsWithResources(filters?: {
     params.push(filters.status);
   }
 
-  const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  const where = `WHERE ${conditions.join(" AND ")}`;
 
   const res = await pool.query(
     `SELECT
@@ -191,7 +191,7 @@ export async function getUpcomingLessons(childId: string, limit = 5) {
      JOIN curricula cu ON cu.id = l.curriculum_id
      JOIN subjects s ON s.id = cu.subject_id
      JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id
-     WHERE ca.child_id = $1 AND l.status != 'completed' AND l.planned_date >= CURRENT_DATE
+     WHERE ca.child_id = $1 AND l.status != 'completed' AND l.archived = false AND l.planned_date >= CURRENT_DATE
      ORDER BY l.planned_date ASC
      LIMIT $2`,
     [childId, limit]

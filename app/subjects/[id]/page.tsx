@@ -5,9 +5,13 @@ import Link from "next/link";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import ProgressBar from "@/components/ui/ProgressBar";
-import { getSubjectDetail } from "@/lib/queries/subjects";
+import {
+  getSubjectDetail,
+  getSubjectProgressReport,
+} from "@/lib/queries/subjects";
 import { getAllResources } from "@/lib/queries/resources";
 import EditableLessonsTable from "@/components/lessons/EditableLessonsTable";
+import SubjectProgressReport from "@/components/subjects/SubjectProgressReport";
 import pool from "@/lib/db";
 
 async function getCurriculaForSubject(subjectId: string) {
@@ -32,10 +36,11 @@ export default async function SubjectDetailPage({
 }: {
   params: { id: string };
 }) {
-  const [subject, resources, curricula] = await Promise.all([
+  const [subject, resources, curricula, progressReport] = await Promise.all([
     getSubjectDetail(params.id),
     getAllResources(),
     getCurriculaForSubject(params.id),
+    getSubjectProgressReport(params.id),
   ]);
   if (!subject) notFound();
 
@@ -156,6 +161,13 @@ export default async function SubjectDetailPage({
           />
         )}
       </Card>
+
+      {/* Progress Report — multi-year, per-child breakdown */}
+      {progressReport.length > 0 && (
+        <Card title="Progress Report" className="mb-8">
+          <SubjectProgressReport data={progressReport} />
+        </Card>
+      )}
     </div>
   );
 }

@@ -22,9 +22,10 @@ export default async function CurriculaPage() {
     id: c.id,
     name: c.name,
   }));
-  const subjects = subjectsData.map((s: { id: string; name: string }) => ({
+  const subjects = subjectsData.map((s: { id: string; name: string; color: string | null }) => ({
     id: s.id,
     name: s.name,
+    color: s.color || undefined,
   }));
   const years = schoolYears.map((y: { id: string; label: string }) => ({
     id: y.id,

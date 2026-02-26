@@ -29,10 +29,11 @@ type Curriculum = {
   lesson_count: number;
   completed_count: number;
   tags?: string;
+  secondary_subjects?: string;
 };
 
 type Child = { id: string; name: string };
-type SubjectOption = { id: string; name: string };
+type SubjectOption = { id: string; name: string; color?: string };
 
 export default function CurriculaView({
   curricula,
@@ -66,6 +67,7 @@ export default function CurriculaView({
     start_date: string | null;
     end_date: string | null;
     tags?: string;
+    secondary_subjects?: string;
   } | null>(null);
 
   const [timelineFilter, setTimelineFilter] = useState<
@@ -353,6 +355,22 @@ export default function CurriculaView({
                   </h3>
                   <div className="mb-1.5 flex flex-wrap items-center gap-1">
                     <Badge variant="primary">{curriculum.subject_name}</Badge>
+                    {curriculum.secondary_subjects && curriculum.secondary_subjects.split("|").filter(Boolean).map((entry) => {
+                      const [name, color] = entry.split(":");
+                      return (
+                        <span
+                          key={entry}
+                          className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-1.5 py-0.5 text-[10px] text-tertiary"
+                          title={name}
+                        >
+                          <span
+                            className="h-1.5 w-1.5 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: color || "#6366f1" }}
+                          />
+                          {name}
+                        </span>
+                      );
+                    })}
                     <span className="text-xs text-muted">
                       {curriculum.child_name}
                     </span>
@@ -466,7 +484,20 @@ export default function CurriculaView({
                           <p className="text-sm font-medium text-primary leading-tight line-clamp-2">
                             {curriculum.name}
                           </p>
-                          <p className="text-xs text-muted mt-0.5">{curriculum.child_name}</p>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <p className="text-xs text-muted">{curriculum.child_name}</p>
+                            {curriculum.secondary_subjects && curriculum.secondary_subjects.split("|").filter(Boolean).map((entry) => {
+                              const [, color] = entry.split(":");
+                              return (
+                                <span
+                                  key={entry}
+                                  className="h-2 w-2 rounded-full flex-shrink-0"
+                                  style={{ backgroundColor: color || "#6366f1" }}
+                                  title={entry.split(":")[0]}
+                                />
+                              );
+                            })}
+                          </div>
                           <div className="mt-1.5 flex items-center justify-between text-xs text-muted">
                             <span>
                               {curriculum.completed_count}/{curriculum.lesson_count}

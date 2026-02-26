@@ -24,9 +24,10 @@ type CurriculumForEdit = {
   default_view?: string;
   default_filter?: string;
   tags?: string;
+  secondary_subjects?: string;
 } | null;
 
-type SubjectOption = { id: string; name: string };
+type SubjectOption = { id: string; name: string; color?: string };
 
 export default function CurriculumEditModal({
   curriculum,
@@ -44,9 +45,20 @@ export default function CurriculumEditModal({
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [clearCoverImage, setClearCoverImage] = useState(false);
   const [tagsValue, setTagsValue] = useState(curriculum?.tags || "");
+  // Parse secondary_subjects from "name:color:id|name:color:id" format
+  const parseSecondaryIds = (raw: string | undefined): Set<string> => {
+    if (!raw) return new Set();
+    return new Set(
+      raw.split("|").filter(Boolean).map((entry) => entry.split(":")[2]).filter(Boolean)
+    );
+  };
+  const [secondarySubjectIds, setSecondarySubjectIds] = useState<Set<string>>(
+    () => parseSecondaryIds(curriculum?.secondary_subjects)
+  );
   useEffect(() => {
     setTagsValue(curriculum?.tags || "");
-  }, [curriculum?.id, curriculum?.tags]);
+    setSecondarySubjectIds(parseSecondaryIds(curriculum?.secondary_subjects));
+  }, [curriculum?.id, curriculum?.tags, curriculum?.secondary_subjects]);
 
   if (!curriculum) return null;
 
@@ -118,6 +130,57 @@ export default function CurriculumEditModal({
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Secondary Subjects */}
+        <div>
+          <label className="block text-sm font-medium text-secondary mb-1">
+            Additional Subjects
+          </label>
+          <input
+            type="hidden"
+            name="secondary_subject_ids"
+            value={Array.from(secondarySubjectIds).join(",")}
+          />
+          <div className="flex flex-wrap gap-2">
+            {subjects
+              .filter((s) => s.id !== curriculum.subject_id)
+              .map((s) => {
+                const isSelected = secondarySubjectIds.has(s.id);
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => {
+                      setSecondarySubjectIds((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(s.id)) next.delete(s.id);
+                        else next.add(s.id);
+                        return next;
+                      });
+                    }}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium border transition-colors ${
+                      isSelected
+                        ? "border-interactive bg-interactive/10 text-interactive"
+                        : "border-light bg-surface text-tertiary hover:border-secondary"
+                    }`}
+                  >
+                    {s.color && (
+                      <span
+                        className="h-2 w-2 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: s.color }}
+                      />
+                    )}
+                    {s.name}
+                  </button>
+                );
+              })}
+          </div>
+          {secondarySubjectIds.size > 0 && (
+            <p className="mt-1 text-xs text-muted">
+              {secondarySubjectIds.size} additional subject{secondarySubjectIds.size !== 1 ? "s" : ""} selected
+            </p>
+          )}
         </div>
 
         {/* Course Type */}

@@ -22,6 +22,7 @@ export async function getDashboardStats(parentId?: string) {
         JOIN curricula cu ON cu.id = ca.curriculum_id
         JOIN lessons l ON l.curriculum_id = cu.id
         WHERE CURRENT_DATE BETWEEN sy.start_date AND sy.end_date
+          AND l.archived = false
           ${parentWhere}
       ) AS active_year_total_lessons,
       (
@@ -33,6 +34,7 @@ export async function getDashboardStats(parentId?: string) {
         JOIN lessons l ON l.curriculum_id = cu.id
         WHERE CURRENT_DATE BETWEEN sy.start_date AND sy.end_date
           AND l.status = 'completed'
+          AND l.archived = false
           ${parentWhere}
       ) AS active_year_completed_lessons
   `, params);
@@ -72,6 +74,7 @@ export async function getUpcomingDueLessons(daysAhead = 3, childId?: string, par
       JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id
       JOIN children c ON c.id = ca.child_id
        WHERE l.status != 'completed'
+         AND l.archived = false
          AND l.planned_date >= CURRENT_DATE
          AND l.planned_date < CURRENT_DATE + (($1::text || ' days')::interval)
          ${childFilter}
@@ -96,6 +99,7 @@ export async function getTodayAssignmentsOverview() {
        JOIN curricula cu ON cu.id = ca.curriculum_id
        JOIN lessons l ON l.curriculum_id = cu.id
        WHERE CURRENT_DATE BETWEEN sy.start_date AND sy.end_date
+         AND l.archived = false
        GROUP BY c.id, c.name
        ORDER BY c.name`
     ),
@@ -114,6 +118,7 @@ export async function getTodayAssignmentsOverview() {
        JOIN subjects s ON s.id = cu.subject_id
        JOIN lessons l ON l.curriculum_id = cu.id
        WHERE CURRENT_DATE BETWEEN sy.start_date AND sy.end_date
+         AND l.archived = false
        GROUP BY c.id, s.id, s.name, s.color`
     ),
     pool.query(
@@ -133,6 +138,7 @@ export async function getTodayAssignmentsOverview() {
        JOIN school_years sy ON sy.id = ca.school_year_id
        JOIN children c ON c.id = ca.child_id
        WHERE l.status != 'completed'
+         AND l.archived = false
          AND l.planned_date = CURRENT_DATE
          AND CURRENT_DATE BETWEEN sy.start_date AND sy.end_date
        ORDER BY c.name, s.name, l.title`

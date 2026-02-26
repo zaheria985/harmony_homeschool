@@ -4,20 +4,24 @@ import PageHeader from "@/components/ui/PageHeader";
 import Link from "next/link";
 import CurriculumBoard from "@/components/curricula/CurriculumBoard";
 import { CurriculumViewToggle } from "@/components/curricula/CurriculumViewToggle";
-import { getCurriculumBoardData } from "@/lib/queries/curricula";
+import { getCurriculumBoardData, getArchivedLessonCount } from "@/lib/queries/curricula";
 import { getLinkedBooklists, getAllBooklistSummaries } from "@/lib/queries/booklists";
 import { getCurrentUser } from "@/lib/session";
 import LinkedBooklists from "@/components/curricula/LinkedBooklists";
 export default async function CurriculumBoardPage({
   params,
+  searchParams,
 }: {
   params: { id: string };
+  searchParams: { showArchived?: string };
 }) {
-  const [data, user, linkedBooklists, allBooklists] = await Promise.all([
-    getCurriculumBoardData(params.id),
+  const showArchived = searchParams.showArchived === "true";
+  const [data, user, linkedBooklists, allBooklists, archivedCount] = await Promise.all([
+    getCurriculumBoardData(params.id, showArchived),
     getCurrentUser(),
     getLinkedBooklists(params.id),
     getAllBooklistSummaries(),
+    getArchivedLessonCount(params.id),
   ]);
   if (!data) notFound();
   return (
@@ -91,6 +95,25 @@ export default async function CurriculumBoardPage({
         allBooklists={allBooklists}
         isParent={user.role === "parent"}
       />
+      {archivedCount > 0 && (
+        <div className="mb-4 text-sm">
+          {showArchived ? (
+            <Link
+              href={`/curricula/${params.id}/board`}
+              className="text-interactive hover:underline"
+            >
+              Hide archived lessons
+            </Link>
+          ) : (
+            <Link
+              href={`/curricula/${params.id}/board?showArchived=true`}
+              className="text-interactive hover:underline"
+            >
+              Show archived ({archivedCount})
+            </Link>
+          )}
+        </div>
+      )}
       <CurriculumBoard
         curriculumId={data.id}
         subjectColor={data.subject_color}

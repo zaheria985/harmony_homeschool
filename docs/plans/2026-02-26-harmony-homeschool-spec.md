@@ -692,7 +692,8 @@ The Calendar provides a monthly view of scheduled lessons and external events, w
 
 - **Drag-and-drop rescheduling on calendar** — Move lessons between days by dragging on the monthly grid
 - **Multi-month or semester view** — Zoomed-out view showing completion density across months
-- **Improved day detail modal** — Denser day cells with a quick-access centered overlay for day detail
+- ~~**Improved day detail modal**~~ — DONE: Denser cells with completion counts, per-lesson titles, status badges, quick-complete buttons, grade display, event occurrence notes
+- **Event notes per occurrence** — Add notes to specific dates of recurring events (stored in `event_occurrence_notes` table)
 
 ### Architecture
 
@@ -724,14 +725,34 @@ Returns `{ lessons, externalEvents }` for the requested month. Auth-enforced: ki
 
 Returns RFC 5545 iCalendar file with future non-completed lessons as all-day events. Each event includes subject name, lesson title, child name, curriculum, and two reminders (1 day and 30 minutes before).
 
+**GET /api/calendar/occurrence-notes**
+
+| Param | Type | Description |
+|---|---|---|
+| date | string | Required — date (YYYY-MM-DD) |
+| eventIds | string | Required — comma-separated event UUIDs |
+
+Returns `{ notes }` array of `{ id, event_id, occurrence_date, notes }` for matching event+date combinations.
+
 ### Calendar Grid
 
 Standard 7-column grid (Sun-Sat). Each day cell shows:
-- Day number (today highlighted with ring)
-- Up to 1 external event (color dot + school emoji)
-- All subject indicators (color dots) for scheduled lessons — no limit, compact layout that scales
+- Day number (today highlighted with ring) and completion count (e.g. "2/5")
+- Up to 2 external events (color dot + title), with "+N more" overflow
+- Up to 3 lesson titles (color dot + title, strikethrough if completed), with "+N more" overflow
+- Completed lessons show subject dot with success ring
 
-Clicking a day opens a **Day Detail Modal** grouping lessons by Subject -> Curriculum. Each lesson is clickable to open the full Lesson Detail Modal.
+Clicking a day opens a **Day Detail Modal** with:
+- **Summary stats bar** — "N lessons (M done)" and "N events" counts
+- **Events section** — Each event with color dot, title, time range, description, and occurrence notes. "Add note" / "Edit note" button opens inline textarea per event.
+- **Lessons section** grouped by Subject -> Curriculum. Each lesson shows:
+  - Quick-complete checkbox (for non-completed lessons, parent only)
+  - Completed checkmark icon (for completed lessons)
+  - Title (strikethrough if completed)
+  - Status badge (Planned=gray, In Progress=blue, Done=green)
+  - Grade display if completed
+  - Child name badge
+  - Clickable to open Lesson Detail Modal
 
 ### Modals
 
@@ -1024,7 +1045,7 @@ External Events track non-lesson activities — co-ops, sports, classes, tutorin
 ### Future Scope
 
 - **Two-way calendar sync** — Sync external events with Google Calendar, Apple Calendar, or CalDAV
-- **Event notes per occurrence** — Add notes to a specific date's occurrence (e.g. "field trip today") without affecting the series
+- ~~**Event notes per occurrence**~~ — DONE: `event_occurrence_notes` table, inline note editor in calendar day modal
 - **Travel time / location** — Add location and estimated travel time to help with daily planning
 
 ### Data Model
@@ -1068,6 +1089,19 @@ Composite primary key. Cascading deletes.
 
 Unique on (external_event_id, exception_date).
 
+**event_occurrence_notes**
+
+| Field | Type | Description |
+|---|---|---|
+| id | UUID | Primary key |
+| event_id | UUID | Foreign key to external_events |
+| occurrence_date | DATE | The specific occurrence date |
+| notes | TEXT | Note text, default '' |
+| created_at | TIMESTAMPTZ | Auto-set |
+| updated_at | TIMESTAMPTZ | Auto-set, updated on save |
+
+Unique on (event_id, occurrence_date). Cascading deletes from external_events.
+
 ### Server Actions
 
 | Action | Description |
@@ -1076,6 +1110,8 @@ Unique on (external_event_id, exception_date).
 | `updateExternalEvent(FormData)` | Updates event with direct recurrence field editing; replaces children and exceptions |
 | `deleteExternalEvent(id)` | Hard deletes event with cascading cleanup |
 | `previewImportedExternalDates(raw)` | Preview import detection results before submitting |
+| `saveOccurrenceNote(FormData)` | Upsert note for a specific event+date; deletes if empty |
+| `getOccurrenceNotes(eventIds[], date)` | Fetch notes for event IDs on a given date |
 
 All actions are parent-only (kid role blocked).
 

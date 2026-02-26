@@ -11,7 +11,7 @@ export async function getAllSubjects() {
      FROM subjects s
      LEFT JOIN curricula cu ON cu.subject_id = s.id
      LEFT JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id
-     LEFT JOIN lessons l ON l.curriculum_id = cu.id
+     LEFT JOIN lessons l ON l.curriculum_id = cu.id AND l.archived = false
      GROUP BY s.id, s.name, s.color, s.thumbnail_url
      ORDER BY s.name`
   );
@@ -33,7 +33,7 @@ export async function getSubjectDetail(id: string) {
        COUNT(l.id)::int AS total_lessons,
        COUNT(CASE WHEN l.status = 'completed' THEN 1 END)::int AS completed_lessons
      FROM curricula cu
-     LEFT JOIN lessons l ON l.curriculum_id = cu.id
+     LEFT JOIN lessons l ON l.curriculum_id = cu.id AND l.archived = false
      WHERE cu.subject_id = $1
      GROUP BY cu.id, cu.name, cu.description, cu.order_index, cu.cover_image
      ORDER BY cu.order_index, cu.name`,
@@ -56,7 +56,7 @@ export async function getSubjectDetail(id: string) {
      JOIN children c ON c.id = ca.child_id
      LEFT JOIN lesson_completions lc ON lc.lesson_id = l.id AND lc.child_id = ca.child_id
      LEFT JOIN lesson_resources lr ON lr.lesson_id = l.id
-     WHERE cu.subject_id = $1
+     WHERE cu.subject_id = $1 AND l.archived = false
      GROUP BY l.id, l.title, l.description, l.status, l.planned_date, l.order_index,
               cu.name, cu.id, s.id, s.name, s.color, ca.child_id, c.name,
               lc.grade, lc.notes, lc.completed_at
@@ -69,4 +69,26 @@ export async function getSubjectDetail(id: string) {
     curricula: curricula.rows,
     lessons: lessons.rows,
   };
+}
+
+export async function getSubjectProgressReport(subjectId: string) {
+  const res = await pool.query(
+    `SELECT sy.name AS year_name,
+            c.name AS child_name,
+            cu.name AS curriculum_name,
+            COUNT(l.id) AS total_lessons,
+            COUNT(lc.id) AS completed_lessons,
+            ROUND(AVG(lc.grade)::numeric, 1) AS avg_grade
+     FROM curricula cu
+     JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id
+     JOIN school_years sy ON sy.id = ca.school_year_id
+     JOIN children c ON c.id = ca.child_id
+     LEFT JOIN lessons l ON l.curriculum_id = cu.id
+     LEFT JOIN lesson_completions lc ON lc.lesson_id = l.id AND lc.child_id = ca.child_id
+     WHERE cu.subject_id = $1
+     GROUP BY sy.name, c.name, cu.name, sy.id
+     ORDER BY sy.name, c.name, cu.name`,
+    [subjectId],
+  );
+  return res.rows;
 }

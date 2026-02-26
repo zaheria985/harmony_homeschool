@@ -1218,6 +1218,45 @@ export async function updateCurriculum(formData: FormData) {
     }
   }
 
+  // Sync curriculum_subjects junction table
+  const rawSecondarySubjects = formData.get("secondary_subject_ids");
+  if (typeof rawSecondarySubjects === "string") {
+    const secondaryIds = rawSecondarySubjects
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+
+    // Remove all non-primary entries and re-insert
+    await pool.query(
+      "DELETE FROM curriculum_subjects WHERE curriculum_id = $1 AND is_primary = false",
+      [id]
+    );
+
+    // Ensure primary subject is in the junction table
+    const primarySubjectId = subject_id || (await pool.query(
+      "SELECT subject_id FROM curricula WHERE id = $1", [id]
+    )).rows[0]?.subject_id;
+
+    if (primarySubjectId) {
+      await pool.query(
+        `INSERT INTO curriculum_subjects (curriculum_id, subject_id, is_primary)
+         VALUES ($1, $2, true) ON CONFLICT (curriculum_id, subject_id) DO UPDATE SET is_primary = true`,
+        [id, primarySubjectId]
+      );
+    }
+
+    // Insert secondary subjects
+    for (const secId of secondaryIds) {
+      // Validate UUID format
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(secId)) continue;
+      await pool.query(
+        `INSERT INTO curriculum_subjects (curriculum_id, subject_id, is_primary)
+         VALUES ($1, $2, false) ON CONFLICT (curriculum_id, subject_id) DO UPDATE SET is_primary = false`,
+        [id, secId]
+      );
+    }
+  }
+
   revalidateAll();
   return { success: true };
 }
@@ -1291,4 +1330,103 @@ export async function deleteCurriculum(curriculumId: string, force = false) {
 
   revalidateAll();
   return { success: true };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Lesson Archiving                                                  */
+/* ------------------------------------------------------------------ */
+
+const archiveSchema = z.object({
+  yearId: z.string().uuid().optional(),
+});
+
+/**
+ * Archive all completed lessons, optionally scoped to a school year.
+ * Sets archived = true for lessons with status = 'completed'.
+ */
+export async function archiveCompletedLessons(formData: FormData) {
+  const yearId = formData.get("yearId") as string | null;
+  const parsed = archiveSchema.safeParse({
+    yearId: yearId || undefined,
+  });
+  if (!parsed.success) return { error: "Invalid input" };
+
+  try {
+    let result;
+    if (parsed.data.yearId) {
+      result = await pool.query(
+        `UPDATE lessons SET archived = true
+         WHERE status = 'completed'
+           AND archived = false
+           AND curriculum_id IN (
+             SELECT ca.curriculum_id
+             FROM curriculum_assignments ca
+             WHERE ca.school_year_id = $1
+           )`,
+        [parsed.data.yearId]
+      );
+    } else {
+      result = await pool.query(
+        `UPDATE lessons SET archived = true
+         WHERE status = 'completed'
+           AND archived = false`
+      );
+    }
+
+    revalidateAll();
+    return { success: true, archivedCount: result.rowCount ?? 0 };
+  } catch (err) {
+    console.error("Failed to archive lessons", err instanceof Error ? err.message : String(err));
+    return { error: "Failed to archive lessons" };
+  }
+}
+
+const unarchiveSchema = z.object({
+  curriculumId: z.string().uuid().optional(),
+  yearId: z.string().uuid().optional(),
+});
+
+/**
+ * Unarchive lessons scoped by curriculum or school year.
+ * Sets archived = false.
+ */
+export async function unarchiveLessons(formData: FormData) {
+  const curriculumId = formData.get("curriculumId") as string | null;
+  const yearId = formData.get("yearId") as string | null;
+  const parsed = unarchiveSchema.safeParse({
+    curriculumId: curriculumId || undefined,
+    yearId: yearId || undefined,
+  });
+  if (!parsed.success) return { error: "Invalid input" };
+  if (!parsed.data.curriculumId && !parsed.data.yearId) {
+    return { error: "Must provide curriculumId or yearId" };
+  }
+
+  try {
+    if (parsed.data.curriculumId) {
+      await pool.query(
+        `UPDATE lessons SET archived = false
+         WHERE archived = true
+           AND curriculum_id = $1`,
+        [parsed.data.curriculumId]
+      );
+    } else if (parsed.data.yearId) {
+      await pool.query(
+        `UPDATE lessons SET archived = false
+         WHERE archived = true
+           AND curriculum_id IN (
+             SELECT ca.curriculum_id
+             FROM curriculum_assignments ca
+             WHERE ca.school_year_id = $1
+           )`,
+        [parsed.data.yearId]
+      );
+    }
+
+    revalidateAll();
+    return { success: true };
+  } catch (err) {
+    console.error("Failed to unarchive lessons", err instanceof Error ? err.message : String(err));
+    return { error: "Failed to unarchive lessons" };
+  }
 }

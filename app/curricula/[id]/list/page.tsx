@@ -12,22 +12,27 @@ import {
   getAssignmentDaysForCurriculum,
   getCompletionMismatches,
   getCurriculumDetail,
+  getArchivedLessonCount,
 } from "@/lib/queries/curricula";
 import { getLinkedBooklists, getAllBooklistSummaries } from "@/lib/queries/booklists";
 import LinkedBooklists from "@/components/curricula/LinkedBooklists";
 import { getCurrentUser } from "@/lib/session";
 export default async function CurriculumDetailPage({
   params,
+  searchParams,
 }: {
   params: { id: string };
+  searchParams: { showArchived?: string };
 }) {
-  const [curriculum, assignmentDays, mismatches, linkedBooklists, allBooklists, user] = await Promise.all([
-    getCurriculumDetail(params.id),
+  const showArchived = searchParams.showArchived === "true";
+  const [curriculum, assignmentDays, mismatches, linkedBooklists, allBooklists, user, archivedCount] = await Promise.all([
+    getCurriculumDetail(params.id, showArchived),
     getAssignmentDaysForCurriculum(params.id),
     getCompletionMismatches(params.id),
     getLinkedBooklists(params.id),
     getAllBooklistSummaries(),
     getCurrentUser(),
+    getArchivedLessonCount(params.id),
   ]);
   if (!curriculum) notFound();
   const totalLessons = curriculum.lessons.length;
@@ -156,6 +161,25 @@ export default async function CurriculumDetailPage({
         isParent={user.role === "parent"}
       />
       {/* Lessons */}{" "}
+      {archivedCount > 0 && (
+        <div className="mb-2 text-sm">
+          {showArchived ? (
+            <Link
+              href={`/curricula/${params.id}/list`}
+              className="text-interactive hover:underline"
+            >
+              Hide archived lessons
+            </Link>
+          ) : (
+            <Link
+              href={`/curricula/${params.id}/list?showArchived=true`}
+              className="text-interactive hover:underline"
+            >
+              Show archived ({archivedCount})
+            </Link>
+          )}
+        </div>
+      )}
       <Card title="Lessons">
         {" "}
         {curriculum.lessons.length === 0 ? (

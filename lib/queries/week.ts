@@ -43,6 +43,7 @@ export async function getWeekLessons(
      )
        AND l.planned_date >= $2::date
        AND l.planned_date <= $3::date
+       AND l.archived = false
      ORDER BY l.planned_date, s.name, l.order_index`,
     [childId, weekStart, weekEnd]
   );
@@ -72,6 +73,7 @@ export async function getAllWeekLessons(
      LEFT JOIN lesson_completions lc ON lc.lesson_id = l.id AND lc.child_id = ca.child_id
      WHERE l.planned_date >= $1::date
        AND l.planned_date <= $2::date
+       AND l.archived = false
      ORDER BY l.planned_date, c.name, s.name, l.order_index`,
     [weekStart, weekEnd]
   );
@@ -129,6 +131,7 @@ export async function getDaySubjectLessons(
      WHERE ca.child_id = $1
        AND l.planned_date = $2::date
        AND s.id = $3
+       AND l.archived = false
      ORDER BY l.order_index`,
     [childId, date, subjectId]
   );
