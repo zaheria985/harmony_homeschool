@@ -17,6 +17,8 @@ type CurriculumForEdit = {
   status: "active" | "archived" | "draft";
   start_date: string | null;
   end_date: string | null;
+  actual_start_date?: string | null;
+  actual_end_date?: string | null;
   notes?: string | null;
   prepped?: boolean;
   default_view?: string;
@@ -250,6 +252,15 @@ export default function CurriculumEditModal({
             />
           </div>
         </div>
+
+        {/* Actual Dates (read-only, auto-set) */}
+        {(curriculum.actual_start_date || curriculum.actual_end_date) && (
+          <div className="rounded-lg bg-surface-subtle p-3 text-sm text-muted">
+            <span className="font-medium">Actual dates:</span>{" "}
+            {curriculum.actual_start_date || "\u2014"} \u2013 {curriculum.actual_end_date || "\u2014"}
+            <p className="mt-1 text-xs">Auto-set when lessons are completed</p>
+          </div>
+        )}
 
         {/* Description */}
         <div>

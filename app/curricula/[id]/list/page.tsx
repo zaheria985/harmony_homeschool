@@ -96,6 +96,16 @@ export default async function CurriculumDetailPage({
           </Link>{" "}
         </span>{" "}
       </div>{" "}
+      {(curriculum.start_date || curriculum.actual_start_date) && (
+        <div className="mb-6 flex flex-wrap gap-4 text-xs text-muted">
+          {curriculum.start_date && (
+            <span>Planned: {curriculum.start_date}{curriculum.end_date ? ` \u2013 ${curriculum.end_date}` : ""}</span>
+          )}
+          {curriculum.actual_start_date && (
+            <span>Actual: {curriculum.actual_start_date}{curriculum.actual_end_date ? ` \u2013 ${curriculum.actual_end_date}` : ""}</span>
+          )}
+        </div>
+      )}
       {curriculum.description && (
         <p className="mb-6 text-tertiary">{curriculum.description}</p>
       )}{" "}

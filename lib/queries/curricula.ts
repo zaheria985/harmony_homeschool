@@ -5,6 +5,7 @@ export async function getAllCurricula() {
     `SELECT
        cu.id, cu.name, cu.description, cu.order_index, cu.cover_image,
        cu.course_type, cu.grade_type, cu.status, cu.start_date::text, cu.end_date::text,
+       cu.actual_start_date::text, cu.actual_end_date::text,
        cu.prepped, cu.default_view, cu.default_filter,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        ca.child_id,
@@ -24,6 +25,7 @@ export async function getAllCurricula() {
      LEFT JOIN lessons l ON l.curriculum_id = cu.id
       GROUP BY cu.id, cu.name, cu.description, cu.order_index, cu.cover_image,
                cu.course_type, cu.grade_type, cu.status, cu.start_date, cu.end_date,
+               cu.actual_start_date, cu.actual_end_date,
                cu.prepped, cu.default_view, cu.default_filter,
                s.id, s.name, s.color, ca.child_id, c.name
      ORDER BY c.name NULLS FIRST, s.name, cu.order_index, cu.name`
@@ -36,6 +38,7 @@ export async function getCurriculumDetail(id: string) {
     `SELECT
        cu.id, cu.name, cu.description, cu.order_index, cu.cover_image,
        cu.course_type, cu.grade_type, cu.status, cu.start_date::text, cu.end_date::text,
+       cu.actual_start_date::text, cu.actual_end_date::text,
        cu.prepped, cu.default_view, cu.default_filter,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        ca.child_id,
@@ -74,6 +77,7 @@ export async function getCurriculumBoardData(id: string) {
     `SELECT
        cu.id, cu.name, cu.description, cu.order_index, cu.cover_image,
        cu.course_type, cu.grade_type, cu.status, cu.start_date::text, cu.end_date::text,
+       cu.actual_start_date::text, cu.actual_end_date::text,
        cu.prepped, cu.default_view, cu.default_filter,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        ca.child_id,

@@ -153,6 +153,29 @@ export async function markLessonComplete(formData: FormData) {
     client.release();
   }
 
+  // Auto-set actual start/end dates on curriculum
+  try {
+    const currRes = await pool.query(
+      `SELECT curriculum_id FROM lessons WHERE id = $1`, [lessonId]
+    );
+    if (currRes.rows[0]?.curriculum_id) {
+      const cid = currRes.rows[0].curriculum_id;
+      // Set actual_start_date if not yet set
+      await pool.query(
+        `UPDATE curricula SET actual_start_date = CURRENT_DATE
+         WHERE id = $1 AND actual_start_date IS NULL`, [cid]
+      );
+      // Set actual_end_date if all lessons are completed
+      await pool.query(
+        `UPDATE curricula SET actual_end_date = CURRENT_DATE
+         WHERE id = $1
+           AND NOT EXISTS (
+             SELECT 1 FROM lessons WHERE curriculum_id = $1 AND status != 'completed'
+           )`, [cid]
+      );
+    }
+  } catch { /* non-critical */ }
+
   // Shift remaining lessons in the curriculum to fill the gap
   await shiftLessonsAfterCompletion(lessonId, childId);
 

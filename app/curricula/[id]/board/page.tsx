@@ -75,6 +75,16 @@ export default async function CurriculumBoardPage({
           {data.children.length !== 1 ? "s" : ""} assigned{" "}
         </span>{" "}
       </div>{" "}
+      {(data.start_date || data.actual_start_date) && (
+        <div className="mb-6 flex flex-wrap gap-4 text-xs text-muted">
+          {data.start_date && (
+            <span>Planned: {data.start_date}{data.end_date ? ` \u2013 ${data.end_date}` : ""}</span>
+          )}
+          {data.actual_start_date && (
+            <span>Actual: {data.actual_start_date}{data.actual_end_date ? ` \u2013 ${data.actual_end_date}` : ""}</span>
+          )}
+        </div>
+      )}
       <LinkedBooklists
         curriculumId={params.id}
         linkedBooklists={linkedBooklists}

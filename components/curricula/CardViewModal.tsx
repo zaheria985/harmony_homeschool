@@ -1,10 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Modal from "@/components/ui/Modal";
 import MarkdownContent from "@/components/ui/MarkdownContent";
 import ResourcePreviewModal from "@/components/ui/ResourcePreviewModal";
 import InteractiveChecklist, { parseChecklist } from "@/components/lessons/InteractiveChecklist";
+import { attachResourceToLessons } from "@/lib/actions/resources";
+
+type CurriculumResource = {
+  id: string;
+  title: string;
+  type: string;
+  url: string | null;
+  thumbnail_url: string | null;
+  description: string | null;
+};
 
 type CardViewModalProps = {
   lesson: {
@@ -20,8 +30,10 @@ type CardViewModalProps = {
       thumbnail_url: string | null;
       global_type: string | null;
       global_thumbnail_url: string | null;
+      resource_id?: string | null;
     }[];
   } | null;
+  curriculumResources?: CurriculumResource[];
   onClose: () => void;
 };
 
@@ -121,18 +133,43 @@ function ResourceCard({
   );
 }
 
-export default function CardViewModal({ lesson, onClose }: CardViewModalProps) {
+export default function CardViewModal({ lesson, curriculumResources = [], onClose }: CardViewModalProps) {
   const [previewResource, setPreviewResource] = useState<{
     title: string;
     type: string;
     url: string;
     thumbnailUrl: string | null;
   } | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const [recentlyAttached, setRecentlyAttached] = useState<Set<string>>(new Set());
+
+  // Filter curriculum resources to only show those NOT already attached to this lesson
+  const attachedResourceIds = new Set(
+    (lesson?.resources || [])
+      .map((r) => r.resource_id)
+      .filter(Boolean) as string[],
+  );
+  const unattachedCurriculumResources = curriculumResources.filter(
+    (cr) => !attachedResourceIds.has(cr.id) && !recentlyAttached.has(cr.id),
+  );
+
+  function handleAttachCurriculumResource(resourceId: string) {
+    if (!lesson) return;
+    startTransition(async () => {
+      const result = await attachResourceToLessons(resourceId, [lesson.id]);
+      if (result && "success" in result) {
+        setRecentlyAttached((prev) => new Set(prev).add(resourceId));
+      }
+    });
+  }
 
   return (
     <Modal
       open={!!lesson}
-      onClose={onClose}
+      onClose={() => {
+        setRecentlyAttached(new Set());
+        onClose();
+      }}
       title={lesson?.title || ""}
       className="max-w-2xl"
     >
@@ -187,6 +224,55 @@ export default function CardViewModal({ lesson, onClose }: CardViewModalProps) {
                           : undefined
                       }
                     />
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Curriculum Resources — available to attach */}
+          {unattachedCurriculumResources.length > 0 && (
+            <div>
+              <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
+                Curriculum Resources
+              </h4>
+              <div className="space-y-2">
+                {unattachedCurriculumResources.map((cr) => {
+                  const cfg = typeConfig[cr.type] || typeConfig.url;
+                  return (
+                    <div
+                      key={cr.id}
+                      className="flex items-center gap-3 rounded-lg border border-dashed border-light bg-surface p-3 text-sm"
+                    >
+                      {cr.thumbnail_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={cr.thumbnail_url}
+                          alt=""
+                          className="h-10 w-16 flex-shrink-0 rounded object-cover"
+                        />
+                      ) : (
+                        <span
+                          className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded bg-gradient-to-br ${cfg.bg} text-base`}
+                        >
+                          {cfg.icon}
+                        </span>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-secondary">{cr.title}</p>
+                        {cr.description && (
+                          <p className="truncate text-xs text-muted">{cr.description}</p>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        disabled={isPending}
+                        onClick={() => handleAttachCurriculumResource(cr.id)}
+                        className="flex-shrink-0 rounded bg-interactive px-2 py-1 text-xs font-medium text-white transition-colors hover:bg-interactive-hover disabled:opacity-50"
+                      >
+                        {isPending ? "..." : "Attach"}
+                      </button>
+                    </div>
                   );
                 })}
               </div>

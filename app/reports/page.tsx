@@ -206,8 +206,10 @@ export default async function ReportsPage({
           </p>
         ) : (
           <StudentReport
+            childId={selected.childId}
             childName={selected.childName}
             report={selected.report}
+            yearId={yearId}
           />
         )}{" "}
       </Card>{" "}
@@ -278,11 +280,15 @@ export default async function ReportsPage({
   );
 }
 function StudentReport({
+  childId,
   childName,
   report,
+  yearId,
 }: {
+  childId: string;
   childName: string;
   report: ReportData;
+  yearId?: string;
 }) {
   const completionPct =
     Number(report.overall.total_lessons) > 0
@@ -303,7 +309,15 @@ function StudentReport({
   return (
     <div>
       {" "}
-      <h2 className="mb-4 text-lg font-bold text-primary">{childName}</h2>{" "}
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-lg font-bold text-primary">{childName}</h2>
+        <a
+          href={`/api/reports/export?childId=${childId}${yearId ? `&yearId=${yearId}` : ""}`}
+          className="rounded-lg bg-interactive px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
+        >
+          Download PDF
+        </a>
+      </div>{" "}
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         {" "}
         <div>

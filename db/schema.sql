@@ -85,6 +85,8 @@ CREATE TABLE curricula (
                   CHECK (grade_type IN ('numeric', 'pass_fail', 'combo')),
     start_date  DATE,
     end_date    DATE,
+    actual_start_date DATE,
+    actual_end_date   DATE,
     notes       TEXT
 );
 
@@ -222,6 +224,17 @@ CREATE TABLE weekly_notes (
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE reading_log (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    resource_id     UUID NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+    child_id        UUID NOT NULL REFERENCES children(id) ON DELETE CASCADE,
+    date            DATE NOT NULL DEFAULT CURRENT_DATE,
+    pages_read      INTEGER,
+    minutes_read    INTEGER,
+    notes           TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- ============================================================================
 -- INDEXES
 -- ============================================================================
@@ -250,6 +263,9 @@ CREATE INDEX idx_lesson_completions_lesson          ON lesson_completions(lesson
 CREATE INDEX idx_lesson_completions_child           ON lesson_completions(child_id);
 CREATE INDEX idx_resource_tags_resource             ON resource_tags(resource_id);
 CREATE INDEX idx_resource_tags_tag                  ON resource_tags(tag_id);
+CREATE INDEX idx_reading_log_resource               ON reading_log(resource_id);
+CREATE INDEX idx_reading_log_child                  ON reading_log(child_id);
+CREATE INDEX idx_reading_log_date                   ON reading_log(date);
 CREATE INDEX idx_curriculum_tags_tag                ON curriculum_tags(tag_id);
 CREATE INDEX idx_lesson_tags_tag                    ON lesson_tags(tag_id);
 

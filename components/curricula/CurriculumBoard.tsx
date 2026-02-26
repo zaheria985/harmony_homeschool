@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Badge from "@/components/ui/Badge";
 import RowActions from "@/components/ui/RowActions";
 import LessonFormModal from "@/components/lessons/LessonFormModal";
 import { updateLessonStatus, createLesson, deleteLesson, reorderLessons } from "@/lib/actions/lessons";
 import { markLessonComplete } from "@/lib/actions/completions";
+import { attachResourceToLessons } from "@/lib/actions/resources";
 import { canEdit, canMarkComplete } from "@/lib/permissions";
 import CardViewModal from "@/components/curricula/CardViewModal";
 import ResourcePreviewModal from "@/components/ui/ResourcePreviewModal";
@@ -523,6 +524,169 @@ function SortableLessonCard({
   );
 }
 
+function LessonPickerDropdown({
+  lessons,
+  resourceId,
+  onClose,
+}: {
+  lessons: Lesson[];
+  resourceId: string;
+  onClose: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [attaching, setAttaching] = useState<string | null>(null);
+  const [attached, setAttached] = useState<Set<string>>(new Set());
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onClose();
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [onClose]);
+
+  const filtered = lessons.filter((l) =>
+    l.title.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  async function handleAttach(lessonId: string) {
+    setAttaching(lessonId);
+    const result = await attachResourceToLessons(resourceId, [lessonId]);
+    setAttaching(null);
+    if (result && "success" in result) {
+      setAttached((prev) => new Set(prev).add(lessonId));
+    }
+  }
+
+  return (
+    <div
+      ref={ref}
+      className="absolute left-0 top-full z-30 mt-1 w-64 rounded-lg border border-light bg-surface shadow-lg"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="flex items-center justify-between border-b border-light px-3 py-2">
+        <span className="text-xs font-semibold text-primary">Attach to Lesson</span>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-muted hover:text-secondary text-sm leading-none"
+        >
+          &times;
+        </button>
+      </div>
+      {lessons.length > 5 && (
+        <div className="border-b border-light px-3 py-2">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Filter lessons..."
+            autoFocus
+            className="w-full rounded border border-light bg-surface px-2 py-1 text-xs text-primary placeholder:text-muted focus:border-interactive focus:outline-none focus:ring-1 focus:ring-focus"
+          />
+        </div>
+      )}
+      <div className="max-h-48 overflow-y-auto p-1">
+        {filtered.length === 0 && (
+          <p className="px-3 py-2 text-xs text-muted">No lessons found.</p>
+        )}
+        {filtered.map((l) => {
+          const justAttached = attached.has(l.id);
+          const isAttaching = attaching === l.id;
+          return (
+            <button
+              key={l.id}
+              type="button"
+              disabled={isAttaching || justAttached}
+              onClick={() => handleAttach(l.id)}
+              className="flex w-full items-center justify-between rounded px-3 py-1.5 text-left text-xs text-secondary transition-colors hover:bg-surface-muted disabled:opacity-50"
+            >
+              <span className="min-w-0 truncate">{l.title}</span>
+              {justAttached ? (
+                <span className="ml-2 flex-shrink-0 text-[10px] text-success-600">Attached</span>
+              ) : isAttaching ? (
+                <span className="ml-2 flex-shrink-0 text-[10px] text-muted">...</span>
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function CurriculumResourceCard({
+  resource,
+  lessons,
+  canAttach,
+}: {
+  resource: CurriculumResource;
+  lessons: Lesson[];
+  canAttach: boolean;
+}) {
+  const [showPicker, setShowPicker] = useState(false);
+  const cfg = typeConfig[resource.type] || typeConfig.url;
+
+  return (
+    <div className="relative flex items-center gap-2 rounded-lg border border-light bg-surface p-2 text-xs transition-colors hover:border-primary-200">
+      <a
+        href={resource.url || `/resources/${resource.id}`}
+        target={resource.url ? "_blank" : undefined}
+        rel={resource.url ? "noopener noreferrer" : undefined}
+        className="flex min-w-0 flex-1 items-center gap-2"
+      >
+        {resource.thumbnail_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={resource.thumbnail_url}
+            alt=""
+            className="h-8 w-10 flex-shrink-0 rounded object-cover"
+          />
+        ) : (
+          <span
+            className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded bg-gradient-to-br ${cfg.bg} text-sm`}
+          >
+            {cfg.icon}
+          </span>
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-medium text-secondary">
+            {resource.title}
+          </p>
+          {resource.description && (
+            <p className="truncate text-[10px] text-muted">
+              {resource.description}
+            </p>
+          )}
+        </div>
+      </a>
+      {canAttach && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowPicker(!showPicker);
+          }}
+          title="Attach to lesson"
+          className="flex-shrink-0 rounded px-1.5 py-0.5 text-xs font-medium text-muted transition-colors hover:bg-interactive hover:text-white"
+        >
+          +
+        </button>
+      )}
+      {showPicker && (
+        <LessonPickerDropdown
+          lessons={lessons}
+          resourceId={resource.id}
+          onClose={() => setShowPicker(false)}
+        />
+      )}
+    </div>
+  );
+}
+
 function SectionColumn({
   sectionName,
   lessons,
@@ -985,43 +1149,14 @@ export default function CurriculumBoard({
                         {group}
                       </p>
                       <div className="space-y-1.5">
-                        {resources.map((r) => {
-                          const cfg = typeConfig[r.type] || typeConfig.url;
-                          return (
-                            <a
-                              key={r.id}
-                              href={r.url || `/resources/${r.id}`}
-                              target={r.url ? "_blank" : undefined}
-                              rel={r.url ? "noopener noreferrer" : undefined}
-                              className="flex items-center gap-2 rounded-lg border border-light bg-surface p-2 text-xs transition-colors hover:border-primary-200"
-                            >
-                              {r.thumbnail_url ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                  src={r.thumbnail_url}
-                                  alt=""
-                                  className="h-8 w-10 flex-shrink-0 rounded object-cover"
-                                />
-                              ) : (
-                                <span
-                                  className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded bg-gradient-to-br ${cfg.bg} text-sm`}
-                                >
-                                  {cfg.icon}
-                                </span>
-                              )}
-                              <div className="min-w-0 flex-1">
-                                <p className="truncate font-medium text-secondary">
-                                  {r.title}
-                                </p>
-                                {r.description && (
-                                  <p className="truncate text-[10px] text-muted">
-                                    {r.description}
-                                  </p>
-                                )}
-                              </div>
-                            </a>
-                          );
-                        })}
+                        {resources.map((r) => (
+                          <CurriculumResourceCard
+                            key={r.id}
+                            resource={r}
+                            lessons={lessons}
+                            canAttach={showAddLesson}
+                          />
+                        ))}
                       </div>
                     </div>
                   ))}
@@ -1127,6 +1262,7 @@ export default function CurriculumBoard({
 
         <CardViewModal
           lesson={viewingLesson}
+          curriculumResources={curriculumResources}
           onClose={() => setViewingLesson(null)}
         />
 
@@ -1186,43 +1322,14 @@ export default function CurriculumBoard({
                     {group}
                   </p>
                   <div className="space-y-1.5">
-                    {resources.map((r) => {
-                      const cfg = typeConfig[r.type] || typeConfig.url;
-                      return (
-                        <a
-                          key={r.id}
-                          href={r.url || `/resources/${r.id}`}
-                          target={r.url ? "_blank" : undefined}
-                          rel={r.url ? "noopener noreferrer" : undefined}
-                          className="flex items-center gap-2 rounded-lg border border-light bg-surface p-2 text-xs transition-colors hover:border-primary-200"
-                        >
-                          {r.thumbnail_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={r.thumbnail_url}
-                              alt=""
-                              className="h-8 w-10 flex-shrink-0 rounded object-cover"
-                            />
-                          ) : (
-                            <span
-                              className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded bg-gradient-to-br ${cfg.bg} text-sm`}
-                            >
-                              {cfg.icon}
-                            </span>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate font-medium text-secondary">
-                              {r.title}
-                            </p>
-                            {r.description && (
-                              <p className="truncate text-[10px] text-muted">
-                                {r.description}
-                              </p>
-                            )}
-                          </div>
-                        </a>
-                      );
-                    })}
+                    {resources.map((r) => (
+                      <CurriculumResourceCard
+                        key={r.id}
+                        resource={r}
+                        lessons={lessons}
+                        canAttach={showAddLesson}
+                      />
+                    ))}
                   </div>
                 </div>
               ))}
@@ -1387,6 +1494,7 @@ export default function CurriculumBoard({
 
       <CardViewModal
         lesson={viewingLesson}
+        curriculumResources={curriculumResources}
         onClose={() => setViewingLesson(null)}
       />
 
