@@ -6,6 +6,7 @@ import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import { bulkCreateLessons, createCurriculum } from "@/lib/actions/lessons";
 import { bulkCreateLessonResources } from "@/lib/actions/resources";
+import { bulkCreateLessonCards } from "@/lib/actions/lesson-cards";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -69,6 +70,15 @@ type ExtractedResource = {
   downloadUrl?: string;
 };
 
+type LessonCardDraft = {
+  trelloCardId: string;
+  card_type: "checklist" | "youtube" | "url" | "note";
+  title: string;
+  content?: string;
+  url?: string;
+  include: boolean;
+};
+
 type LessonDraft = {
   cardId: string;
   include: boolean;
@@ -78,7 +88,87 @@ type LessonDraft = {
   status: "planned" | "completed";
   section: string;
   resources: ExtractedResource[];
+  lessonCards: LessonCardDraft[];
 };
+
+function buildLessonCardDrafts(listCards: TrelloCard[]): { lcDrafts: LessonCardDraft[]; resources: ExtractedResource[] } {
+  const lcDrafts: LessonCardDraft[] = [];
+  const allResources: ExtractedResource[] = [];
+
+  for (const card of listCards) {
+    const rawTitle = card.name;
+    const checklists = card.checklists ?? [];
+    const resources = extractResources(card);
+
+    const titleIsUrl = /^https?:\/\/\S+$/i.test(rawTitle.trim());
+    const titleUrl = titleIsUrl ? rawTitle.trim() : null;
+    const isYouTube = titleUrl
+      ? /youtube\.com|youtu\.be/.test(titleUrl)
+      : resources.some((r) => r.type === "youtube");
+    const youtubeUrl = titleUrl && isYouTube
+      ? titleUrl
+      : resources.find((r) => r.type === "youtube")?.url;
+
+    if (isYouTube && youtubeUrl) {
+      lcDrafts.push({
+        trelloCardId: card.id,
+        card_type: "youtube",
+        title: titleIsUrl ? "" : rawTitle,
+        url: youtubeUrl,
+        include: true,
+      });
+    } else if (checklists.length > 0) {
+      for (const cl of checklists) {
+        const md = cl.checkItems.map((item) => {
+          const checkbox = item.state === "complete" ? "- [x]" : "- [ ]";
+          return `${checkbox} ${item.name}`;
+        }).join("\n");
+        lcDrafts.push({
+          trelloCardId: `${card.id}-cl-${cl.name}`,
+          card_type: "checklist",
+          title: checklists.length > 1 ? cl.name : rawTitle,
+          content: md,
+          include: true,
+        });
+      }
+    } else if (titleUrl) {
+      lcDrafts.push({
+        trelloCardId: card.id,
+        card_type: "url",
+        title: "",
+        url: titleUrl,
+        include: true,
+      });
+    } else {
+      const baseDesc = cleanDescription(card.desc);
+      lcDrafts.push({
+        trelloCardId: card.id,
+        card_type: "note",
+        title: rawTitle,
+        content: baseDesc || undefined,
+        include: true,
+      });
+    }
+
+    for (const r of resources) {
+      const alreadyPrimary = isYouTube && r.type === "youtube" && r.url === youtubeUrl;
+      if (alreadyPrimary) continue;
+      if (r.type === "youtube") {
+        lcDrafts.push({
+          trelloCardId: `${card.id}-res-${r.url}`,
+          card_type: "youtube",
+          title: r.title,
+          url: r.url,
+          include: true,
+        });
+      }
+    }
+
+    allResources.push(...resources.filter((r) => r.type !== "youtube"));
+  }
+
+  return { lcDrafts, resources: allResources };
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -128,28 +218,6 @@ function cleanDescription(desc: string): string {
     .trim();
 }
 
-function formatDate(iso: string | null): string | null {
-  if (!iso) return null;
-  try {
-    return new Date(iso).toISOString().slice(0, 10);
-  } catch {
-    return null;
-  }
-}
-
-function checklistsToMarkdown(checklists: TrelloChecklist[]): string {
-  const lines: string[] = [];
-  for (const cl of checklists) {
-    if (checklists.length > 1) {
-      lines.push(`**${cl.name}**`);
-    }
-    for (const item of cl.checkItems) {
-      const checkbox = item.state === "complete" ? "- [x]" : "- [ ]";
-      lines.push(`${checkbox} ${item.name}`);
-    }
-  }
-  return lines.join("\n");
-}
 
 // ---------------------------------------------------------------------------
 // Step indicator
@@ -234,9 +302,6 @@ export default function TrelloImportClient({
   const [existingCurriculumId, setExistingCurriculumId] = useState("");
   const [newCurriculumName, setNewCurriculumName] = useState("");
   const [subjectId, setSubjectId] = useState("");
-  const [prefixWithListName, setPrefixWithListName] = useState(false);
-  const [importCompleted, setImportCompleted] = useState(false);
-  const [checklistMode, setChecklistMode] = useState<"lessons" | "description">("description");
   const [selectedChildIds, setSelectedChildIds] = useState<string[]>([]);
   const [schoolYearId, setSchoolYearId] = useState("");
 
@@ -254,6 +319,7 @@ export default function TrelloImportClient({
   const [result, setResult] = useState<{
     created: number;
     resources: number;
+    lessonCards: number;
     curriculumId: string;
   } | null>(null);
   const [error, setError] = useState("");
@@ -319,73 +385,34 @@ export default function TrelloImportClient({
         return listDiff !== 0 ? listDiff : a.pos - b.pos;
       });
 
+      // Group cards by list — each list becomes a Lesson, each card becomes a Lesson Card
+      const nonResourceCards = sorted.filter((c) => !autoResourceIds.has(c.idList));
+      const cardsByList = new Map<string, TrelloCard[]>();
+      for (const card of nonResourceCards) {
+        const list = cardsByList.get(card.idList) || [];
+        list.push(card);
+        cardsByList.set(card.idList, list);
+      }
+
       const drafts: LessonDraft[] = [];
-      const lessonCards = sorted.filter((c) => !autoResourceIds.has(c.idList));
+      const nonResourceLists = fetchedLists.filter((l) => !autoResourceIds.has(l.id));
 
-      for (const card of lessonCards) {
-        const listName = listMap.get(card.idList)?.name || "";
-        const rawTitle = prefixWithListName
-          ? `[${listName}] ${card.name}`
-          : card.name;
-        const baseDesc = cleanDescription(card.desc);
-        const checklists = card.checklists ?? [];
-
-        // Append checklist markdown in description mode
-        let description = baseDesc;
-        if (checklistMode === "description" && checklists.length > 0) {
-          const md = checklistsToMarkdown(checklists);
-          description = baseDesc ? `${baseDesc}\n\n${md}` : md;
-        }
-
-        // Extract resources and check if card title is a URL
-        const cardResources = extractResources(card);
-        const titleIsUrl = /^(\[.*?\]\s*)?https?:\/\/\S+$/i.test(rawTitle.trim());
-        if (titleIsUrl) {
-          const urlFromTitle = rawTitle.replace(/^\[.*?\]\s*/, "").trim();
-          if (!cardResources.some((r) => r.url === urlFromTitle)) {
-            const isYt = /youtube\.com|youtu\.be/.test(urlFromTitle);
-            cardResources.unshift({
-              type: isYt ? "youtube" : "url",
-              url: urlFromTitle,
-              title: isYt ? "YouTube Video" : urlFromTitle.split("/").pop() || "Link",
-            });
-          }
-        }
+      for (const list of nonResourceLists) {
+        const listCards = cardsByList.get(list.id) || [];
+        if (listCards.length === 0) continue;
+        const { lcDrafts, resources: cardResources } = buildLessonCardDrafts(listCards);
 
         drafts.push({
-          cardId: card.id,
+          cardId: list.id,
           include: true,
-          title: rawTitle,
-          description,
-          planned_date: formatDate(card.due),
-          status:
-            importCompleted && card.dueComplete ? "completed" : "planned",
-          section: listName,
+          title: list.name,
+          description: "",
+          planned_date: null,
+          status: "planned",
+          section: "",
           resources: cardResources,
+          lessonCards: lcDrafts,
         });
-
-        // In lessons mode, create a draft per checklist item
-        if (checklistMode === "lessons" && checklists.length > 0) {
-          for (const cl of checklists) {
-            for (const item of cl.checkItems) {
-              drafts.push({
-                cardId: `${card.id}-cl-${item.name}`,
-                include: true,
-                title: prefixWithListName
-                  ? `[${listName}] ${item.name}`
-                  : item.name,
-                description: "",
-                planned_date: null,
-                status:
-                  importCompleted && item.state === "complete"
-                    ? "completed"
-                    : "planned",
-                section: listName,
-                resources: [],
-              });
-            }
-          }
-        }
       }
 
       setLessonDrafts(drafts);
@@ -396,97 +423,53 @@ export default function TrelloImportClient({
     } finally {
       setDetailsLoading(false);
     }
-  }, [selectedBoardId, prefixWithListName, importCompleted, checklistMode]);
+  }, [selectedBoardId]);
 
   // -------------------------------------------------------------------------
   // Rebuild drafts when resource lists change
   // -------------------------------------------------------------------------
   const rebuildDrafts = useCallback(
     (newResourceIds: Set<string>) => {
-      const listMap = new Map(lists.map((l) => [l.id, l]));
       const sorted = [...cards].sort((a, b) => {
-        const aList = listMap.get(a.idList);
-        const bList = listMap.get(b.idList);
+        const aList = lists.find((l) => l.id === a.idList);
+        const bList = lists.find((l) => l.id === b.idList);
         const listDiff = (aList?.pos ?? 0) - (bList?.pos ?? 0);
         return listDiff !== 0 ? listDiff : a.pos - b.pos;
       });
 
+      const nonResourceCards = sorted.filter((c) => !newResourceIds.has(c.idList));
+      const cardsByList = new Map<string, TrelloCard[]>();
+      for (const card of nonResourceCards) {
+        const arr = cardsByList.get(card.idList) || [];
+        arr.push(card);
+        cardsByList.set(card.idList, arr);
+      }
+
       const drafts: LessonDraft[] = [];
-      const lessonCards = sorted.filter((c) => !newResourceIds.has(c.idList));
+      const nonResourceLists = lists.filter((l) => !newResourceIds.has(l.id));
 
-      for (const card of lessonCards) {
-        const listName = listMap.get(card.idList)?.name || "";
-        const rawTitle = prefixWithListName
-          ? `[${listName}] ${card.name}`
-          : card.name;
-        // Preserve existing include state if card was already in drafts
-        const existing = lessonDrafts.find((d) => d.cardId === card.id);
-        const baseDesc = cleanDescription(card.desc);
-        const checklists = card.checklists ?? [];
-
-        let description = baseDesc;
-        if (checklistMode === "description" && checklists.length > 0) {
-          const md = checklistsToMarkdown(checklists);
-          description = baseDesc ? `${baseDesc}\n\n${md}` : md;
-        }
-
-        // Extract resources and check if card title is a URL
-        const cardResources = extractResources(card);
-        const titleIsUrl = /^(\[.*?\]\s*)?https?:\/\/\S+$/i.test(rawTitle.trim());
-        if (titleIsUrl) {
-          const urlFromTitle = rawTitle.replace(/^\[.*?\]\s*/, "").trim();
-          if (!cardResources.some((r) => r.url === urlFromTitle)) {
-            const isYt = /youtube\.com|youtu\.be/.test(urlFromTitle);
-            cardResources.unshift({
-              type: isYt ? "youtube" : "url",
-              url: urlFromTitle,
-              title: isYt ? "YouTube Video" : urlFromTitle.split("/").pop() || "Link",
-            });
-          }
-        }
+      for (const list of nonResourceLists) {
+        const listCards = cardsByList.get(list.id) || [];
+        if (listCards.length === 0) continue;
+        const existing = lessonDrafts.find((d) => d.cardId === list.id);
+        const { lcDrafts, resources: cardResources } = buildLessonCardDrafts(listCards);
 
         drafts.push({
-          cardId: card.id,
+          cardId: list.id,
           include: existing?.include ?? true,
-          title: rawTitle,
-          description,
-          planned_date: formatDate(card.due),
-          status:
-            importCompleted && card.dueComplete
-              ? ("completed" as const)
-              : ("planned" as const),
-          section: listName,
+          title: list.name,
+          description: "",
+          planned_date: null,
+          status: "planned",
+          section: "",
           resources: cardResources,
+          lessonCards: lcDrafts,
         });
-
-        if (checklistMode === "lessons" && checklists.length > 0) {
-          for (const cl of checklists) {
-            for (const item of cl.checkItems) {
-              const clId = `${card.id}-cl-${item.name}`;
-              const existingCl = lessonDrafts.find((d) => d.cardId === clId);
-              drafts.push({
-                cardId: clId,
-                include: existingCl?.include ?? true,
-                title: prefixWithListName
-                  ? `[${listName}] ${item.name}`
-                  : item.name,
-                description: "",
-                planned_date: null,
-                status:
-                  importCompleted && item.state === "complete"
-                    ? ("completed" as const)
-                    : ("planned" as const),
-                section: listName,
-                resources: [],
-              });
-            }
-          }
-        }
       }
 
       setLessonDrafts(drafts);
     },
-    [lists, cards, prefixWithListName, importCompleted, lessonDrafts, checklistMode]
+    [lists, cards, lessonDrafts]
   );
 
   // -------------------------------------------------------------------------
@@ -514,6 +497,29 @@ export default function TrelloImportClient({
       setLessonDrafts((prev) =>
         prev.map((d) =>
           d.cardId === cardId ? { ...d, include: !d.include } : d
+        )
+      );
+    },
+    []
+  );
+
+  // -------------------------------------------------------------------------
+  // Toggle include on a lesson card draft
+  // -------------------------------------------------------------------------
+  const toggleLessonCardInclude = useCallback(
+    (lessonCardId: string, lessonDraftId: string) => {
+      setLessonDrafts((prev) =>
+        prev.map((d) =>
+          d.cardId === lessonDraftId
+            ? {
+                ...d,
+                lessonCards: d.lessonCards.map((lc) =>
+                  lc.trelloCardId === lessonCardId
+                    ? { ...lc, include: !lc.include }
+                    : lc
+                ),
+              }
+            : d
         )
       );
     },
@@ -617,7 +623,7 @@ export default function TrelloImportClient({
       const lessonIds: string[] =
         "lessonIds" in bulkResult ? (bulkResult.lessonIds as string[]) : [];
 
-      // Attach resources to created lessons
+      // Attach non-YouTube resources to created lessons
       let totalResources = 0;
       if (lessonIds.length > 0) {
         const resourceItems: Array<{
@@ -639,8 +645,46 @@ export default function TrelloImportClient({
         if (resourceItems.length > 0) {
           const resResult = await bulkCreateLessonResources(resourceItems);
           if ("error" in resResult) {
-            // Non-fatal: lessons were created, but resources failed
             console.error("Failed to attach resources:", resResult.error);
+          }
+        }
+      }
+
+      // Create lesson cards for each lesson
+      let totalLessonCards = 0;
+      if (lessonIds.length > 0) {
+        const lcItems: Array<{
+          lessonId: string;
+          cards: Array<{
+            card_type: "checklist" | "youtube" | "url" | "resource" | "note";
+            title?: string;
+            content?: string;
+            url?: string;
+            thumbnail_url?: string;
+          }>;
+        }> = [];
+
+        for (let i = 0; i < includedDrafts.length; i++) {
+          const draft = includedDrafts[i];
+          const includedCards = draft.lessonCards.filter((lc) => lc.include);
+          if (includedCards.length > 0 && lessonIds[i]) {
+            lcItems.push({
+              lessonId: lessonIds[i],
+              cards: includedCards.map((lc) => ({
+                card_type: lc.card_type,
+                title: lc.title || undefined,
+                content: lc.content,
+                url: lc.url,
+              })),
+            });
+            totalLessonCards += includedCards.length;
+          }
+        }
+
+        if (lcItems.length > 0) {
+          const lcResult = await bulkCreateLessonCards(lcItems);
+          if ("error" in lcResult) {
+            console.error("Failed to create lesson cards:", lcResult.error);
           }
         }
       }
@@ -648,6 +692,7 @@ export default function TrelloImportClient({
       setResult({
         created: bulkResult.created ?? 0,
         resources: totalResources,
+        lessonCards: totalLessonCards,
         curriculumId,
       });
       setStep(4);
@@ -673,25 +718,18 @@ export default function TrelloImportClient({
     ? newCurriculumName.trim() !== "" && subjectId !== ""
     : existingCurriculumId !== "";
 
-  const hasCompletedDrafts = lessonDrafts.some(
-    (d) => d.include && d.status === "completed"
-  );
-  const step2CompletionValid =
-    !hasCompletedDrafts ||
-    (selectedChildIds.length > 0 && schoolYearId !== "");
 
   // -------------------------------------------------------------------------
   // Computed preview stats
   // -------------------------------------------------------------------------
   const includedCount = lessonDrafts.filter((d) => d.include).length;
+  const totalLessonCardCount = lessonDrafts
+    .filter((d) => d.include)
+    .reduce((sum, d) => sum + d.lessonCards.filter((lc) => lc.include).length, 0);
   const totalResourceCount = lessonDrafts
     .filter((d) => d.include)
     .reduce((sum, d) => sum + d.resources.length, 0);
-  const sectionCount = new Set(
-    lessonDrafts.filter((d) => d.include).map((d) => d.section)
-  ).size;
   const resourceOnlyCards = cards.filter((c) => resourceListIds.has(c.idList));
-  const listsGrouped = lists.filter((l) => !resourceListIds.has(l.id));
 
   // =========================================================================
   // RENDER
@@ -848,82 +886,11 @@ export default function TrelloImportClient({
             </div>
           </Card>
 
-          {/* Import options */}
-          <Card title="Import Options">
-            <div className="space-y-3">
-              <label className="flex items-center gap-2 text-sm text-primary">
-                <input
-                  type="checkbox"
-                  checked={prefixWithListName}
-                  onChange={(e) => setPrefixWithListName(e.target.checked)}
-                  className="accent-interactive"
-                />
-                Prefix lesson titles with list name (e.g. [Chapter 1] Lesson
-                Name)
-              </label>
-              <label className="flex items-center gap-2 text-sm text-primary">
-                <input
-                  type="checkbox"
-                  checked={importCompleted}
-                  onChange={(e) => setImportCompleted(e.target.checked)}
-                  className="accent-interactive"
-                />
-                Import cards marked as complete with &quot;completed&quot; status
-              </label>
-            </div>
-          </Card>
-
-          {/* Checklist import mode */}
-          <Card title="Checklist Handling">
-            <div className="space-y-3">
-              <p className="text-sm text-muted">
-                Choose how Trello card checklists are imported.
-              </p>
-              <div className="space-y-2">
-                <label className="flex items-start gap-2 text-sm text-primary">
-                  <input
-                    type="radio"
-                    name="checklistMode"
-                    checked={checklistMode === "description"}
-                    onChange={() => setChecklistMode("description")}
-                    className="mt-0.5 accent-interactive"
-                  />
-                  <span>
-                    <span className="font-medium">Checklist items as description bullets</span>
-                    <span className="block text-muted">
-                      Append a markdown checklist to the lesson description ({"\u2610"} / {"\u2611"} items)
-                    </span>
-                  </span>
-                </label>
-                <label className="flex items-start gap-2 text-sm text-primary">
-                  <input
-                    type="radio"
-                    name="checklistMode"
-                    checked={checklistMode === "lessons"}
-                    onChange={() => setChecklistMode("lessons")}
-                    className="mt-0.5 accent-interactive"
-                  />
-                  <span>
-                    <span className="font-medium">Checklist items as separate lessons</span>
-                    <span className="block text-muted">
-                      Each checklist item becomes its own lesson in the same section; checked items import as completed
-                    </span>
-                  </span>
-                </label>
-              </div>
-            </div>
-          </Card>
-
           {/* Children */}
           <Card title="Assign to Children">
             <div className="space-y-2">
               <p className="text-sm text-muted">
                 Select the children who will use this curriculum.
-                {importCompleted && (
-                  <span className="ml-1 font-medium text-primary">
-                    (Required when importing completed lessons)
-                  </span>
-                )}
               </p>
               <div className="flex flex-wrap gap-2">
                 {children.map((child) => (
@@ -953,11 +920,6 @@ export default function TrelloImportClient({
             <div>
               <p className="mb-2 text-sm text-muted">
                 Assign lessons to a school year.
-                {importCompleted && (
-                  <span className="ml-1 font-medium text-primary">
-                    (Required when importing completed lessons)
-                  </span>
-                )}
               </p>
               <select
                 value={schoolYearId}
@@ -1014,18 +976,23 @@ export default function TrelloImportClient({
                   </span>
                   <span className="text-muted">with</span>
                   <span className="font-semibold text-primary">
-                    {totalResourceCount} resource
-                    {totalResourceCount !== 1 ? "s" : ""}
+                    {totalLessonCardCount} lesson card
+                    {totalLessonCardCount !== 1 ? "s" : ""}
                   </span>
-                  <span className="text-muted">from</span>
-                  <span className="font-semibold text-primary">
-                    {sectionCount} section{sectionCount !== 1 ? "s" : ""}
-                  </span>
-                  {resourceOnlyCards.length > 0 && (
+                  {totalResourceCount > 0 && (
                     <>
                       <span className="text-muted">+</span>
+                      <span className="font-semibold text-primary">
+                        {totalResourceCount} resource
+                        {totalResourceCount !== 1 ? "s" : ""}
+                      </span>
+                    </>
+                  )}
+                  {resourceOnlyCards.length > 0 && (
+                    <>
+                      <span className="text-muted">|</span>
                       <span className="text-secondary">
-                        {resourceOnlyCards.length} resource-only card
+                        {resourceOnlyCards.length} skipped card
                         {resourceOnlyCards.length !== 1 ? "s" : ""}
                       </span>
                     </>
@@ -1035,7 +1002,7 @@ export default function TrelloImportClient({
 
               {/* Resource list selectors */}
               {lists.length > 0 && (
-                <Card title="Mark Lists as Resources-Only">
+                <Card title="Mark Lists as Resources-Only (skip import)">
                   <div className="flex flex-wrap gap-2">
                     {lists.map((list) => (
                       <label
@@ -1064,99 +1031,102 @@ export default function TrelloImportClient({
                 </Card>
               )}
 
-              {/* Per-list lesson tables */}
-              {listsGrouped.map((list) => {
-                const listDrafts = lessonDrafts.filter(
-                  (d) => d.section === list.name
-                );
-                if (listDrafts.length === 0) return null;
+              {/* Lessons (from Trello lists) with their lesson cards */}
+              {lessonDrafts.map((draft) => {
+                const includedCardCount = draft.lessonCards.filter(
+                  (lc) => lc.include
+                ).length;
 
                 return (
-                  <div key={list.id}>
-                    <h3 className="mb-2 text-sm font-semibold text-secondary">
-                      {list.name}{" "}
-                      <span className="font-normal text-muted">
-                        ({listDrafts.filter((d) => d.include).length}/
-                        {listDrafts.length})
-                      </span>
-                    </h3>
-                    <div className="overflow-x-auto rounded-2xl border border-light shadow-warm">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-light bg-muted/30">
-                            <th className="w-10 px-3 py-2 text-left" />
-                            <th className="px-3 py-2 text-left font-medium text-secondary">
-                              Title
-                            </th>
-                            <th className="px-3 py-2 text-left font-medium text-secondary">
-                              Status
-                            </th>
-                            <th className="px-3 py-2 text-left font-medium text-secondary">
-                              Date
-                            </th>
-                            <th className="px-3 py-2 text-left font-medium text-secondary">
-                              Description
-                            </th>
-                            <th className="w-20 px-3 py-2 text-left font-medium text-secondary">
-                              Resources
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {listDrafts.map((draft) => (
-                            <tr
-                              key={draft.cardId}
-                              className={`border-b border-light last:border-0 ${
-                                draft.include
-                                  ? "bg-surface"
-                                  : "bg-muted/20 opacity-50"
-                              }`}
-                            >
-                              <td className="px-3 py-2">
-                                <input
-                                  type="checkbox"
-                                  checked={draft.include}
-                                  onChange={() =>
-                                    toggleDraftInclude(draft.cardId)
-                                  }
-                                  className="accent-interactive"
-                                />
-                              </td>
-                              <td className="max-w-xs truncate px-3 py-2 font-medium text-primary">
-                                {draft.title}
-                              </td>
-                              <td className="px-3 py-2">
-                                <Badge
-                                  variant={
-                                    draft.status === "completed"
-                                      ? "success"
-                                      : "default"
-                                  }
-                                >
-                                  {draft.status}
-                                </Badge>
-                              </td>
-                              <td className="whitespace-nowrap px-3 py-2 text-muted">
-                                {draft.planned_date || "\u2014"}
-                              </td>
-                              <td className="max-w-[200px] truncate px-3 py-2 text-muted">
-                                {draft.description
-                                  ? draft.description.slice(0, 80) +
-                                    (draft.description.length > 80
-                                      ? "..."
-                                      : "")
-                                  : "\u2014"}
-                              </td>
-                              <td className="px-3 py-2 text-center text-muted">
-                                {draft.resources.length > 0
-                                  ? draft.resources.length
-                                  : "\u2014"}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                  <div
+                    key={draft.cardId}
+                    className={`rounded-2xl border shadow-warm ${
+                      draft.include
+                        ? "border-light bg-surface"
+                        : "border-border bg-muted/20 opacity-60"
+                    }`}
+                  >
+                    {/* Lesson header */}
+                    <div className="flex items-center gap-3 border-b border-light px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={draft.include}
+                        onChange={() => toggleDraftInclude(draft.cardId)}
+                        className="accent-interactive"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-primary">
+                          {draft.title}
+                        </h3>
+                        <p className="text-xs text-muted">
+                          Trello list &rarr; Lesson &middot;{" "}
+                          {includedCardCount} card
+                          {includedCardCount !== 1 ? "s" : ""}
+                          {draft.resources.length > 0 && (
+                            <span>
+                              {" "}
+                              &middot; {draft.resources.length} resource
+                              {draft.resources.length !== 1 ? "s" : ""}
+                            </span>
+                          )}
+                        </p>
+                      </div>
                     </div>
+
+                    {/* Lesson cards list */}
+                    {draft.include && draft.lessonCards.length > 0 && (
+                      <div className="divide-y divide-border/50">
+                        {draft.lessonCards.map((lc) => (
+                          <div
+                            key={lc.trelloCardId}
+                            className={`flex items-start gap-3 px-4 py-2.5 ${
+                              lc.include ? "" : "opacity-40"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={lc.include}
+                              onChange={() =>
+                                toggleLessonCardInclude(
+                                  lc.trelloCardId,
+                                  draft.cardId
+                                )
+                              }
+                              className="mt-0.5 accent-interactive"
+                            />
+                            <Badge
+                              variant={
+                                lc.card_type === "youtube"
+                                  ? "danger"
+                                  : lc.card_type === "checklist"
+                                    ? "info"
+                                    : lc.card_type === "url"
+                                      ? "default"
+                                      : "default"
+                              }
+                            >
+                              {lc.card_type}
+                            </Badge>
+                            <div className="flex-1 min-w-0">
+                              <p className="truncate text-sm text-primary">
+                                {lc.title || lc.url || "Untitled"}
+                              </p>
+                              {lc.content && (
+                                <p className="mt-0.5 truncate text-xs text-muted">
+                                  {lc.content.slice(0, 100)}
+                                  {lc.content.length > 100 ? "..." : ""}
+                                </p>
+                              )}
+                              {lc.url && lc.title && (
+                                <p className="mt-0.5 truncate text-xs text-muted">
+                                  {lc.url}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -1169,17 +1139,8 @@ export default function TrelloImportClient({
                       {resourceOnlyCards.length}
                     </span>{" "}
                     card{resourceOnlyCards.length !== 1 ? "s" : ""} from
-                    resource-only lists will be skipped as lessons. Their
-                    attachments will not be imported.
+                    resource-only lists will be skipped.
                   </p>
-                </div>
-              )}
-
-              {/* Validation warnings */}
-              {hasCompletedDrafts && !step2CompletionValid && (
-                <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-600 dark:bg-amber-900/20 dark:text-amber-300">
-                  Some lessons are marked as completed. Go back and select at
-                  least one child and a school year to import completed lessons.
                 </div>
               )}
             </>
@@ -1198,8 +1159,7 @@ export default function TrelloImportClient({
               disabled={
                 detailsLoading ||
                 includedCount === 0 ||
-                importing ||
-                (hasCompletedDrafts && !step2CompletionValid)
+                importing
               }
               onClick={doImport}
               className="rounded-lg bg-interactive px-4 py-2 text-sm font-medium text-white hover:bg-interactive-hover disabled:opacity-50"
@@ -1229,13 +1189,26 @@ export default function TrelloImportClient({
             </h2>
             <p className="mt-2 text-sm text-secondary">
               Created{" "}
-              <span className="font-semibold">{result.created} lessons</span>
-              {result.resources > 0 && (
+              <span className="font-semibold">
+                {result.created} lesson{result.created !== 1 ? "s" : ""}
+              </span>
+              {result.lessonCards > 0 && (
                 <>
                   {" "}
                   with{" "}
                   <span className="font-semibold">
-                    {result.resources} resources
+                    {result.lessonCards} lesson card
+                    {result.lessonCards !== 1 ? "s" : ""}
+                  </span>
+                </>
+              )}
+              {result.resources > 0 && (
+                <>
+                  {" "}
+                  and{" "}
+                  <span className="font-semibold">
+                    {result.resources} resource
+                    {result.resources !== 1 ? "s" : ""}
                   </span>
                 </>
               )}
@@ -1261,7 +1234,6 @@ export default function TrelloImportClient({
                 setCards([]);
                 setResourceListIds(new Set());
                 setSelectedBoardId("");
-                setChecklistMode("description");
                 setError("");
               }}
               className="rounded-lg border border-border bg-surface px-4 py-2 text-sm font-medium text-secondary hover:bg-muted/30"

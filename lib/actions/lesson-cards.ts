@@ -216,3 +216,61 @@ export async function reorderLessonCards(updates: { id: string; order_index: num
 
   return { success: true };
 }
+
+export async function bulkCreateLessonCards(
+  items: Array<{
+    lessonId: string;
+    cards: Array<{
+      card_type: "checklist" | "youtube" | "url" | "resource" | "note";
+      title?: string;
+      content?: string;
+      url?: string;
+      thumbnail_url?: string;
+    }>;
+  }>
+) {
+  if (items.length === 0) return { success: true, created: 0 };
+
+  const client = await pool.connect();
+  let totalCreated = 0;
+
+  try {
+    await client.query("BEGIN");
+
+    for (const item of items) {
+      for (let i = 0; i < item.cards.length; i++) {
+        const card = item.cards[i];
+
+        let thumbnailUrl = card.thumbnail_url || null;
+        let finalTitle = card.title || null;
+        if (card.card_type === "youtube" && card.url) {
+          const meta = await fetchYouTubeMeta(card.url);
+          if (meta) {
+            thumbnailUrl = thumbnailUrl || meta.thumbnail_url;
+            finalTitle = finalTitle || meta.title;
+          }
+          if (!thumbnailUrl) {
+            const ytId = extractYouTubeId(card.url);
+            if (ytId) thumbnailUrl = `https://img.youtube.com/vi/${ytId}/mqdefault.jpg`;
+          }
+        }
+
+        await client.query(
+          `INSERT INTO lesson_cards (lesson_id, card_type, title, content, url, thumbnail_url, order_index)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [item.lessonId, card.card_type, finalTitle, card.content || null, card.url || null, thumbnailUrl, i]
+        );
+        totalCreated++;
+      }
+    }
+
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    return { error: err instanceof Error ? err.message : "Failed to create lesson cards" };
+  } finally {
+    client.release();
+  }
+
+  return { success: true, created: totalCreated };
+}
