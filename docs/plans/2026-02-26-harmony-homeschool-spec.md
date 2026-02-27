@@ -1381,12 +1381,21 @@ Supports importing completed lessons with grades and pass/fail results in a sing
 
 ### Trello Import (`/admin/trello`)
 
-4-step wizard converting a Trello board into a curriculum with lessons and resources.
+4-step wizard converting a Trello board into a curriculum with lessons and lesson cards.
+
+**Mapping:** Trello lists become lessons (list title = lesson title). Trello cards within each list become lesson cards with auto-detected types:
+- YouTube links (in card title, attachments, or description) → `youtube` lesson card
+- Checklists → `checklist` lesson card with markdown checkboxes (one card per checklist)
+- Plain URL as card title → `url` lesson card
+- Everything else → `note` lesson card with card title and cleaned description
+- Non-YouTube attachments (PDFs, images, files) → attached as lesson resources via `bulkCreateLessonResources`
+
+**Steps:**
 
 1. **Select Board** — fetches accessible boards via Trello API
-2. **Configure** — create new or append to existing curriculum; options for title prefixing, completed lesson import, checklist handling (as description markdown or as separate lessons)
-3. **Preview** — editable table with include/exclude toggles per card; auto-detects "Resources" and "Credits" lists
-4. **Import** — creates curriculum, bulk-creates lessons, attaches extracted resources (YouTube, PDFs, images, URLs from attachments and card descriptions)
+2. **Configure** — create new or append to existing curriculum; assign children and school year
+3. **Preview** — hierarchical view showing each lesson (from list) with its lesson cards underneath; include/exclude toggles on both lessons and individual cards; mark lists as "resources-only" to skip them; auto-detects "Resources" and "Credits" lists
+4. **Import** — creates curriculum, bulk-creates lessons via `bulkCreateLessons`, then creates lesson cards via `bulkCreateLessonCards` (with YouTube oEmbed metadata fetch), and attaches non-YouTube resources
 
 Requires `TRELLO_API_KEY` and `TRELLO_TOKEN` environment variables.
 
