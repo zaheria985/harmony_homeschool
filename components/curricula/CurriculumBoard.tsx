@@ -59,7 +59,7 @@ type Completion = {
 type LessonCardItem = {
   id: string;
   lesson_id: string;
-  card_type: "checklist" | "youtube" | "url" | "resource" | "note";
+  card_type: "checklist" | "youtube" | "url" | "resource" | "note" | "image";
   title: string | null;
   content: string | null;
   url: string | null;
@@ -590,6 +590,27 @@ function LessonMiniCard({
                       <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded bg-gradient-to-br from-indigo-50 to-purple-100 text-[10px]">📦</span>
                     )}
                     <span className="min-w-0 truncate text-secondary group-hover:text-interactive">{card.resource_title || cardTitle}</span>
+                  </a>
+                );
+              }
+
+              if (card.card_type === "image" && card.url) {
+                return (
+                  <a
+                    key={card.id}
+                    href={card.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group block w-full overflow-hidden rounded-lg border border-light transition-colors hover:border-primary-200"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={card.url} alt={cardTitle} className="w-full object-cover" />
+                    {card.title && (
+                      <div className="px-2 py-1">
+                        <span className="truncate text-[10px] text-secondary group-hover:text-interactive">{card.title}</span>
+                      </div>
+                    )}
                   </a>
                 );
               }
@@ -1700,6 +1721,27 @@ export default function CurriculumBoard({
                               <span className="truncate text-[10px] text-secondary group-hover:text-interactive">{cardTitle}</span>
                             </div>
                           </button>
+                        );
+                      }
+
+                      if (card.card_type === "image" && card.url) {
+                        return (
+                          <a
+                            key={card.id}
+                            href={card.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="group block w-full overflow-hidden rounded-lg border border-light transition-colors hover:border-primary-200"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={card.url} alt={cardTitle} className="w-full object-cover" />
+                            {card.title && (
+                              <div className="px-2 py-1">
+                                <span className="truncate text-[10px] text-secondary group-hover:text-interactive">{card.title}</span>
+                              </div>
+                            )}
+                          </a>
                         );
                       }
 

@@ -419,7 +419,7 @@ Reusable lesson structures. Save a curriculum's lessons as a template, then appl
 |---|---|---|
 | id | UUID | Primary key |
 | lesson_id | UUID | FK to lessons (CASCADE delete) |
-| card_type | TEXT | Type: checklist, youtube, url, resource, note |
+| card_type | TEXT | Type: checklist, youtube, url, resource, note, image |
 | title | TEXT (nullable) | Card title (auto-fetched for YouTube) |
 | content | TEXT (nullable) | Markdown content, checklist items, notes |
 | url | TEXT (nullable) | URL for youtube/url types |
@@ -1385,10 +1385,11 @@ Supports importing completed lessons with grades and pass/fail results in a sing
 
 **Mapping:** Trello lists become lessons (list title = lesson title). Trello cards within each list become lesson cards with auto-detected types:
 - YouTube links (in card title, attachments, or description) → `youtube` lesson card
+- Image attachments (jpg, png, gif, webp, svg, avif) → `image` lesson card with full-width display
 - Checklists → `checklist` lesson card with markdown checkboxes (one card per checklist)
 - Plain URL as card title → `url` lesson card
 - Everything else → `note` lesson card with card title and cleaned description
-- Non-YouTube attachments (PDFs, images, files) → attached as lesson resources via `bulkCreateLessonResources`
+- Non-YouTube, non-image attachments (PDFs, files) → attached as lesson resources via `bulkCreateLessonResources`
 
 **Steps:**
 

@@ -438,6 +438,21 @@ export default function CardViewModal({ lesson, curriculumResources = [], subjec
                           <span className="truncate text-sm text-secondary group-hover:text-interactive">{cardTitle}</span>
                         </div>
                       </button>
+                    ) : card.card_type === "image" && card.url ? (
+                      <a
+                        href={card.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group w-full overflow-hidden rounded-lg border border-light transition-colors hover:border-primary-200 block"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={card.url} alt={cardTitle} className="w-full object-cover" />
+                        {card.title && (
+                          <div className="px-3 py-1.5">
+                            <span className="truncate text-sm text-secondary group-hover:text-interactive">{card.title}</span>
+                          </div>
+                        )}
+                      </a>
                     ) : card.card_type === "url" && card.url ? (
                       <a
                         href={card.url}

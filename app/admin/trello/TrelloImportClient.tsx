@@ -63,7 +63,7 @@ type TrelloCard = {
 };
 
 type ExtractedResource = {
-  type: "youtube" | "pdf" | "url";
+  type: "youtube" | "pdf" | "url" | "image";
   url: string;
   title: string;
   thumbnailUrl?: string;
@@ -72,7 +72,7 @@ type ExtractedResource = {
 
 type LessonCardDraft = {
   trelloCardId: string;
-  card_type: "checklist" | "youtube" | "url" | "note";
+  card_type: "checklist" | "youtube" | "url" | "note" | "image";
   title: string;
   content?: string;
   url?: string;
@@ -161,10 +161,18 @@ function buildLessonCardDrafts(listCards: TrelloCard[]): { lcDrafts: LessonCardD
           url: r.url,
           include: true,
         });
+      } else if (r.type === "image") {
+        lcDrafts.push({
+          trelloCardId: `${card.id}-img-${r.url}`,
+          card_type: "image",
+          title: r.title,
+          url: r.url,
+          include: true,
+        });
       }
     }
 
-    allResources.push(...resources.filter((r) => r.type !== "youtube"));
+    allResources.push(...resources.filter((r) => r.type !== "youtube" && r.type !== "image"));
   }
 
   return { lcDrafts, resources: allResources };
@@ -188,8 +196,8 @@ function extractResources(card: TrelloCard): ExtractedResource[] {
       att.url.endsWith(".pdf")
     ) {
       resources.push({ type: "pdf", url: att.url, title: att.name, downloadUrl: isFile ? att.url : undefined });
-    } else if (att.mimeType?.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp)$/i.test(att.url)) {
-      resources.push({ type: "url", url: att.url, title: att.name, thumbnailUrl: att.url, downloadUrl: isFile ? att.url : undefined });
+    } else if (att.mimeType?.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp|svg|avif)$/i.test(att.url)) {
+      resources.push({ type: "image", url: att.url, title: att.name, thumbnailUrl: att.url, downloadUrl: isFile ? att.url : undefined });
     } else if (att.url.startsWith("http")) {
       resources.push({ type: "url", url: att.url, title: att.name, downloadUrl: isFile ? att.url : undefined });
     }
@@ -628,7 +636,7 @@ export default function TrelloImportClient({
       if (lessonIds.length > 0) {
         const resourceItems: Array<{
           lessonId: string;
-          resources: ExtractedResource[];
+          resources: Array<{ type: "youtube" | "pdf" | "url"; url: string; title: string; thumbnailUrl?: string; downloadUrl?: string }>;
         }> = [];
 
         for (let i = 0; i < includedDrafts.length; i++) {
@@ -636,7 +644,7 @@ export default function TrelloImportClient({
           if (draft.resources.length > 0 && lessonIds[i]) {
             resourceItems.push({
               lessonId: lessonIds[i],
-              resources: draft.resources,
+              resources: draft.resources as Array<{ type: "youtube" | "pdf" | "url"; url: string; title: string; thumbnailUrl?: string; downloadUrl?: string }>,
             });
             totalResources += draft.resources.length;
           }
@@ -656,7 +664,7 @@ export default function TrelloImportClient({
         const lcItems: Array<{
           lessonId: string;
           cards: Array<{
-            card_type: "checklist" | "youtube" | "url" | "resource" | "note";
+            card_type: "checklist" | "youtube" | "url" | "resource" | "note" | "image";
             title?: string;
             content?: string;
             url?: string;
@@ -1100,8 +1108,8 @@ export default function TrelloImportClient({
                                   ? "danger"
                                   : lc.card_type === "checklist"
                                     ? "info"
-                                    : lc.card_type === "url"
-                                      ? "default"
+                                    : lc.card_type === "image"
+                                      ? "success"
                                       : "default"
                               }
                             >

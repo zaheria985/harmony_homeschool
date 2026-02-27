@@ -35,6 +35,7 @@ function extractYouTubeId(url: string): string | null {
 function detectCardType(url?: string | null, content?: string | null): string {
   if (url) {
     if (extractYouTubeId(url)) return "youtube";
+    if (/\.(jpg|jpeg|png|gif|webp|svg|avif)(\?|$)/i.test(url)) return "image";
     return "url";
   }
   if (content && /^- \[[ x]\]/m.test(content)) return "checklist";
@@ -47,7 +48,7 @@ function detectCardType(url?: string | null, content?: string | null): string {
 
 const createLessonCardSchema = z.object({
   lesson_id: z.string().uuid(),
-  card_type: z.enum(["checklist", "youtube", "url", "resource", "note"]).optional(),
+  card_type: z.enum(["checklist", "youtube", "url", "resource", "note", "image"]).optional(),
   title: z.string().optional(),
   content: z.string().optional(),
   url: z.string().optional(),
@@ -56,7 +57,7 @@ const createLessonCardSchema = z.object({
 
 const updateLessonCardSchema = z.object({
   id: z.string().uuid(),
-  card_type: z.enum(["checklist", "youtube", "url", "resource", "note"]).optional(),
+  card_type: z.enum(["checklist", "youtube", "url", "resource", "note", "image"]).optional(),
   title: z.string().optional(),
   content: z.string().optional(),
   url: z.string().optional(),
@@ -87,7 +88,7 @@ export async function createLessonCard(formData: FormData) {
     if (resource_id) {
       card_type = "resource";
     } else {
-      card_type = detectCardType(url, content) as "checklist" | "youtube" | "url" | "resource" | "note";
+      card_type = detectCardType(url, content) as "checklist" | "youtube" | "url" | "resource" | "note" | "image";
     }
   }
 
@@ -221,7 +222,7 @@ export async function bulkCreateLessonCards(
   items: Array<{
     lessonId: string;
     cards: Array<{
-      card_type: "checklist" | "youtube" | "url" | "resource" | "note";
+      card_type: "checklist" | "youtube" | "url" | "resource" | "note" | "image";
       title?: string;
       content?: string;
       url?: string;
