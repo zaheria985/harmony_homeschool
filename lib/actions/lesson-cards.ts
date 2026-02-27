@@ -25,6 +25,30 @@ async function fetchYouTubeMeta(url: string) {
   }
 }
 
+async function fetchOgMeta(url: string): Promise<{ title?: string; description?: string; image?: string } | null> {
+  try {
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(5000),
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; HarmonyBot/1.0)" },
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+    const head = html.split("</head>")[0] || html.slice(0, 20000);
+    const og = (prop: string) => {
+      const match = head.match(new RegExp(`<meta[^>]+property=["']og:${prop}["'][^>]+content=["']([^"']+)["']`, "i"))
+        || head.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:${prop}["']`, "i"));
+      return match?.[1] || undefined;
+    };
+    const title = og("title") || head.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim();
+    const description = og("description");
+    const image = og("image");
+    if (!title && !description && !image) return null;
+    return { title, description, image };
+  } catch {
+    return null;
+  }
+}
+
 function extractYouTubeId(url: string): string | null {
   const match = url.match(
     /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/
@@ -106,6 +130,20 @@ export async function createLessonCard(formData: FormData) {
     }
   }
 
+  // Fetch OG metadata for URL cards
+  let ogTitle: string | null = null;
+  let ogDescription: string | null = null;
+  let ogImage: string | null = null;
+  if ((card_type === "url" || card_type === "image") && url) {
+    const og = await fetchOgMeta(url);
+    if (og) {
+      ogTitle = og.title || null;
+      ogDescription = og.description || null;
+      ogImage = og.image || null;
+      if (!finalTitle && ogTitle) finalTitle = ogTitle;
+    }
+  }
+
   // Get next order_index
   const orderRes = await pool.query(
     `SELECT COALESCE(MAX(order_index), -1) + 1 AS next_idx FROM lesson_cards WHERE lesson_id = $1`,
@@ -113,10 +151,10 @@ export async function createLessonCard(formData: FormData) {
   );
 
   const res = await pool.query(
-    `INSERT INTO lesson_cards (lesson_id, card_type, title, content, url, thumbnail_url, resource_id, order_index)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `INSERT INTO lesson_cards (lesson_id, card_type, title, content, url, thumbnail_url, og_title, og_description, og_image, resource_id, order_index)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      RETURNING id`,
-    [lesson_id, card_type, finalTitle, content || null, url || null, thumbnailUrl, resource_id || null, orderRes.rows[0].next_idx]
+    [lesson_id, card_type, finalTitle, content || null, url || null, thumbnailUrl, ogTitle, ogDescription, ogImage, resource_id || null, orderRes.rows[0].next_idx]
   );
 
   // Find curriculum_id for revalidation
@@ -158,6 +196,14 @@ export async function updateLessonCard(formData: FormData) {
       const meta = await fetchYouTubeMeta(url);
       sets.push(`thumbnail_url = $${idx++}`);
       params.push(meta?.thumbnail_url || `https://img.youtube.com/vi/${extractYouTubeId(url)}/mqdefault.jpg`);
+    }
+    if (!extractYouTubeId(url)) {
+      const og = await fetchOgMeta(url);
+      if (og) {
+        sets.push(`og_title = $${idx++}`); params.push(og.title || null);
+        sets.push(`og_description = $${idx++}`); params.push(og.description || null);
+        sets.push(`og_image = $${idx++}`); params.push(og.image || null);
+      }
     }
   }
   if (resource_id !== undefined) { sets.push(`resource_id = $${idx++}`); params.push(resource_id); }
@@ -256,10 +302,23 @@ export async function bulkCreateLessonCards(
           }
         }
 
+        let ogTitle: string | null = null;
+        let ogDescription: string | null = null;
+        let ogImage: string | null = null;
+        if ((card.card_type === "url" || card.card_type === "image") && card.url) {
+          const og = await fetchOgMeta(card.url);
+          if (og) {
+            ogTitle = og.title || null;
+            ogDescription = og.description || null;
+            ogImage = og.image || null;
+            if (!finalTitle && ogTitle) finalTitle = ogTitle;
+          }
+        }
+
         await client.query(
-          `INSERT INTO lesson_cards (lesson_id, card_type, title, content, url, thumbnail_url, order_index)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          [item.lessonId, card.card_type, finalTitle, card.content || null, card.url || null, thumbnailUrl, i]
+          `INSERT INTO lesson_cards (lesson_id, card_type, title, content, url, thumbnail_url, og_title, og_description, og_image, order_index)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [item.lessonId, card.card_type, finalTitle, card.content || null, card.url || null, thumbnailUrl, ogTitle, ogDescription, ogImage, i]
         );
         totalCreated++;
       }

@@ -132,6 +132,9 @@ CREATE TABLE lesson_cards (
     content         TEXT,
     url             TEXT,
     thumbnail_url   TEXT,
+    og_title        TEXT,
+    og_description  TEXT,
+    og_image        TEXT,
     resource_id     UUID REFERENCES resources(id) ON DELETE SET NULL,
     order_index     INT NOT NULL DEFAULT 0,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()

@@ -193,7 +193,8 @@ export async function getCurriculumBoardData(id: string, showArchived = false) {
   const lessonCardRows = await pool.query(
     `SELECT
        lc.id, lc.lesson_id, lc.card_type, lc.title, lc.content,
-       lc.url, lc.thumbnail_url, lc.resource_id, lc.order_index,
+       lc.url, lc.thumbnail_url, lc.og_title, lc.og_description, lc.og_image,
+       lc.resource_id, lc.order_index,
        r.title AS resource_title, r.type AS resource_type,
        r.url AS resource_url, r.thumbnail_url AS resource_thumbnail_url
      FROM lesson_cards lc
