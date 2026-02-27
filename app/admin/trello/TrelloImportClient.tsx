@@ -76,6 +76,7 @@ type LessonCardDraft = {
   title: string;
   content?: string;
   url?: string;
+  downloadUrl?: string;
   include: boolean;
 };
 
@@ -167,6 +168,7 @@ function buildLessonCardDrafts(listCards: TrelloCard[]): { lcDrafts: LessonCardD
           card_type: "image",
           title: r.title,
           url: r.url,
+          downloadUrl: r.downloadUrl,
           include: true,
         });
       }
@@ -669,6 +671,7 @@ export default function TrelloImportClient({
             content?: string;
             url?: string;
             thumbnail_url?: string;
+            download_url?: string;
           }>;
         }> = [];
 
@@ -683,6 +686,7 @@ export default function TrelloImportClient({
                 title: lc.title || undefined,
                 content: lc.content,
                 url: lc.url,
+                download_url: lc.downloadUrl,
               })),
             });
             totalLessonCards += includedCards.length;

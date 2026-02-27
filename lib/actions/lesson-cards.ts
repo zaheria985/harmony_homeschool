@@ -273,10 +273,16 @@ export async function bulkCreateLessonCards(
       content?: string;
       url?: string;
       thumbnail_url?: string;
+      download_url?: string;
     }>;
   }>
 ) {
   if (items.length === 0) return { success: true, created: 0 };
+
+  // Lazy-import download helper (only needed for Trello imports)
+  let downloadTrelloFile: ((url: string) => Promise<{ localPath: string } | null>) | null = null;
+  let sleepFn: ((ms: number) => Promise<void>) | null = null;
+  let downloadCount = 0;
 
   const client = await pool.connect();
   let totalCreated = 0;
@@ -287,17 +293,34 @@ export async function bulkCreateLessonCards(
     for (const item of items) {
       for (let i = 0; i < item.cards.length; i++) {
         const card = item.cards[i];
+        let finalUrl = card.url || null;
+
+        // Download Trello-hosted files locally (images, etc.)
+        if (card.download_url) {
+          if (!downloadTrelloFile) {
+            const mod = await import("@/lib/server/trello-download");
+            downloadTrelloFile = mod.downloadTrelloFile;
+            sleepFn = mod.sleep;
+          }
+          if (downloadCount > 0 && sleepFn) await sleepFn(300);
+          console.log("[bulk-lesson-cards] downloading", card.download_url.slice(0, 80));
+          const result = await downloadTrelloFile(card.download_url);
+          if (result) {
+            finalUrl = result.localPath;
+            downloadCount++;
+          }
+        }
 
         let thumbnailUrl = card.thumbnail_url || null;
         let finalTitle = card.title || null;
-        if (card.card_type === "youtube" && card.url) {
-          const meta = await fetchYouTubeMeta(card.url);
+        if (card.card_type === "youtube" && finalUrl) {
+          const meta = await fetchYouTubeMeta(finalUrl);
           if (meta) {
             thumbnailUrl = thumbnailUrl || meta.thumbnail_url;
             finalTitle = finalTitle || meta.title;
           }
           if (!thumbnailUrl) {
-            const ytId = extractYouTubeId(card.url);
+            const ytId = extractYouTubeId(finalUrl);
             if (ytId) thumbnailUrl = `https://img.youtube.com/vi/${ytId}/mqdefault.jpg`;
           }
         }
@@ -305,8 +328,8 @@ export async function bulkCreateLessonCards(
         let ogTitle: string | null = null;
         let ogDescription: string | null = null;
         let ogImage: string | null = null;
-        if ((card.card_type === "url" || card.card_type === "image") && card.url) {
-          const og = await fetchOgMeta(card.url);
+        if (card.card_type === "url" && finalUrl) {
+          const og = await fetchOgMeta(finalUrl);
           if (og) {
             ogTitle = og.title || null;
             ogDescription = og.description || null;
@@ -318,7 +341,7 @@ export async function bulkCreateLessonCards(
         await client.query(
           `INSERT INTO lesson_cards (lesson_id, card_type, title, content, url, thumbnail_url, og_title, og_description, og_image, order_index)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-          [item.lessonId, card.card_type, finalTitle, card.content || null, card.url || null, thumbnailUrl, ogTitle, ogDescription, ogImage, i]
+          [item.lessonId, card.card_type, finalTitle, card.content || null, finalUrl, thumbnailUrl, ogTitle, ogDescription, ogImage, i]
         );
         totalCreated++;
       }
@@ -332,5 +355,5 @@ export async function bulkCreateLessonCards(
     client.release();
   }
 
-  return { success: true, created: totalCreated };
+  return { success: true, created: totalCreated, downloaded: downloadCount };
 }
