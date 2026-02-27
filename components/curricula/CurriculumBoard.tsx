@@ -11,6 +11,7 @@ import { attachResourceToLessons, addResource } from "@/lib/actions/resources";
 import { canEdit, canMarkComplete } from "@/lib/permissions";
 import CardViewModal from "@/components/curricula/CardViewModal";
 import ResourcePreviewModal from "@/components/ui/ResourcePreviewModal";
+import LessonCardModal from "@/components/curricula/LessonCardModal";
 import { parseChecklist, checklistProgress } from "@/components/lessons/InteractiveChecklist";
 import {
   DndContext,
@@ -66,6 +67,9 @@ type LessonCardItem = {
   thumbnail_url: string | null;
   resource_id: string | null;
   order_index: number;
+  og_title: string | null;
+  og_description: string | null;
+  og_image: string | null;
   resource_title: string | null;
   resource_type: string | null;
   resource_url: string | null;
@@ -313,6 +317,7 @@ function LessonMiniCard({
   showActions = false,
   onTitleClick,
   onResourcePreview,
+  onOpenLessonCard,
 }: {
   lesson: Lesson;
   assignedChildren: Child[];
@@ -325,6 +330,7 @@ function LessonMiniCard({
   showActions?: boolean;
   onTitleClick?: () => void;
   onResourcePreview?: (resource: { title: string; type: string; url: string; thumbnailUrl: string | null }) => void;
+  onOpenLessonCard?: (card: LessonCardItem, allCards: LessonCardItem[]) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const completedChildIds = new Set(lesson.completions.map((c) => c.child_id));
@@ -545,10 +551,20 @@ function LessonMiniCard({
                         });
                       }
                     }}
-                    className="group block w-full overflow-hidden rounded-lg border border-light text-left transition-colors hover:border-primary-200"
+                    className="group relative block w-full overflow-hidden rounded-lg border border-light text-left transition-colors hover:border-primary-200"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={thumb} alt="" className="w-full object-cover" />
+                    {onOpenLessonCard && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onOpenLessonCard(card, lesson.cards); }}
+                        className="absolute right-1 top-1 rounded bg-black/50 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                        title="View details"
+                      >
+                        <span className="text-[10px]">&#x2197;</span>
+                      </button>
+                    )}
                     <div className="flex items-center gap-1.5 px-2 py-1">
                       <span className="text-[10px] text-red-500">▶</span>
                       <span className="truncate text-[10px] text-secondary group-hover:text-interactive">{cardTitle}</span>
@@ -559,29 +575,25 @@ function LessonMiniCard({
 
               if (card.card_type === "url" && card.url) {
                 return (
-                  <a
+                  <button
                     key={card.id}
-                    href={card.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group flex items-center gap-2 rounded-lg border border-light bg-surface p-2 text-xs transition-colors hover:border-primary-200"
-                    onClick={(e) => e.stopPropagation()}
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onOpenLessonCard?.(card, lesson.cards); }}
+                    className="group flex w-full cursor-pointer items-center gap-2 rounded-lg border border-light bg-surface p-2 text-left text-xs transition-colors hover:border-interactive/50"
                   >
                     <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded bg-gradient-to-br from-cyan-50 to-blue-100 text-[10px]">🔗</span>
                     <span className="min-w-0 truncate text-secondary group-hover:text-interactive">{cardTitle}</span>
-                  </a>
+                  </button>
                 );
               }
 
               if (card.card_type === "resource" && (card.resource_title || card.resource_url)) {
                 return (
-                  <a
+                  <button
                     key={card.id}
-                    href={card.resource_url || "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group flex items-center gap-2 rounded-lg border border-light bg-surface p-2 text-xs transition-colors hover:border-primary-200"
-                    onClick={(e) => e.stopPropagation()}
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onOpenLessonCard?.(card, lesson.cards); }}
+                    className="group flex w-full cursor-pointer items-center gap-2 rounded-lg border border-light bg-surface p-2 text-left text-xs transition-colors hover:border-interactive/50"
                   >
                     {card.resource_thumbnail_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -590,19 +602,17 @@ function LessonMiniCard({
                       <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded bg-gradient-to-br from-indigo-50 to-purple-100 text-[10px]">📦</span>
                     )}
                     <span className="min-w-0 truncate text-secondary group-hover:text-interactive">{card.resource_title || cardTitle}</span>
-                  </a>
+                  </button>
                 );
               }
 
               if (card.card_type === "image" && card.url) {
                 return (
-                  <a
+                  <button
                     key={card.id}
-                    href={card.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group block w-full overflow-hidden rounded-lg border border-light transition-colors hover:border-primary-200"
-                    onClick={(e) => e.stopPropagation()}
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onOpenLessonCard?.(card, lesson.cards); }}
+                    className="group block w-full cursor-pointer overflow-hidden rounded-lg border border-light text-left transition-colors hover:border-interactive/50"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={card.url} alt={cardTitle} className="w-full object-cover" />
@@ -611,7 +621,7 @@ function LessonMiniCard({
                         <span className="truncate text-[10px] text-secondary group-hover:text-interactive">{card.title}</span>
                       </div>
                     )}
-                  </a>
+                  </button>
                 );
               }
 
@@ -619,7 +629,7 @@ function LessonMiniCard({
                 const items = card.content.split("\n").filter((l) => /^- \[[ x]\]/.test(l));
                 const checked = items.filter((l) => /^- \[x\]/i.test(l)).length;
                 return (
-                  <div key={card.id} className="rounded-lg border border-light bg-surface p-2 text-xs" onClick={(e) => e.stopPropagation()}>
+                  <button key={card.id} type="button" onClick={(e) => { e.stopPropagation(); onOpenLessonCard?.(card, lesson.cards); }} className="w-full cursor-pointer rounded-lg border border-light bg-surface p-2 text-left text-xs transition-colors hover:border-interactive/50">
                     <p className="font-medium text-secondary">{cardTitle}</p>
                     <div className="mt-1 flex items-center gap-2">
                       <div className="h-1.5 flex-1 rounded-full bg-surface-muted overflow-hidden">
@@ -627,16 +637,16 @@ function LessonMiniCard({
                       </div>
                       <span className="text-[10px] text-muted">{checked}/{items.length}</span>
                     </div>
-                  </div>
+                  </button>
                 );
               }
 
               // Default: note type
               return (
-                <div key={card.id} className="rounded-lg border border-light bg-surface p-2 text-xs" onClick={(e) => e.stopPropagation()}>
+                <button key={card.id} type="button" onClick={(e) => { e.stopPropagation(); onOpenLessonCard?.(card, lesson.cards); }} className="w-full cursor-pointer rounded-lg border border-light bg-surface p-2 text-left text-xs transition-colors hover:border-interactive/50">
                   <p className="text-secondary">{cardTitle}</p>
                   {card.content && <p className="mt-0.5 text-[10px] text-muted line-clamp-2">{card.content}</p>}
-                </div>
+                </button>
               );
             })}
             {!expanded && lesson.cards.length > 2 && (
@@ -886,6 +896,7 @@ function SectionColumn({
   onDeleteLesson,
   onTitleClick,
   onResourcePreview,
+  onOpenLessonCard,
 }: {
   sectionName: string;
   lessons: Lesson[];
@@ -910,6 +921,7 @@ function SectionColumn({
   onDeleteLesson?: (lessonId: string) => void;
   onTitleClick?: (lesson: Lesson) => void;
   onResourcePreview?: (resource: { title: string; type: string; url: string; thumbnailUrl: string | null }) => void;
+  onOpenLessonCard?: (card: LessonCardItem, allCards: LessonCardItem[]) => void;
 }) {
   return (
     <div
@@ -943,6 +955,7 @@ function SectionColumn({
                 onDeleteLesson={onDeleteLesson ? () => onDeleteLesson(lesson.id) : undefined}
                 onTitleClick={onTitleClick ? () => onTitleClick(lesson) : undefined}
                 onResourcePreview={onResourcePreview}
+                onOpenLessonCard={onOpenLessonCard}
               />
             </SortableLessonCard>
           ))}
@@ -1100,6 +1113,10 @@ export default function CurriculumBoard({
   const [previewResource, setPreviewResource] = useState<{
     title: string; type: string; url: string; thumbnailUrl: string | null;
   } | null>(null);
+  const [openLessonCard, setOpenLessonCard] = useState<{
+    card: LessonCardItem;
+    allCards: LessonCardItem[];
+  } | null>(null);
   const showRowActions = canEdit(permissionLevel);
 
   // Sync localLessons when server data changes
@@ -1194,6 +1211,10 @@ export default function CurriculumBoard({
   async function handleDeleteLesson(lessonId: string) {
     await deleteLesson(lessonId);
     router.refresh();
+  }
+
+  function handleOpenLessonCard(card: LessonCardItem, allCards: LessonCardItem[]) {
+    setOpenLessonCard({ card, allCards });
   }
 
   // --- DnD handlers ---
@@ -1424,6 +1445,7 @@ export default function CurriculumBoard({
                 onDeleteLesson={handleDeleteLesson}
                 onTitleClick={setViewingLesson}
                 onResourcePreview={setPreviewResource}
+                onOpenLessonCard={handleOpenLessonCard}
               />
             ))}
 
@@ -1453,6 +1475,7 @@ export default function CurriculumBoard({
                 onDeleteLesson={handleDeleteLesson}
                 onTitleClick={setViewingLesson}
                 onResourcePreview={setPreviewResource}
+                onOpenLessonCard={handleOpenLessonCard}
               />
             )}
 
@@ -1513,6 +1536,19 @@ export default function CurriculumBoard({
           url={previewResource?.url || null}
           thumbnailUrl={previewResource?.thumbnailUrl}
         />
+
+        {openLessonCard && (
+          <LessonCardModal
+            open={!!openLessonCard}
+            onClose={() => setOpenLessonCard(null)}
+            card={openLessonCard.card}
+            allCards={openLessonCard.allCards}
+            onNavigate={(cardId) => {
+              const next = openLessonCard.allCards.find((c) => c.id === cardId);
+              if (next) setOpenLessonCard({ card: next, allCards: openLessonCard.allCards });
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -1712,10 +1748,18 @@ export default function CurriculumBoard({
                                 title: cardTitle, type: "youtube", url: card.url, thumbnailUrl: thumb,
                               });
                             }}
-                            className="group block w-full overflow-hidden rounded-lg border border-light text-left transition-colors hover:border-primary-200"
+                            className="group relative block w-full overflow-hidden rounded-lg border border-light text-left transition-colors hover:border-primary-200"
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={thumb} alt="" className="w-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); handleOpenLessonCard(card, lesson.cards); }}
+                              className="absolute right-1 top-1 rounded bg-black/50 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                              title="View details"
+                            >
+                              <span className="text-[10px]">&#x2197;</span>
+                            </button>
                             <div className="flex items-center gap-1.5 px-2 py-1">
                               <span className="text-[10px] text-red-500">▶</span>
                               <span className="truncate text-[10px] text-secondary group-hover:text-interactive">{cardTitle}</span>
@@ -1726,13 +1770,11 @@ export default function CurriculumBoard({
 
                       if (card.card_type === "image" && card.url) {
                         return (
-                          <a
+                          <button
                             key={card.id}
-                            href={card.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="group block w-full overflow-hidden rounded-lg border border-light transition-colors hover:border-primary-200"
-                            onClick={(e) => e.stopPropagation()}
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleOpenLessonCard(card, lesson.cards); }}
+                            className="group block w-full cursor-pointer overflow-hidden rounded-lg border border-light text-left transition-colors hover:border-interactive/50"
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={card.url} alt={cardTitle} className="w-full object-cover" />
@@ -1741,14 +1783,14 @@ export default function CurriculumBoard({
                                 <span className="truncate text-[10px] text-secondary group-hover:text-interactive">{card.title}</span>
                               </div>
                             )}
-                          </a>
+                          </button>
                         );
                       }
 
                       return (
-                        <div key={card.id} className="rounded-lg border border-light bg-surface p-2 text-xs">
+                        <button key={card.id} type="button" onClick={(e) => { e.stopPropagation(); handleOpenLessonCard(card, lesson.cards); }} className="w-full cursor-pointer rounded-lg border border-light bg-surface p-2 text-left text-xs transition-colors hover:border-interactive/50">
                           <span className="text-secondary">{cardTitle}</span>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -1826,6 +1868,19 @@ export default function CurriculumBoard({
         url={previewResource?.url || null}
         thumbnailUrl={previewResource?.thumbnailUrl}
       />
+
+      {openLessonCard && (
+        <LessonCardModal
+          open={!!openLessonCard}
+          onClose={() => setOpenLessonCard(null)}
+          card={openLessonCard.card}
+          allCards={openLessonCard.allCards}
+          onNavigate={(cardId) => {
+            const next = openLessonCard.allCards.find((c) => c.id === cardId);
+            if (next) setOpenLessonCard({ card: next, allCards: openLessonCard.allCards });
+          }}
+        />
+      )}
     </div>
   );
 }
