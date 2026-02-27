@@ -424,11 +424,14 @@ Reusable lesson structures. Save a curriculum's lessons as a template, then appl
 | content | TEXT (nullable) | Markdown content, checklist items, notes |
 | url | TEXT (nullable) | URL for youtube/url types |
 | thumbnail_url | TEXT (nullable) | Auto-fetched for YouTube via oEmbed |
+| og_title | TEXT (nullable) | OpenGraph title for URL cards |
+| og_description | TEXT (nullable) | OpenGraph description for URL cards |
+| og_image | TEXT (nullable) | OpenGraph image for URL cards |
 | resource_id | UUID (nullable) | FK to resources (SET NULL on delete) |
 | order_index | INT | Display order within lesson |
 | created_at | TIMESTAMPTZ | Auto-set |
 
-Building blocks within a lesson. Card type auto-detected from URL content (YouTube URLs → youtube, other URLs → url, markdown checkboxes → checklist, linked resource → resource, default → note).
+Building blocks within a lesson. Card type auto-detected from URL content (YouTube URLs → youtube, image URLs → image, other URLs → url, markdown checkboxes → checklist, linked resource → resource, default → note).
 
 ### Lessons — Key Behaviors
 
@@ -450,7 +453,7 @@ These are derived via the relationship chain (`lesson -> curriculum -> subject`)
 
 **Curriculum export/import** — Export a curriculum as JSON via `GET /api/export/curriculum?id=`. Import via `ImportCurriculumModal` component which accepts JSON and creates curriculum with lessons.
 
-**Lesson Cards** — Building blocks within a lesson. Each lesson can have multiple lesson cards (`lesson_cards` table) that represent individual activities, videos, checklists, links, or resources. Card types: `checklist`, `youtube`, `url`, `resource`, `note`. YouTube URLs are auto-detected and thumbnails fetched via oEmbed. Cards render on the board within each lesson's mini card, and in the CardViewModal with full detail. Server actions in `lib/actions/lesson-cards.ts`: `createLessonCard`, `updateLessonCard`, `deleteLessonCard`, `reorderLessonCards`. Queries in `lib/queries/lesson-cards.ts`: `getLessonCards`, `getLessonCardsByIds`.
+**Lesson Cards** — Building blocks within a lesson. Each lesson can have multiple lesson cards (`lesson_cards` table) that represent individual activities, videos, checklists, links, images, or resources. Card types: `checklist`, `youtube`, `url`, `resource`, `note`, `image`. YouTube URLs are auto-detected and thumbnails fetched via oEmbed. URL cards fetch OpenGraph metadata (og:title, og:description, og:image) at creation time for rich link previews. Image cards render full-width inline images. All cards are clickable — clicking opens **LessonCardModal** (`components/curricula/LessonCardModal.tsx`) which provides a full view mode (type-specific rendering: YouTube iframe player, interactive checklists, OG preview card, full note text, full-width images) and an edit mode (title, type, URL, content, move up/down, delete). Prev/next arrows navigate between cards in the same lesson. Cards in CardViewModal support drag-to-reorder via dnd-kit. Server actions in `lib/actions/lesson-cards.ts`: `createLessonCard`, `updateLessonCard`, `deleteLessonCard`, `reorderLessonCards`, `bulkCreateLessonCards`. Queries in `lib/queries/lesson-cards.ts`: `getLessonCards`, `getLessonCardsByIds`.
 
 **Hierarchy:** Course (curricula) → Lesson (lessons) → Lesson Card (lesson_cards). Lesson cards are the sub-items within a lesson — not lessons themselves, but their building blocks.
 
