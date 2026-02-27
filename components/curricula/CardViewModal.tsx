@@ -6,6 +6,7 @@ import Modal from "@/components/ui/Modal";
 import MarkdownContent from "@/components/ui/MarkdownContent";
 import ResourcePreviewModal from "@/components/ui/ResourcePreviewModal";
 import InteractiveChecklist, { parseChecklist } from "@/components/lessons/InteractiveChecklist";
+import LessonCardModal from "@/components/curricula/LessonCardModal";
 import { attachResourceToLessons } from "@/lib/actions/resources";
 import { suggestResources } from "@/lib/actions/ai";
 import { createLessonCard, deleteLessonCard } from "@/lib/actions/lesson-cards";
@@ -27,16 +28,21 @@ type AISuggestion = {
 
 type LessonCardItem = {
   id: string;
+  lesson_id: string;
   card_type: string;
   title: string | null;
   content: string | null;
   url: string | null;
   thumbnail_url: string | null;
+  og_title: string | null;
+  og_description: string | null;
+  og_image: string | null;
   resource_id: string | null;
   resource_title: string | null;
   resource_type: string | null;
   resource_url: string | null;
   resource_thumbnail_url: string | null;
+  order_index: number;
 };
 
 type CardViewModalProps = {
@@ -284,6 +290,10 @@ export default function CardViewModal({ lesson, curriculumResources = [], subjec
   const [aiSuggestions, setAiSuggestions] = useState<AISuggestion[]>([]);
   const [suggestingResources, setSuggestingResources] = useState(false);
   const [aiError, setAiError] = useState("");
+  const [openLessonCard, setOpenLessonCard] = useState<{
+    card: LessonCardItem;
+    allCards: LessonCardItem[];
+  } | null>(null);
 
   // Filter curriculum resources to only show those NOT already attached to this lesson
   const attachedResourceIds = new Set(
@@ -424,26 +434,35 @@ export default function CardViewModal({ lesson, curriculumResources = [], subjec
                 <div key={card.id} className="mb-2 flex items-start gap-2">
                   <div className="min-w-0 flex-1">
                     {card.card_type === "youtube" && thumb ? (
+                      <div className="group relative">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); card.url && setPreviewResource({
+                            title: cardTitle, type: "youtube", url: card.url, thumbnailUrl: thumb,
+                          }); }}
+                          className="w-full overflow-hidden rounded-lg border border-light text-left transition-colors hover:border-interactive/50 cursor-pointer"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={thumb} alt="" className="w-full object-cover" />
+                          <div className="flex items-center gap-1.5 px-3 py-1.5">
+                            <span className="text-xs text-red-500">▶</span>
+                            <span className="truncate text-sm text-secondary group-hover:text-interactive">{cardTitle}</span>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setOpenLessonCard({ card, allCards: lesson.cards || [] }); }}
+                          className="absolute top-2 right-2 rounded-md bg-surface/80 p-1 text-muted opacity-0 transition-opacity hover:text-interactive group-hover:opacity-100 cursor-pointer"
+                          title="Expand card"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" /></svg>
+                        </button>
+                      </div>
+                    ) : card.card_type === "image" && card.url ? (
                       <button
                         type="button"
-                        onClick={() => card.url && setPreviewResource({
-                          title: cardTitle, type: "youtube", url: card.url, thumbnailUrl: thumb,
-                        })}
-                        className="group w-full overflow-hidden rounded-lg border border-light text-left transition-colors hover:border-primary-200"
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={thumb} alt="" className="w-full object-cover" />
-                        <div className="flex items-center gap-1.5 px-3 py-1.5">
-                          <span className="text-xs text-red-500">▶</span>
-                          <span className="truncate text-sm text-secondary group-hover:text-interactive">{cardTitle}</span>
-                        </div>
-                      </button>
-                    ) : card.card_type === "image" && card.url ? (
-                      <a
-                        href={card.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="group w-full overflow-hidden rounded-lg border border-light transition-colors hover:border-primary-200 block"
+                        onClick={(e) => { e.stopPropagation(); setOpenLessonCard({ card, allCards: lesson.cards || [] }); }}
+                        className="group w-full overflow-hidden rounded-lg border border-light transition-colors hover:border-interactive/50 block text-left cursor-pointer"
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={card.url} alt={cardTitle} className="w-full object-cover" />
@@ -452,39 +471,43 @@ export default function CardViewModal({ lesson, curriculumResources = [], subjec
                             <span className="truncate text-sm text-secondary group-hover:text-interactive">{card.title}</span>
                           </div>
                         )}
-                      </a>
+                      </button>
                     ) : card.card_type === "url" && card.url ? (
-                      <a
-                        href={card.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="group flex items-center gap-3 rounded-lg border border-light bg-surface p-3 text-sm transition-colors hover:border-primary-200"
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setOpenLessonCard({ card, allCards: lesson.cards || [] }); }}
+                        className="group flex w-full items-center gap-3 rounded-lg border border-light bg-surface p-3 text-sm text-left transition-colors hover:border-interactive/50 cursor-pointer"
                       >
                         <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded bg-gradient-to-br from-cyan-50 to-blue-100 text-sm">🔗</span>
                         <span className="min-w-0 truncate text-secondary group-hover:text-interactive">{cardTitle}</span>
-                      </a>
+                      </button>
                     ) : card.card_type === "checklist" && card.content ? (
-                      <div className="rounded-lg border border-light bg-surface p-3 text-sm">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setOpenLessonCard({ card, allCards: lesson.cards || [] }); }}
+                        className="w-full rounded-lg border border-light bg-surface p-3 text-sm text-left transition-colors hover:border-interactive/50 cursor-pointer"
+                      >
                         <p className="font-medium text-secondary">{cardTitle}</p>
                         <div className="mt-2 space-y-1">
                           {card.content.split("\n").filter((l) => /^- \[[ x]\]/.test(l)).map((line, i) => {
                             const isChecked = /^- \[x\]/i.test(line);
                             const text = line.replace(/^- \[[ x]\]\s*/, "");
                             return (
-                              <label key={i} className="flex items-center gap-2 text-xs">
-                                <input type="checkbox" checked={isChecked} readOnly className="rounded" />
+                              <span key={i} className="flex items-center gap-2 text-xs">
+                                <span className={`h-3.5 w-3.5 flex-shrink-0 rounded border ${isChecked ? "bg-interactive border-interactive text-white flex items-center justify-center" : "border-border"}`}>
+                                  {isChecked && <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
+                                </span>
                                 <span className={isChecked ? "text-muted line-through" : "text-secondary"}>{text}</span>
-                              </label>
+                              </span>
                             );
                           })}
                         </div>
-                      </div>
+                      </button>
                     ) : card.card_type === "resource" ? (
-                      <a
-                        href={card.resource_url || "#"}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="group flex items-center gap-3 rounded-lg border border-light bg-surface p-3 text-sm transition-colors hover:border-primary-200"
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setOpenLessonCard({ card, allCards: lesson.cards || [] }); }}
+                        className="group flex w-full items-center gap-3 rounded-lg border border-light bg-surface p-3 text-sm text-left transition-colors hover:border-interactive/50 cursor-pointer"
                       >
                         {card.resource_thumbnail_url ? (
                           // eslint-disable-next-line @next/next/no-img-element
@@ -493,12 +516,16 @@ export default function CardViewModal({ lesson, curriculumResources = [], subjec
                           <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded bg-gradient-to-br from-indigo-50 to-purple-100 text-sm">📦</span>
                         )}
                         <span className="min-w-0 truncate text-secondary group-hover:text-interactive">{card.resource_title || cardTitle}</span>
-                      </a>
+                      </button>
                     ) : (
-                      <div className="rounded-lg border border-light bg-surface p-3 text-sm">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setOpenLessonCard({ card, allCards: lesson.cards || [] }); }}
+                        className="w-full rounded-lg border border-light bg-surface p-3 text-sm text-left transition-colors hover:border-interactive/50 cursor-pointer"
+                      >
                         <p className="text-secondary">{cardTitle}</p>
                         {card.content && <p className="mt-1 text-xs text-muted">{card.content}</p>}
-                      </div>
+                      </button>
                     )}
                   </div>
                   <button
@@ -628,6 +655,18 @@ export default function CardViewModal({ lesson, curriculumResources = [], subjec
         url={previewResource?.url || null}
         thumbnailUrl={previewResource?.thumbnailUrl}
       />
+      {openLessonCard && (
+        <LessonCardModal
+          open={!!openLessonCard}
+          onClose={() => setOpenLessonCard(null)}
+          card={openLessonCard.card}
+          allCards={openLessonCard.allCards}
+          onNavigate={(cardId) => {
+            const next = openLessonCard.allCards.find((c) => c.id === cardId);
+            if (next) setOpenLessonCard({ card: next, allCards: openLessonCard.allCards });
+          }}
+        />
+      )}
     </Modal>
   );
 }
