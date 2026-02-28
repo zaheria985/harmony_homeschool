@@ -636,11 +636,6 @@ function LessonMiniCard({
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={card.url} alt={cardTitle} className="w-full object-cover" />
-                    {card.title && (
-                      <div className="px-2 py-1">
-                        <span className="truncate text-[10px] text-secondary group-hover:text-interactive">{card.title}</span>
-                      </div>
-                    )}
                   </button>
                 );
               }
