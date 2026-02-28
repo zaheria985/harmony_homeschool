@@ -196,13 +196,14 @@ export default async function CurriculumDetailPage({
         ) : (
           <CurriculumLessonsList
             lessons={curriculum.lessons.map(
-              (l: Record<string, string | number | null>) => ({
+              (l: Record<string, unknown>) => ({
                 id: String(l.id),
                 title: String(l.title),
                 description: l.description ? String(l.description) : null,
                 status: String(l.status),
                 planned_date: l.planned_date ? String(l.planned_date) : null,
                 grade: l.grade != null ? Number(l.grade) : null,
+                cards: (l.cards as Array<{ title: string | null; card_type: string }>) || [],
               }),
             )}
             childId={curriculum.child_id}

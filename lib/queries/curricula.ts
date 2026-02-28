@@ -84,9 +84,27 @@ export async function getCurriculumDetail(id: string, showArchived = false) {
     childId ? [childId, id] : [id]
   );
 
+  // Fetch lesson card summaries (title + type) for all lessons in this curriculum
+  const lessonIds = lessons.rows.map((l: { id: string }) => l.id);
+  let cardsByLesson: Record<string, Array<{ title: string | null; card_type: string }>> = {};
+  if (lessonIds.length > 0) {
+    const cardsRes = await pool.query(
+      `SELECT lesson_id, title, card_type FROM lesson_cards
+       WHERE lesson_id = ANY($1) ORDER BY order_index`,
+      [lessonIds]
+    );
+    for (const row of cardsRes.rows) {
+      if (!cardsByLesson[row.lesson_id]) cardsByLesson[row.lesson_id] = [];
+      cardsByLesson[row.lesson_id].push({ title: row.title, card_type: row.card_type });
+    }
+  }
+
   return {
     ...res.rows[0],
-    lessons: lessons.rows,
+    lessons: lessons.rows.map((l: { id: string }) => ({
+      ...l,
+      cards: cardsByLesson[l.id] || [],
+    })),
   };
 }
 

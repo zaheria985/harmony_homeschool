@@ -9,6 +9,11 @@ import BulkSelectBar from "@/components/ui/BulkSelectBar";
 import LessonFormModal from "@/components/lessons/LessonFormModal";
 import { deleteLesson, bulkDeleteLessons } from "@/lib/actions/lessons";
 
+type LessonCardSummary = {
+  title: string | null;
+  card_type: string;
+};
+
 type Lesson = {
   id: string;
   title: string;
@@ -16,6 +21,7 @@ type Lesson = {
   status: string;
   planned_date: string | null;
   grade: number | null;
+  cards?: LessonCardSummary[];
 };
 
 type FilterOption = "all" | "incomplete" | "completed";
@@ -150,6 +156,19 @@ export default function CurriculumLessonsList({
                   <p className="font-medium">{l.title}</p>
                   {l.description && (
                     <p className="mt-0.5 text-sm text-muted">{l.description}</p>
+                  )}
+                  {l.cards && l.cards.length > 0 && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {l.cards.map((card, i) => {
+                        const icon = card.card_type === "youtube" ? "▶" : card.card_type === "checklist" ? "☑" : card.card_type === "image" ? "🖼" : card.card_type === "url" ? "🔗" : card.card_type === "resource" ? "📦" : "📝";
+                        return (
+                          <span key={i} className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-[10px] text-muted">
+                            <span>{icon}</span>
+                            <span className="max-w-[120px] truncate">{card.title || card.card_type}</span>
+                          </span>
+                        );
+                      })}
+                    </div>
                   )}
                   {l.planned_date && (
                     <p className="mt-0.5 text-xs text-muted">
