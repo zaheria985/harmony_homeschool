@@ -1472,7 +1472,7 @@ export default function CurriculumBoard({
             onMouseMove={dragScroll1.onMouseMove}
             onMouseUp={dragScroll1.onMouseUp}
             onMouseLeave={dragScroll1.onMouseLeave}
-            className="flex gap-4 overflow-x-auto pb-4 cursor-grab"
+            className="flex items-start gap-4 overflow-x-auto pb-4 cursor-grab"
             style={{ scrollSnapType: "x mandatory" }}
           >
             {/* Resources Column */}
@@ -1688,7 +1688,7 @@ export default function CurriculumBoard({
         onMouseMove={dragScroll2.onMouseMove}
         onMouseUp={dragScroll2.onMouseUp}
         onMouseLeave={dragScroll2.onMouseLeave}
-        className="flex gap-4 overflow-x-auto pb-4 cursor-grab"
+        className="flex items-start gap-4 overflow-x-auto pb-4 cursor-grab"
         style={{ scrollSnapType: "x mandatory" }}
       >
         {/* Resources Column (fixed left) */}
