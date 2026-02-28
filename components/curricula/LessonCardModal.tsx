@@ -4,6 +4,7 @@ import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Modal from "@/components/ui/Modal";
 import Badge from "@/components/ui/Badge";
+import MarkdownContent from "@/components/ui/MarkdownContent";
 import {
   updateLessonCard,
   deleteLessonCard,
@@ -321,9 +322,9 @@ export default function LessonCardModal({
           <p className="font-medium text-primary">{card.title}</p>
         )}
         {card.content && (
-          <p className="whitespace-pre-wrap text-sm text-secondary">
-            {card.content}
-          </p>
+          <div className="text-sm text-secondary">
+            <MarkdownContent content={card.content} className="text-sm text-secondary" />
+          </div>
         )}
       </div>
     );

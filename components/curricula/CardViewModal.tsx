@@ -579,7 +579,7 @@ export default function CardViewModal({ lesson, curriculumResources = [], subjec
                               className="w-full rounded-lg border border-light bg-surface p-3 text-sm text-left transition-colors hover:border-interactive/50 cursor-pointer"
                             >
                               <p className="text-secondary">{cardTitle}</p>
-                              {card.content && <p className="mt-1 text-xs text-muted">{card.content}</p>}
+                              {card.content && <div className="mt-1 line-clamp-3 text-xs text-muted"><MarkdownContent content={card.content} className="text-xs text-muted" /></div>}
                             </button>
                           )}
                         </div>

@@ -13,6 +13,7 @@ import CardViewModal from "@/components/curricula/CardViewModal";
 import ResourcePreviewModal from "@/components/ui/ResourcePreviewModal";
 import LessonCardModal from "@/components/curricula/LessonCardModal";
 import { parseChecklist, checklistProgress } from "@/components/lessons/InteractiveChecklist";
+import MarkdownContent from "@/components/ui/MarkdownContent";
 import {
   DndContext,
   DragOverlay,
@@ -659,7 +660,7 @@ function LessonMiniCard({
               return (
                 <button key={card.id} type="button" onClick={(e) => { e.stopPropagation(); onOpenLessonCard?.(card, lesson.cards); }} className="w-full cursor-pointer rounded-lg border border-light bg-surface p-2 text-left text-xs transition-colors hover:border-interactive/50">
                   <p className="text-secondary">{cardTitle}</p>
-                  {card.content && <p className="mt-0.5 text-[10px] text-muted line-clamp-2">{card.content}</p>}
+                  {card.content && <div className="mt-0.5 line-clamp-3 text-[10px] text-muted"><MarkdownContent content={card.content} className="text-[10px] text-muted" /></div>}
                 </button>
               );
             })}
