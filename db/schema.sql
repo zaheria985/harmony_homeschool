@@ -77,6 +77,7 @@ CREATE TABLE curricula (
     description TEXT,
     order_index INTEGER NOT NULL DEFAULT 0,
     cover_image TEXT,
+    background_image TEXT,
     course_type TEXT NOT NULL DEFAULT 'curriculum'
                   CHECK (course_type IN ('curriculum', 'unit_study')),
     status      TEXT NOT NULL DEFAULT 'active'

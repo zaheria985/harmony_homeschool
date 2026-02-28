@@ -12,6 +12,7 @@ import { canEdit, canMarkComplete } from "@/lib/permissions";
 import CardViewModal from "@/components/curricula/CardViewModal";
 import ResourcePreviewModal from "@/components/ui/ResourcePreviewModal";
 import LessonCardModal from "@/components/curricula/LessonCardModal";
+import BackgroundPicker from "@/components/curricula/BackgroundPicker";
 import { updateLessonCard } from "@/lib/actions/lesson-cards";
 import { parseChecklist, checklistProgress } from "@/components/lessons/InteractiveChecklist";
 import MarkdownContent from "@/components/ui/MarkdownContent";
@@ -117,6 +118,7 @@ type BoardProps = {
   children: Child[];
   curriculumResources: CurriculumResource[];
   permissionLevel?: string;
+  backgroundImage?: string | null;
 };
 
 // ============================================================================
@@ -1132,6 +1134,34 @@ function StatusFilterBar({
   );
 }
 
+function useDragScroll() {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+  const startX = useRef(0);
+  const startScrollLeft = useRef(0);
+
+  const onMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget) return;
+    isDragging.current = true;
+    startX.current = e.clientX;
+    startScrollLeft.current = scrollRef.current?.scrollLeft || 0;
+    if (scrollRef.current) scrollRef.current.style.cursor = "grabbing";
+    e.preventDefault();
+  };
+
+  const onMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDragging.current || !scrollRef.current) return;
+    scrollRef.current.scrollLeft = startScrollLeft.current - (e.clientX - startX.current);
+  };
+
+  const onMouseUp = () => {
+    isDragging.current = false;
+    if (scrollRef.current) scrollRef.current.style.cursor = "";
+  };
+
+  return { scrollRef, onMouseDown, onMouseMove, onMouseUp, onMouseLeave: onMouseUp };
+}
+
 export default function CurriculumBoard({
   curriculumId,
   curriculumName,
@@ -1141,11 +1171,14 @@ export default function CurriculumBoard({
   children: assignedChildren,
   curriculumResources,
   permissionLevel = "full",
+  backgroundImage,
 }: BoardProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const showAddLesson = canEdit(permissionLevel);
   const showCompletions = canMarkComplete(permissionLevel);
+  const dragScroll1 = useDragScroll();
+  const dragScroll2 = useDragScroll();
   const [addingToSection, setAddingToSection] = useState<string | null>(null);
   const [newLessonTitle, setNewLessonTitle] = useState("");
   const [newLessonUrl, setNewLessonUrl] = useState("");
@@ -1408,14 +1441,29 @@ export default function CurriculumBoard({
           </div>
         )}
 
-        <StatusFilterBar
-          filter={statusFilter}
-          onFilterChange={setStatusFilter}
-          totalCount={lessons.length}
-          completedCount={completedCount}
-          incompleteCount={incompleteCount}
-        />
+        <div className="mb-3 flex items-center justify-between">
+          <StatusFilterBar
+            filter={statusFilter}
+            onFilterChange={setStatusFilter}
+            totalCount={lessons.length}
+            completedCount={completedCount}
+            incompleteCount={incompleteCount}
+          />
+          {showAddLesson && (
+            <BackgroundPicker curriculumId={curriculumId} currentImage={backgroundImage || null} />
+          )}
+        </div>
 
+        <div
+          className="relative rounded-xl overflow-hidden"
+          style={backgroundImage ? {
+            backgroundImage: `url(${backgroundImage})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          } : undefined}
+        >
+          {backgroundImage && <div className="absolute inset-0 bg-surface/60 backdrop-blur-[2px]" />}
+          <div className="relative">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCorners}
@@ -1424,7 +1472,12 @@ export default function CurriculumBoard({
           onDragEnd={handleDragEnd}
         >
           <div
-            className="flex gap-4 overflow-x-auto pb-4"
+            ref={dragScroll1.scrollRef}
+            onMouseDown={dragScroll1.onMouseDown}
+            onMouseMove={dragScroll1.onMouseMove}
+            onMouseUp={dragScroll1.onMouseUp}
+            onMouseLeave={dragScroll1.onMouseLeave}
+            className="flex gap-4 overflow-x-auto pb-4 cursor-grab"
             style={{ scrollSnapType: "x mandatory" }}
           >
             {/* Resources Column */}
@@ -1547,6 +1600,8 @@ export default function CurriculumBoard({
             )}
           </DragOverlay>
         </DndContext>
+          </div>
+        </div>
 
         <LessonFormModal
           open={!!editingLesson}
@@ -1608,17 +1663,37 @@ export default function CurriculumBoard({
         </div>
       )}
 
-      <StatusFilterBar
-        filter={statusFilter}
-        onFilterChange={setStatusFilter}
-        totalCount={lessons.length}
-        completedCount={completedCount}
-        incompleteCount={incompleteCount}
-      />
+      <div className="mb-3 flex items-center justify-between">
+        <StatusFilterBar
+          filter={statusFilter}
+          onFilterChange={setStatusFilter}
+          totalCount={lessons.length}
+          completedCount={completedCount}
+          incompleteCount={incompleteCount}
+        />
+        {showAddLesson && (
+          <BackgroundPicker curriculumId={curriculumId} currentImage={backgroundImage || null} />
+        )}
+      </div>
 
+      <div
+        className="relative rounded-xl overflow-hidden"
+        style={backgroundImage ? {
+          backgroundImage: `url(${backgroundImage})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        } : undefined}
+      >
+        {backgroundImage && <div className="absolute inset-0 bg-surface/60 backdrop-blur-[2px]" />}
+        <div className="relative">
       {/* Horizontal scroll container */}
       <div
-        className="flex gap-4 overflow-x-auto pb-4"
+        ref={dragScroll2.scrollRef}
+        onMouseDown={dragScroll2.onMouseDown}
+        onMouseMove={dragScroll2.onMouseMove}
+        onMouseUp={dragScroll2.onMouseUp}
+        onMouseLeave={dragScroll2.onMouseLeave}
+        className="flex gap-4 overflow-x-auto pb-4 cursor-grab"
         style={{ scrollSnapType: "x mandatory" }}
       >
         {/* Resources Column (fixed left) */}
@@ -1896,6 +1971,8 @@ export default function CurriculumBoard({
             {statusFilter === "all" ? "No lesson cards in this curriculum yet." : `No ${statusFilter} lesson cards.`}
           </div>
         )}
+      </div>
+        </div>
       </div>
 
       <LessonFormModal

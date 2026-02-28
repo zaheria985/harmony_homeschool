@@ -1356,6 +1356,38 @@ export async function updateCurriculum(formData: FormData) {
   return { success: true };
 }
 
+export async function updateCurriculumBackground(formData: FormData) {
+  const curriculumId = formData.get("curriculum_id");
+  const remove = formData.get("remove") === "true";
+  const url = formData.get("url");
+  const file = formData.get("file") as File | null;
+
+  const parsed = z.string().uuid().safeParse(curriculumId);
+  if (!parsed.success) return { error: "Invalid curriculum ID" };
+
+  let backgroundImage: string | null = null;
+
+  if (remove) {
+    backgroundImage = null;
+  } else if (file && file.size > 0) {
+    const result = await saveUploadedImage(file, "curricula");
+    if (!result || "error" in result) return { error: result?.error || "Upload failed" };
+    backgroundImage = result.path;
+  } else if (typeof url === "string" && url.trim()) {
+    backgroundImage = url.trim();
+  } else {
+    return { error: "No image provided" };
+  }
+
+  await pool.query(
+    "UPDATE curricula SET background_image = $1 WHERE id = $2",
+    [backgroundImage, parsed.data]
+  );
+
+  revalidatePath(`/curricula/${parsed.data}`);
+  return { success: true, background_image: backgroundImage };
+}
+
 export async function reorderLessons(
   updates: { id: string; order_index: number; section: string | null }[]
 ) {

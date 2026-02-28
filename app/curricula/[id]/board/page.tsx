@@ -144,6 +144,7 @@ export default async function CurriculumBoardPage({
         children={data.children}
         curriculumResources={data.curriculumResources}
         permissionLevel={user.permissionLevel}
+        backgroundImage={data.background_image || null}
       />{" "}
     </div>
   );

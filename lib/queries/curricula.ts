@@ -112,7 +112,7 @@ export async function getCurriculumBoardData(id: string, showArchived = false) {
   // Curriculum info
   const res = await pool.query(
     `SELECT
-       cu.id, cu.name, cu.description, cu.order_index, cu.cover_image,
+       cu.id, cu.name, cu.description, cu.order_index, cu.cover_image, cu.background_image,
        cu.course_type, cu.grade_type, cu.status, cu.start_date::text, cu.end_date::text,
        cu.actual_start_date::text, cu.actual_end_date::text,
        cu.prepped, cu.default_view, cu.default_filter,

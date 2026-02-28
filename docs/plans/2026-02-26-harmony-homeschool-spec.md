@@ -287,6 +287,7 @@ Curricula and lessons form the core of Harmony Homeschool. A curriculum (course 
 | description | TEXT (nullable) | Exists | Course description |
 | order_index | INTEGER | Exists | Sort order within subject, default 0 |
 | cover_image | TEXT (nullable) | Exists | Path to uploaded cover image |
+| background_image | TEXT (nullable) | Exists | Board background image (upload path or URL) |
 | course_type | TEXT | Exists | `curriculum` or `unit_study`, default `curriculum` |
 | status | TEXT | Exists | `active`, `archived`, or `draft`, default `active` |
 | grade_type | TEXT | Exists | `numeric`, `pass_fail`, or `combo`, default `numeric` |
@@ -455,7 +456,13 @@ These are derived via the relationship chain (`lesson -> curriculum -> subject`)
 
 **Lesson Cards** — Building blocks within a lesson. Each lesson can have multiple lesson cards (`lesson_cards` table) that represent individual activities, videos, checklists, links, images, or resources. Card types: `checklist`, `youtube`, `url`, `resource`, `note`, `image`. YouTube URLs are auto-detected and thumbnails fetched via oEmbed. URL cards fetch OpenGraph metadata (og:title, og:description, og:image) at creation time for rich link previews; on the board, URL cards with an og:image show a visual thumbnail preview (like YouTube cards) instead of just a link icon. Image cards render full-width inline images. All cards are clickable — clicking opens **LessonCardModal** (`components/curricula/LessonCardModal.tsx`) which provides a full view mode (type-specific rendering: YouTube iframe player, interactive checklists, OG preview card, full note text, full-width images) and an edit mode (title, type, URL, content, move up/down, delete). Prev/next arrows navigate between cards in the same lesson. Cards in CardViewModal support drag-to-reorder via dnd-kit. Server actions in `lib/actions/lesson-cards.ts`: `createLessonCard`, `updateLessonCard`, `deleteLessonCard`, `reorderLessonCards`, `bulkCreateLessonCards`. Queries in `lib/queries/lesson-cards.ts`: `getLessonCards`, `getLessonCardsByIds`.
 
+**Lesson card inline features:** Note cards render markdown via `MarkdownContent`. Checklist cards show interactive checkboxes directly on the board and in CardViewModal — checking/unchecking updates the card's markdown content via `updateLessonCard`. In list view, lesson card names appear as icon+title pills below each lesson row.
+
 **Hierarchy:** Course (curricula) → Lesson (lessons) → Lesson Card (lesson_cards). Lesson cards are the sub-items within a lesson — not lessons themselves, but their building blocks.
+
+**Board background** — Each curriculum can have a custom background image for board view, set via a toolbar picker (`BackgroundPicker` component — upload or URL). Renders as `background-size: cover` with a translucent overlay (`bg-surface/60 backdrop-blur`) for card readability. Stored in `curricula.background_image`. Server action: `updateCurriculumBackground` in `lib/actions/lessons.ts`.
+
+**Board drag-scroll** — The board's horizontal scroll area supports click-and-drag scrolling. Click empty space on the board background and drag left/right to scroll. Cursor shows `grab`/`grabbing` states. Implemented via `useDragScroll` hook in `CurriculumBoard.tsx`.
 
 ### Curricula — Grade Type
 
