@@ -513,14 +513,29 @@ export default function CardViewModal({ lesson, curriculumResources = [], subjec
                               )}
                             </button>
                           ) : card.card_type === "url" && card.url ? (
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); setOpenLessonCard({ card, allCards: lesson.cards || [] }); }}
-                              className="group flex w-full items-center gap-3 rounded-lg border border-light bg-surface p-3 text-sm text-left transition-colors hover:border-interactive/50 cursor-pointer"
-                            >
-                              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded bg-gradient-to-br from-cyan-50 to-blue-100 text-sm">🔗</span>
-                              <span className="min-w-0 truncate text-secondary group-hover:text-interactive">{cardTitle}</span>
-                            </button>
+                            card.og_image ? (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setOpenLessonCard({ card, allCards: lesson.cards || [] }); }}
+                                className="group block w-full overflow-hidden rounded-lg border border-light text-left transition-colors hover:border-interactive/50 cursor-pointer"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={card.og_image} alt="" className="w-full object-cover" />
+                                <div className="flex items-center gap-1.5 px-3 py-1.5">
+                                  <span className="text-xs">🔗</span>
+                                  <span className="truncate text-sm text-secondary group-hover:text-interactive">{card.og_title || cardTitle}</span>
+                                </div>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setOpenLessonCard({ card, allCards: lesson.cards || [] }); }}
+                                className="group flex w-full items-center gap-3 rounded-lg border border-light bg-surface p-3 text-sm text-left transition-colors hover:border-interactive/50 cursor-pointer"
+                              >
+                                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded bg-gradient-to-br from-cyan-50 to-blue-100 text-sm">🔗</span>
+                                <span className="min-w-0 truncate text-secondary group-hover:text-interactive">{cardTitle}</span>
+                              </button>
+                            )
                           ) : card.card_type === "checklist" && card.content ? (
                             <button
                               type="button"

@@ -574,7 +574,21 @@ function LessonMiniCard({
               }
 
               if (card.card_type === "url" && card.url) {
-                return (
+                return card.og_image ? (
+                  <button
+                    key={card.id}
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onOpenLessonCard?.(card, lesson.cards); }}
+                    className="group block w-full cursor-pointer overflow-hidden rounded-lg border border-light text-left transition-colors hover:border-interactive/50"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={card.og_image} alt="" className="w-full object-cover" />
+                    <div className="flex items-center gap-1.5 px-2 py-1">
+                      <span className="text-[10px]">🔗</span>
+                      <span className="truncate text-[10px] text-secondary group-hover:text-interactive">{card.og_title || cardTitle}</span>
+                    </div>
+                  </button>
+                ) : (
                   <button
                     key={card.id}
                     type="button"
@@ -1783,6 +1797,24 @@ export default function CurriculumBoard({
                                 <span className="truncate text-[10px] text-secondary group-hover:text-interactive">{card.title}</span>
                               </div>
                             )}
+                          </button>
+                        );
+                      }
+
+                      if (card.card_type === "url" && card.url && card.og_image) {
+                        return (
+                          <button
+                            key={card.id}
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleOpenLessonCard(card, lesson.cards); }}
+                            className="group block w-full cursor-pointer overflow-hidden rounded-lg border border-light text-left transition-colors hover:border-interactive/50"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={card.og_image} alt="" className="w-full object-cover" />
+                            <div className="flex items-center gap-1.5 px-2 py-1">
+                              <span className="text-[10px]">🔗</span>
+                              <span className="truncate text-[10px] text-secondary group-hover:text-interactive">{card.og_title || cardTitle}</span>
+                            </div>
                           </button>
                         );
                       }
