@@ -464,6 +464,8 @@ These are derived via the relationship chain (`lesson -> curriculum -> subject`)
 
 **Board drag-scroll** — The board's horizontal scroll area supports click-and-drag scrolling. Click empty space on the board background and drag left/right to scroll. Cursor shows `grab`/`grabbing` states. Implemented via `useDragScroll` hook in `CurriculumBoard.tsx`.
 
+**Board column sizing** — Board columns use `items-start` so each column shrinks to fit its content. No whitespace below the last card. Image cards display without filenames.
+
 ### Curricula — Grade Type
 
 The `grade_type` field should support three modes:
