@@ -12,6 +12,7 @@ import { canEdit, canMarkComplete } from "@/lib/permissions";
 import CardViewModal from "@/components/curricula/CardViewModal";
 import ResourcePreviewModal from "@/components/ui/ResourcePreviewModal";
 import LessonCardModal from "@/components/curricula/LessonCardModal";
+import { updateLessonCard } from "@/lib/actions/lesson-cards";
 import { parseChecklist, checklistProgress } from "@/components/lessons/InteractiveChecklist";
 import MarkdownContent from "@/components/ui/MarkdownContent";
 import {
@@ -334,6 +335,8 @@ function LessonMiniCard({
   onOpenLessonCard?: (card: LessonCardItem, allCards: LessonCardItem[]) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [cardPending, startCardTransition] = useTransition();
+  const cardRouter = useRouter();
   const completedChildIds = new Set(lesson.completions.map((c) => c.child_id));
   const allCompleted =
     assignedChildren.length > 0 &&
@@ -641,18 +644,45 @@ function LessonMiniCard({
               }
 
               if (card.card_type === "checklist" && card.content) {
-                const items = card.content.split("\n").filter((l) => /^- \[[ x]\]/.test(l));
-                const checked = items.filter((l) => /^- \[x\]/i.test(l)).length;
+                const lines = card.content.split("\n");
+                const checkItems = lines.map((l, li) => ({ line: l, lineIndex: li })).filter(({ line }) => /^- \[[ x]\]/.test(line));
+                const checkedCount = checkItems.filter(({ line }) => /^- \[x\]/i.test(line)).length;
                 return (
-                  <button key={card.id} type="button" onClick={(e) => { e.stopPropagation(); onOpenLessonCard?.(card, lesson.cards); }} className="w-full cursor-pointer rounded-lg border border-light bg-surface p-2 text-left text-xs transition-colors hover:border-interactive/50">
-                    <p className="font-medium text-secondary">{cardTitle}</p>
+                  <div key={card.id} className="rounded-lg border border-light bg-surface p-2 text-xs">
+                    <button type="button" onClick={(e) => { e.stopPropagation(); onOpenLessonCard?.(card, lesson.cards); }} className="mb-1 w-full cursor-pointer text-left font-medium text-secondary hover:text-interactive">
+                      {cardTitle}
+                    </button>
+                    <div className="space-y-0.5">
+                      {checkItems.map(({ line, lineIndex }) => {
+                        const isChecked = /^- \[x\]/i.test(line);
+                        const text = line.replace(/^- \[[ x]\]\s*/, "");
+                        return (
+                          <label key={lineIndex} className="flex cursor-pointer items-center gap-1.5 rounded px-0.5 py-0.5 hover:bg-surface-muted" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                const updated = [...lines];
+                                updated[lineIndex] = isChecked ? line.replace(/^- \[x\]/i, "- [ ]") : line.replace("- [ ]", "- [x]");
+                                const fd = new FormData();
+                                fd.set("id", card.id);
+                                fd.set("content", updated.join("\n"));
+                                startCardTransition(async () => { await updateLessonCard(fd); cardRouter.refresh(); });
+                              }}
+                              className="h-3 w-3 rounded border-light text-interactive focus:ring-focus"
+                            />
+                            <span className={`text-[10px] ${isChecked ? "text-muted line-through" : "text-secondary"}`}>{text}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
                     <div className="mt-1 flex items-center gap-2">
                       <div className="h-1.5 flex-1 rounded-full bg-surface-muted overflow-hidden">
-                        <div className="h-full rounded-full bg-[var(--success-solid)] transition-all" style={{ width: `${items.length ? (checked / items.length) * 100 : 0}%` }} />
+                        <div className="h-full rounded-full bg-[var(--success-solid)] transition-all" style={{ width: `${checkItems.length ? (checkedCount / checkItems.length) * 100 : 0}%` }} />
                       </div>
-                      <span className="text-[10px] text-muted">{checked}/{items.length}</span>
+                      <span className="text-[10px] text-muted">{checkedCount}/{checkItems.length}</span>
                     </div>
-                  </button>
+                  </div>
                 );
               }
 

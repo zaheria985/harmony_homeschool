@@ -12,7 +12,7 @@ import { suggestResources } from "@/lib/actions/ai";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { createLessonCard, deleteLessonCard, reorderLessonCards } from "@/lib/actions/lesson-cards";
+import { createLessonCard, deleteLessonCard, reorderLessonCards, updateLessonCard } from "@/lib/actions/lesson-cards";
 
 type CurriculumResource = {
   id: string;
@@ -281,6 +281,51 @@ function AddLessonCardForm({ lessonId }: { lessonId: string }) {
   );
 }
 
+function ChecklistCardInline({ card, cardTitle, onOpenModal }: { card: LessonCardItem; cardTitle: string; onOpenModal: () => void }) {
+  const [clPending, startClTransition] = useTransition();
+  const clRouter = useRouter();
+  const clLines = (card.content || "").split("\n");
+  const clItems = clLines.map((l, li) => ({ line: l, lineIndex: li })).filter(({ line }) => /^- \[[ x]\]/.test(line));
+  const clChecked = clItems.filter(({ line }) => /^- \[x\]/i.test(line)).length;
+  return (
+    <div className={`rounded-lg border border-light bg-surface p-3 text-sm ${clPending ? "opacity-60" : ""}`}>
+      <button type="button" onClick={(e) => { e.stopPropagation(); onOpenModal(); }} className="mb-2 w-full cursor-pointer text-left font-medium text-secondary hover:text-interactive">
+        {cardTitle}
+      </button>
+      <div className="space-y-1">
+        {clItems.map(({ line, lineIndex }) => {
+          const isChecked = /^- \[x\]/i.test(line);
+          const text = line.replace(/^- \[[ x]\]\s*/, "");
+          return (
+            <label key={lineIndex} className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 text-xs hover:bg-surface-muted" onClick={(e) => e.stopPropagation()}>
+              <input
+                type="checkbox"
+                checked={isChecked}
+                onChange={() => {
+                  const updated = [...clLines];
+                  updated[lineIndex] = isChecked ? line.replace(/^- \[x\]/i, "- [ ]") : line.replace("- [ ]", "- [x]");
+                  const fd = new FormData();
+                  fd.set("id", card.id);
+                  fd.set("content", updated.join("\n"));
+                  startClTransition(async () => { await updateLessonCard(fd); clRouter.refresh(); });
+                }}
+                className="h-3.5 w-3.5 rounded border-light text-interactive focus:ring-focus"
+              />
+              <span className={isChecked ? "text-muted line-through" : "text-secondary"}>{text}</span>
+            </label>
+          );
+        })}
+      </div>
+      <div className="mt-2 flex items-center gap-2">
+        <div className="h-1.5 flex-1 rounded-full bg-surface-muted overflow-hidden">
+          <div className="h-full rounded-full bg-[var(--success-solid)] transition-all" style={{ width: `${clItems.length ? (clChecked / clItems.length) * 100 : 0}%` }} />
+        </div>
+        <span className="text-[10px] text-muted">{clChecked}/{clItems.length}</span>
+      </div>
+    </div>
+  );
+}
+
 function SortableLessonCardWrapper({ id, children }: { id: string; children: React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
@@ -537,27 +582,12 @@ export default function CardViewModal({ lesson, curriculumResources = [], subjec
                               </button>
                             )
                           ) : card.card_type === "checklist" && card.content ? (
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); setOpenLessonCard({ card, allCards: lesson.cards || [] }); }}
-                              className="w-full rounded-lg border border-light bg-surface p-3 text-sm text-left transition-colors hover:border-interactive/50 cursor-pointer"
-                            >
-                              <p className="font-medium text-secondary">{cardTitle}</p>
-                              <div className="mt-2 space-y-1">
-                                {card.content.split("\n").filter((l) => /^- \[[ x]\]/.test(l)).map((line, i) => {
-                                  const isChecked = /^- \[x\]/i.test(line);
-                                  const text = line.replace(/^- \[[ x]\]\s*/, "");
-                                  return (
-                                    <span key={i} className="flex items-center gap-2 text-xs">
-                                      <span className={`h-3.5 w-3.5 flex-shrink-0 rounded border ${isChecked ? "bg-interactive border-interactive text-white flex items-center justify-center" : "border-border"}`}>
-                                        {isChecked && <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
-                                      </span>
-                                      <span className={isChecked ? "text-muted line-through" : "text-secondary"}>{text}</span>
-                                    </span>
-                                  );
-                                })}
-                              </div>
-                            </button>
+                            <ChecklistCardInline
+                              card={card}
+                              cardTitle={cardTitle}
+                              onOpenModal={() => setOpenLessonCard({ card, allCards: lesson.cards || [] })}
+                            />
+
                           ) : card.card_type === "resource" ? (
                             <button
                               type="button"
