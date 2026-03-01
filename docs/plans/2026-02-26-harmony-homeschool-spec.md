@@ -717,7 +717,7 @@ Grades, Reports, and Completed Lessons are three related read-heavy views that a
 **`/completed`** — Completed Work History
 
 - **5 filter controls:** Student, School Year, Subject, Date From, Date To — all URL-param-driven with server-side filtering
-- Results grouped 3 levels deep: Child -> Week (newest first) -> Subject
+- Results grouped 3 levels deep: Child -> Week (newest first) -> Subject, with date sub-headers within each subject card showing the actual completion date (e.g. "Mon, Feb 16") whenever the date changes between lessons
 - Each lesson shows: title, curriculum name, grade badge, notes
 - **Print mode:** Filters hidden, print-only header with scope summary
 - "Print / Save PDF" button triggers `window.print()`
