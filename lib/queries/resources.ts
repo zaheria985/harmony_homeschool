@@ -87,7 +87,7 @@ export async function getAllResources(filters?: {
          false AS is_global
        FROM lesson_resources lr
        WHERE lr.resource_id IS NULL
-       GROUP BY lr.id, lr.title, lr.type, lr.url, lr.thumbnail_url
+       GROUP BY lr.id, lr.title, lr.type, lr.url, lr.thumbnail_url, category
      )
      SELECT *
      FROM (

@@ -1,4 +1,5 @@
 "use client";
+import { Fragment } from "react";
 import { useRouter } from "next/navigation";
 type Lesson = {
   id: string;
@@ -98,6 +99,16 @@ function groupLessons(lessons: Lesson[]): GroupedData {
         })),
     }));
 }
+function formatCompletionDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+}
+
+function getDateKey(dateStr: string | null): string {
+  if (!dateStr) return "undated";
+  return dateStr.slice(0, 10);
+}
+
 export default function CompletedClient({
   children,
   subjects,
@@ -309,40 +320,57 @@ export default function CompletedClient({
                           {/* Lessons as bullet list */}{" "}
                           <ul className="px-3 py-2 space-y-1.5">
                             {" "}
-                            {subject.lessons.map((l) => (
-                              <li key={l.id} className="text-sm leading-snug">
-                                {" "}
-                                <div className="flex items-start gap-1.5">
-                                  {" "}
-                                  <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-border" />{" "}
-                                  <div className="min-w-0">
-                                    {" "}
-                                    <span className="font-medium text-primary">
+                            {(() => {
+                              let lastDate = "";
+                              return subject.lessons.map((l) => {
+                                const dateKey = getDateKey(l.completed_at);
+                                const showDateHeader = dateKey !== lastDate;
+                                lastDate = dateKey;
+                                return (
+                                  <Fragment key={l.id}>
+                                    {showDateHeader && dateKey !== "undated" && (
+                                      <li className="pt-1 first:pt-0">
+                                        <span className="text-xs font-medium text-muted">
+                                          {formatCompletionDate(l.completed_at!)}
+                                        </span>
+                                      </li>
+                                    )}
+                                    <li className="text-sm leading-snug">
                                       {" "}
-                                      {l.title}{" "}
-                                    </span>{" "}
-                                    {l.curriculum_name && (
-                                      <span className="text-muted">
+                                      <div className="flex items-start gap-1.5">
                                         {" "}
-                                        {""} — {l.curriculum_name}{" "}
-                                      </span>
-                                    )}{" "}
-                                    {l.grade != null && (
-                                      <span className="ml-1.5 inline-block rounded bg-surface-subtle px-1.5 py-0.5 text-xs font-medium text-secondary print:border print:border-border print:bg-transparent">
-                                        {" "}
-                                        {Number(l.grade).toFixed(0)}%{" "}
-                                      </span>
-                                    )}{" "}
-                                    {l.notes && (
-                                      <p className="mt-0.5 text-xs italic text-muted">
-                                        {" "}
-                                        {l.notes}{" "}
-                                      </p>
-                                    )}{" "}
-                                  </div>{" "}
-                                </div>{" "}
-                              </li>
-                            ))}{" "}
+                                        <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-border" />{" "}
+                                        <div className="min-w-0">
+                                          {" "}
+                                          <span className="font-medium text-primary">
+                                            {" "}
+                                            {l.title}{" "}
+                                          </span>{" "}
+                                          {l.curriculum_name && (
+                                            <span className="text-muted">
+                                              {" "}
+                                              {""} — {l.curriculum_name}{" "}
+                                            </span>
+                                          )}{" "}
+                                          {l.grade != null && (
+                                            <span className="ml-1.5 inline-block rounded bg-surface-subtle px-1.5 py-0.5 text-xs font-medium text-secondary print:border print:border-border print:bg-transparent">
+                                              {" "}
+                                              {Number(l.grade).toFixed(0)}%{" "}
+                                            </span>
+                                          )}{" "}
+                                          {l.notes && (
+                                            <p className="mt-0.5 text-xs italic text-muted">
+                                              {" "}
+                                              {l.notes}{" "}
+                                            </p>
+                                          )}{" "}
+                                        </div>{" "}
+                                      </div>{" "}
+                                    </li>
+                                  </Fragment>
+                                );
+                              });
+                            })()}{" "}
                           </ul>{" "}
                         </div>
                       ))}{" "}
