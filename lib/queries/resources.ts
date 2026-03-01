@@ -87,7 +87,7 @@ export async function getAllResources(filters?: {
          false AS is_global
        FROM lesson_resources lr
        WHERE lr.resource_id IS NULL
-       GROUP BY lr.id, lr.title, lr.type, lr.url, lr.thumbnail_url, category
+       GROUP BY lr.id, lr.title, lr.type, lr.url, lr.thumbnail_url
      )
      SELECT *
      FROM (
@@ -166,7 +166,7 @@ export async function getResourceUsageStats() {
     `SELECT r.id, r.title, r.type,
        COUNT(DISTINCT lr.lesson_id)::int AS lesson_count,
        COUNT(DISTINCT l.curriculum_id)::int AS curriculum_count,
-       MAX(lr.created_at) AS last_used
+       MAX(r.created_at) AS last_used
      FROM resources r
      LEFT JOIN lesson_resources lr ON lr.resource_id = r.id
      LEFT JOIN lessons l ON l.id = lr.lesson_id
