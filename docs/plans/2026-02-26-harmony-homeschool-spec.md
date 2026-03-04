@@ -630,7 +630,7 @@ Full lesson detail cards with: completion checkbox, title, curriculum link, desc
 - **Child selection** — Dropdown in the layout (shown when 2+ children). "All Kids" groups lessons by "ChildName - Subject" to keep them separate. Selection persists across navigation via URL param.
 - **Week navigation** — Prev/next arrows and a "Today" button. All client-side navigation preserving the child param.
 - **Drag-and-drop rescheduling** — Desktop: standard HTML drag events. Mobile: long-press (220ms) activates touch drag using `document.elementFromPoint`. Both call `rescheduleLesson` server action with optimistic local updates and rollback on error.
-- **Auto-bump overdue** — On every board render, overdue planned lessons are automatically shifted to the next valid school day based on school day config and date overrides.
+- **Auto-bump overdue** — On every board render and dashboard load, overdue planned lessons are automatically shifted to the next valid school day based on school day config and date overrides. The dashboard triggers the bump for all children before fetching upcoming lessons, ensuring overdue lessons appear on the correct day regardless of which page the user visits first.
 - **Inline completion** — Checkbox toggles `markLessonComplete` / `markLessonIncomplete` via `useTransition`. Respects permission levels (kid users create pending completions).
 - **Resource embeds** — YouTube resources render as privacy-friendly `youtube-nocookie.com` iframes. PDFs render as styled links with page numbers. Other types render as generic links.
 - **Filtering** — Subject and course dropdowns filter the board client-side. Subject selection cascades to filter the course list. "Clear filters" resets both.

@@ -14,6 +14,7 @@ import LessonCompleteCheckbox from "@/components/lessons/LessonCompleteCheckbox"
 import VikunjaSyncButton from "@/components/dashboard/VikunjaSyncButton";
 import PendingApprovalsWidget from "@/components/dashboard/PendingApprovalsWidget";
 import { getPendingCompletions } from "@/lib/actions/completions";
+import { bumpOverdueLessons } from "@/lib/actions/lessons";
 type UpcomingItem = Record<string, string | number | null>;
 type GroupedDay = { dayKey: string; dayLabel: string };
 type ExternalEventItem = {
@@ -40,6 +41,14 @@ export default async function DashboardPage({
     user.role === "kid" ? user.childId || undefined : undefined;
   const parentId = user.role === "parent" ? user.id : undefined;
   const isParent = user.role === "parent" || user.permissionLevel === "full";
+
+  // Bump overdue lessons before fetching data so missed lessons appear on today
+  const allChildren = await getAllChildren(parentId);
+  const todayStr = dayKeyFromDate(new Date());
+  await Promise.all(
+    (allChildren as Array<{ id: string }>).map((c) => bumpOverdueLessons(c.id, todayStr))
+  );
+
   const [stats, upcoming, children, pendingCompletions] = await Promise.all([
     getDashboardStats(parentId),
     getUpcomingDueLessons(daysAhead, scopedChildId, parentId),
