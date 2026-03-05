@@ -1015,21 +1015,26 @@ export async function bulkFindOrCreateAndAttachBooks(
         bookCache.set(cacheKey, resourceId!);
       }
 
-      // Attach book to lesson via lesson_resources
+      // Attach book to lesson as a lesson_card (visual card with cover image)
       const displayTitle = item.pageRef
         ? `${item.title} (${item.pageRef})`
         : item.title;
 
-      // Get thumbnail from the resource for the lesson_resource record
       const resourceRow = await client.query(
         "SELECT thumbnail_url FROM resources WHERE id = $1",
         [resourceId]
       );
 
+      // Get next order_index for this lesson's cards
+      const orderRes = await client.query(
+        "SELECT COALESCE(MAX(order_index), -1) + 1 AS next_idx FROM lesson_cards WHERE lesson_id = $1",
+        [item.lessonId]
+      );
+
       await client.query(
-        `INSERT INTO lesson_resources (lesson_id, resource_id, type, url, title, thumbnail_url)
-         VALUES ($1, $2, 'url', '', $3, $4)`,
-        [item.lessonId, resourceId, displayTitle, resourceRow.rows[0]?.thumbnail_url || null]
+        `INSERT INTO lesson_cards (lesson_id, card_type, title, resource_id, thumbnail_url, order_index)
+         VALUES ($1, 'resource', $2, $3, $4, $5)`,
+        [item.lessonId, displayTitle, resourceId, resourceRow.rows[0]?.thumbnail_url || null, orderRes.rows[0].next_idx]
       );
       attached++;
     }
