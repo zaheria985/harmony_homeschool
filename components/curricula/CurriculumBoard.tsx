@@ -1797,63 +1797,126 @@ export default function CurriculumBoard({
                       </div>
                     )}
                     {lesson.cards && lesson.cards.length > 0 && (
-                      <div className="border-t px-3 py-2">
-                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
-                          Cards ({lesson.cards.length})
-                        </p>
-                        <div className="space-y-1.5">
-                          {lesson.cards.map((card) => {
-                            const ytId = card.url ? extractYoutubeId(card.url) : null;
-                            const thumb = card.thumbnail_url || (ytId ? `https://img.youtube.com/vi/${ytId}/mqdefault.jpg` : null)
-                              || card.resource_thumbnail_url;
-                            const cardTitle = card.title || card.resource_title || card.url || "Untitled";
+                      <div className="border-t space-y-0">
+                        {lesson.cards.map((card) => {
+                          const ytId = card.url ? extractYoutubeId(card.url) : null;
+                          const thumb = card.thumbnail_url || (ytId ? `https://img.youtube.com/vi/${ytId}/mqdefault.jpg` : null)
+                            || card.resource_thumbnail_url;
+                          const cardTitle = card.title || card.resource_title || card.url || "Untitled";
 
-                            if (card.card_type === "youtube" && thumb) {
-                              return (
-                                <button
-                                  key={card.id}
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (card.url) setPreviewResource({
-                                      title: cardTitle, type: "youtube", url: card.url, thumbnailUrl: thumb,
-                                    });
-                                  }}
-                                  className="group relative block w-full overflow-hidden rounded-lg border border-light text-left transition-colors hover:border-primary-200"
-                                >
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img src={thumb} alt="" className="w-full object-cover" />
-                                  <button
-                                    type="button"
-                                    onClick={(e) => { e.stopPropagation(); handleOpenLessonCard(card, lesson.cards); }}
-                                    className="absolute right-1 top-1 rounded bg-black/50 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100"
-                                    title="View details"
-                                  >
-                                    <span className="text-[10px]">&#x2197;</span>
-                                  </button>
-                                  <div className="flex items-center gap-1.5 px-2 py-1">
-                                    <span className="text-[10px] text-red-500">&#9654;</span>
-                                    <span className="truncate text-[10px] text-secondary group-hover:text-interactive">{cardTitle}</span>
-                                  </div>
-                                </button>
-                              );
-                            }
-
+                          // YouTube card — full-width thumbnail with play overlay
+                          if (card.card_type === "youtube" && (thumb || card.url)) {
                             return (
                               <button
                                 key={card.id}
                                 type="button"
-                                onClick={(e) => { e.stopPropagation(); handleOpenLessonCard(card, lesson.cards); }}
-                                className="group flex w-full items-center gap-1.5 rounded-lg border border-light px-2 py-1 text-left transition-colors hover:border-primary-200"
+                                onClick={() => {
+                                  if (card.url) setPreviewResource({
+                                    title: cardTitle, type: "youtube", url: card.url, thumbnailUrl: thumb || "",
+                                  });
+                                }}
+                                className="group relative block w-full border-b border-light last:border-b-0"
                               >
-                                <span className="text-[10px]">
-                                  {card.card_type === "image" ? "\uD83D\uDDBC" : "\uD83D\uDD17"}
-                                </span>
-                                <span className="truncate text-[10px] text-secondary group-hover:text-interactive">{cardTitle}</span>
+                                {thumb && (
+                                  <div className="relative">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={thumb} alt="" className="w-full aspect-video object-cover" />
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover:bg-black/30 transition-colors">
+                                      <span className="text-2xl text-white drop-shadow">&#9654;</span>
+                                    </div>
+                                  </div>
+                                )}
+                                <div className="px-3 py-1.5 text-left">
+                                  <p className="text-[11px] font-medium text-primary line-clamp-2 group-hover:text-interactive">{cardTitle}</p>
+                                </div>
                               </button>
                             );
-                          })}
-                        </div>
+                          }
+
+                          // Resource card (book with cover, etc.) — full-width image
+                          if (card.card_type === "resource" && thumb) {
+                            return (
+                              <button
+                                key={card.id}
+                                type="button"
+                                onClick={() => handleOpenLessonCard(card, lesson.cards)}
+                                className="group block w-full border-b border-light last:border-b-0"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={thumb} alt="" className="w-full object-contain bg-surface-muted" style={{ maxHeight: "200px" }} />
+                                <div className="px-3 py-1.5 text-left">
+                                  <p className="text-[11px] font-medium text-primary line-clamp-2 group-hover:text-interactive">{cardTitle}</p>
+                                </div>
+                              </button>
+                            );
+                          }
+
+                          // Resource without cover
+                          if (card.card_type === "resource") {
+                            return (
+                              <button
+                                key={card.id}
+                                type="button"
+                                onClick={() => handleOpenLessonCard(card, lesson.cards)}
+                                className="group flex w-full items-center gap-2 border-b border-light last:border-b-0 px-3 py-2 text-left hover:bg-surface-muted"
+                              >
+                                <span className="text-lg flex-shrink-0">&#128214;</span>
+                                <p className="text-[11px] font-medium text-primary line-clamp-2 group-hover:text-interactive">{cardTitle}</p>
+                              </button>
+                            );
+                          }
+
+                          // URL with OG image
+                          if (card.card_type === "url" && card.og_image) {
+                            return (
+                              <a
+                                key={card.id}
+                                href={card.url || "#"}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="group block w-full border-b border-light last:border-b-0"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={card.og_image} alt="" className="w-full aspect-video object-cover" />
+                                <div className="px-3 py-1.5">
+                                  <p className="text-[11px] font-medium text-primary line-clamp-2 group-hover:text-interactive">{card.og_title || cardTitle}</p>
+                                  {card.og_description && (
+                                    <p className="text-[10px] text-muted line-clamp-1">{card.og_description}</p>
+                                  )}
+                                </div>
+                              </a>
+                            );
+                          }
+
+                          // Notes card
+                          if (card.card_type === "note") {
+                            return (
+                              <div
+                                key={card.id}
+                                className="border-b border-light last:border-b-0 bg-amber-50/50 dark:bg-amber-900/10 px-3 py-2"
+                              >
+                                <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-0.5">Notes</p>
+                                <p className="text-[11px] text-primary whitespace-pre-line line-clamp-4">{card.content}</p>
+                              </div>
+                            );
+                          }
+
+                          // Generic URL / fallback
+                          return (
+                            <button
+                              key={card.id}
+                              type="button"
+                              onClick={() => handleOpenLessonCard(card, lesson.cards)}
+                              className="group flex w-full items-center gap-2 border-b border-light last:border-b-0 px-3 py-2 text-left hover:bg-surface-muted"
+                            >
+                              <span className="text-sm flex-shrink-0">{card.card_type === "image" ? "\uD83D\uDDBC" : "\uD83D\uDD17"}</span>
+                              <div className="min-w-0">
+                                <p className="text-[11px] font-medium text-primary line-clamp-2 group-hover:text-interactive">{cardTitle}</p>
+                                {card.url && <p className="text-[10px] text-muted truncate">{card.url}</p>}
+                              </div>
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                     {showCompletions && assignedChildren.length > 0 && (

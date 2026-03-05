@@ -3,7 +3,8 @@
 import { useState, useCallback } from "react";
 import Card from "@/components/ui/Card";
 import { createCurriculum, bulkCreateLessons } from "@/lib/actions/lessons";
-import { bulkCreateLessonResources, bulkFindOrCreateAndAttachBooks } from "@/lib/actions/resources";
+import { bulkFindOrCreateAndAttachBooks } from "@/lib/actions/resources";
+import { bulkCreateLessonCards } from "@/lib/actions/lesson-cards";
 import { autoScheduleLessons } from "@/lib/actions/schedule";
 import { assignCurriculum } from "@/lib/actions/lessons";
 import { z } from "zod";
@@ -417,7 +418,6 @@ export default function CurriculumImportClient({
       const lessonsPayload = includedLessons.map((l) => ({
         title: `${l.number} ${l.title}`,
         curriculum_id: curriculumId,
-        description: l.description || undefined,
         status: "planned" as const,
         section: l.section || undefined,
       }));
@@ -435,23 +435,43 @@ export default function CurriculumImportClient({
 
       const lessonIds = lessonsResult.lessonIds;
 
-      // 4. Create lesson resources
-      let resourceCount = 0;
-      const resourceItems = includedLessons
-        .map((l, i) => ({
-          lessonId: lessonIds[i],
-          resources: l.resources.map((r) => ({
-            type: r.type,
-            url: r.url,
-            title: r.title,
-          })),
-        }))
-        .filter((item) => item.resources.length > 0);
+      // 4. Create lesson cards (URLs, YouTube, notes)
+      let cardCount = 0;
+      const cardItems = includedLessons
+        .map((l, i) => {
+          const cards: Array<{
+            card_type: "youtube" | "url" | "note";
+            title?: string;
+            content?: string;
+            url?: string;
+          }> = [];
 
-      if (resourceItems.length > 0) {
-        const resResult = await bulkCreateLessonResources(resourceItems);
-        if ("created" in resResult) {
-          resourceCount = resResult.created ?? 0;
+          // Notes card from lesson description
+          if (l.description) {
+            cards.push({
+              card_type: "note",
+              title: "Notes",
+              content: l.description,
+            });
+          }
+
+          // URL/YouTube resource cards
+          for (const r of l.resources) {
+            cards.push({
+              card_type: r.type === "youtube" ? "youtube" : "url",
+              title: r.title,
+              url: r.url,
+            });
+          }
+
+          return { lessonId: lessonIds[i], cards };
+        })
+        .filter((item) => item.cards.length > 0);
+
+      if (cardItems.length > 0) {
+        const cardResult = await bulkCreateLessonCards(cardItems);
+        if ("created" in cardResult) {
+          cardCount = cardResult.created ?? 0;
         }
       }
 
@@ -484,7 +504,7 @@ export default function CurriculumImportClient({
         success: true,
         curriculumId,
         lessonCount: lessonsResult.created,
-        resourceCount: resourceCount + bookCount,
+        resourceCount: cardCount + bookCount,
       });
       setStep(4);
     } catch (err) {
