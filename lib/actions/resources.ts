@@ -925,3 +925,129 @@ export async function bulkAddTagsToResources(resourceIds: string[], tagNames: st
   revalidatePath("/resources");
   return { success: true };
 }
+
+// ============================================================================
+// BULK FIND-OR-CREATE BOOKS + ATTACH TO LESSONS (for curriculum importer)
+// ============================================================================
+
+const bookAttachmentSchema = z.object({
+  lessonId: z.string().uuid(),
+  title: z.string().min(1),
+  author: z.string().optional(),
+  pageRef: z.string().optional(),
+  source: z.string().optional(),
+});
+
+export async function bulkFindOrCreateAndAttachBooks(
+  items: Array<{
+    lessonId: string;
+    title: string;
+    author?: string;
+    pageRef?: string;
+    source?: string;
+  }>
+) {
+  const parsed = z.array(bookAttachmentSchema).safeParse(items);
+  if (!parsed.success) {
+    return { error: parsed.error.errors[0]?.message || "Invalid input" };
+  }
+
+  const client = await pool.connect();
+  let created = 0;
+  let attached = 0;
+
+  try {
+    await client.query("BEGIN");
+
+    // Cache: title+author → resource id (to avoid duplicate lookups within batch)
+    const bookCache = new Map<string, string>();
+
+    for (const item of parsed.data) {
+      const cacheKey = `${item.title.toLowerCase()}||${(item.author || "").toLowerCase()}`;
+      let resourceId = bookCache.get(cacheKey);
+
+      if (!resourceId) {
+        // Try to find existing book resource by title (case-insensitive)
+        const existing = await client.query(
+          `SELECT id FROM resources
+           WHERE type = 'book' AND LOWER(title) = LOWER($1)
+           ${item.author ? "AND LOWER(author) = LOWER($2)" : ""}
+           LIMIT 1`,
+          item.author ? [item.title, item.author] : [item.title]
+        );
+
+        if (existing.rows[0]) {
+          resourceId = existing.rows[0].id;
+        } else {
+          // Create book resource — auto-fetch OpenLibrary cover
+          let thumbnailUrl: string | null = null;
+          const normalizedAuthor = (item.author || "").trim();
+
+          try {
+            const params = new URLSearchParams({ title: item.title, limit: "1" });
+            if (normalizedAuthor) params.set("author", normalizedAuthor);
+            const olUrl = `https://openlibrary.org/search.json?${params}`;
+            console.log("[import-books] fetching cover", { title: item.title, author: normalizedAuthor });
+            const lookup = await fetch(olUrl);
+            if (lookup.ok) {
+              const data = await lookup.json();
+              const coverId = data.docs?.[0]?.cover_i;
+              if (coverId) {
+                thumbnailUrl = `https://covers.openlibrary.org/b/id/${coverId}-L.jpg`;
+              }
+            }
+          } catch (err) {
+            console.warn("[import-books] OpenLibrary fetch failed", {
+              title: item.title,
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
+
+          const res = await client.query(
+            `INSERT INTO resources (title, type, author, thumbnail_url)
+             VALUES ($1, 'book', $2, $3) RETURNING id`,
+            [item.title, normalizedAuthor || null, thumbnailUrl]
+          );
+          resourceId = res.rows[0].id;
+          created++;
+        }
+
+        bookCache.set(cacheKey, resourceId!);
+      }
+
+      // Attach book to lesson via lesson_resources
+      const displayTitle = item.pageRef
+        ? `${item.title} (${item.pageRef})`
+        : item.title;
+
+      // Get thumbnail from the resource for the lesson_resource record
+      const resourceRow = await client.query(
+        "SELECT thumbnail_url FROM resources WHERE id = $1",
+        [resourceId]
+      );
+
+      await client.query(
+        `INSERT INTO lesson_resources (lesson_id, resource_id, type, url, title, thumbnail_url)
+         VALUES ($1, $2, 'url', '', $3, $4)`,
+        [item.lessonId, resourceId, displayTitle, resourceRow.rows[0]?.thumbnail_url || null]
+      );
+      attached++;
+    }
+
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Failed to bulk create/attach books", {
+      itemCount: parsed.data.length,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { error: "Failed to create book resources" };
+  } finally {
+    client.release();
+  }
+
+  revalidatePath("/resources");
+  revalidatePath("/lessons");
+  revalidatePath("/curricula");
+  return { success: true, created, attached };
+}

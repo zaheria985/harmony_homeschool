@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import Card from "@/components/ui/Card";
 import { createCurriculum, bulkCreateLessons } from "@/lib/actions/lessons";
-import { bulkCreateLessonResources } from "@/lib/actions/resources";
+import { bulkCreateLessonResources, bulkFindOrCreateAndAttachBooks } from "@/lib/actions/resources";
 import { autoScheduleLessons } from "@/lib/actions/schedule";
 import { assignCurriculum } from "@/lib/actions/lessons";
 import { z } from "zod";
@@ -44,6 +44,13 @@ type JsonInput =
   | { name: string; units: JsonUnit[]; lessons?: never }
   | { name: string; lessons: JsonLesson[]; units?: never };
 
+type ParsedBook = {
+  title: string;
+  author?: string;
+  pageRef?: string;
+  source?: string;
+};
+
 type ParsedLesson = {
   id: string;
   number: string;
@@ -51,6 +58,7 @@ type ParsedLesson = {
   section: string;
   description: string;
   resources: Array<{ type: "youtube" | "pdf" | "url"; url: string; title: string }>;
+  books: ParsedBook[];
   included: boolean;
 };
 
@@ -126,8 +134,9 @@ function formatResourceNote(r: JsonResource): string {
 
 function processResources(
   allResources: JsonResource[]
-): { linked: ParsedLesson["resources"]; notes: string[] } {
+): { linked: ParsedLesson["resources"]; books: ParsedBook[]; notes: string[] } {
   const linked: ParsedLesson["resources"] = [];
+  const books: ParsedBook[] = [];
   const notes: string[] = [];
 
   for (const r of allResources) {
@@ -137,11 +146,18 @@ function processResources(
         url: r.url,
         title: r.title || r.url,
       });
+    } else if (r.type === "book" && r.title) {
+      books.push({
+        title: r.title,
+        author: r.author,
+        pageRef: r.ref,
+        source: r.source,
+      });
     } else {
       notes.push(formatResourceNote(r));
     }
   }
-  return { linked, notes };
+  return { linked, books, notes };
 }
 
 function buildLessons(data: JsonInput): ParsedLesson[] {
@@ -157,7 +173,7 @@ function buildLessons(data: JsonInput): ParsedLesson[] {
         if (idx === 0 && unit.additional_resources) {
           allResources.push(...unit.additional_resources);
         }
-        const { linked, notes: resourceNotes } = processResources(allResources);
+        const { linked, books, notes: resourceNotes } = processResources(allResources);
         const descParts: string[] = [];
         if (l.notes) descParts.push(l.notes);
         if (resourceNotes.length > 0) {
@@ -170,6 +186,7 @@ function buildLessons(data: JsonInput): ParsedLesson[] {
           section: unit.name,
           description: descParts.join("\n\n"),
           resources: linked,
+          books,
           included: true,
         };
       });
@@ -178,7 +195,7 @@ function buildLessons(data: JsonInput): ParsedLesson[] {
   } else if (data.lessons) {
     for (const l of data.lessons) {
       const num = String(counter++).padStart(2, "0");
-      const { linked, notes: resourceNotes } = processResources(l.resources || []);
+      const { linked, books, notes: resourceNotes } = processResources(l.resources || []);
       const descParts: string[] = [];
       if (l.notes) descParts.push(l.notes);
       if (resourceNotes.length > 0) {
@@ -191,6 +208,7 @@ function buildLessons(data: JsonInput): ParsedLesson[] {
         section: "",
         description: descParts.join("\n\n"),
         resources: linked,
+        books,
         included: true,
       });
     }
@@ -437,7 +455,25 @@ export default function CurriculumImportClient({
         }
       }
 
-      // 5. Auto-schedule if requested and assigned
+      // 5. Find/create book resources and attach to lessons
+      const bookItems = includedLessons.flatMap((l, i) =>
+        l.books.map((b) => ({
+          lessonId: lessonIds[i],
+          title: b.title,
+          author: b.author,
+          pageRef: b.pageRef,
+          source: b.source,
+        }))
+      );
+      let bookCount = 0;
+      if (bookItems.length > 0) {
+        const bookResult = await bulkFindOrCreateAndAttachBooks(bookItems);
+        if ("attached" in bookResult) {
+          bookCount = bookResult.attached ?? 0;
+        }
+      }
+
+      // 6. Auto-schedule if requested and assigned
       if (selectedChildIds.length > 0 && schoolYearId && doSchedule) {
         for (const childId of selectedChildIds) {
           await autoScheduleLessons(curriculumId, childId);
@@ -448,7 +484,7 @@ export default function CurriculumImportClient({
         success: true,
         curriculumId,
         lessonCount: lessonsResult.created,
-        resourceCount,
+        resourceCount: resourceCount + bookCount,
       });
       setStep(4);
     } catch (err) {
@@ -762,9 +798,14 @@ export default function CurriculumImportClient({
                           {l.resources.length} link{l.resources.length > 1 ? "s" : ""}
                         </span>
                       )}
+                      {l.books.length > 0 && (
+                        <span className="rounded bg-green-100 dark:bg-green-900/30 px-2 py-0.5 text-xs text-green-700 dark:text-green-300">
+                          {l.books.length} book{l.books.length > 1 ? "s" : ""}
+                        </span>
+                      )}
                       {l.description && (
                         <span className="rounded bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-300">
-                          materials
+                          notes
                         </span>
                       )}
                     </div>
