@@ -285,30 +285,29 @@ export default function CurriculumImportClient({
   children: childrenList,
   schoolYears,
 }: Props) {
-  const STEPS = ["Paste JSON", "Configure", "Preview & Edit", "Assign", "Import"];
+  const STEPS = ["Paste JSON", "Configure", "Preview & Edit", "Results"];
   const [step, setStep] = useState(1);
 
   // Step 1: JSON input
   const [jsonText, setJsonText] = useState("");
   const [parseError, setParseError] = useState("");
 
-  // Step 2: Config
+  // Step 2: Config (includes optional assignment)
   const [curriculumName, setCurriculumName] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [courseType, setCourseType] = useState<"curriculum" | "unit_study">("curriculum");
   const [gradeType, setGradeType] = useState<"numeric" | "pass_fail" | "combo">("pass_fail");
-
-  // Step 3: Lessons
-  const [lessons, setLessons] = useState<ParsedLesson[]>([]);
-
-  // Step 4: Assign
   const [selectedChildIds, setSelectedChildIds] = useState<string[]>([]);
   const [schoolYearId, setSchoolYearId] = useState("");
   const [weekdays, setWeekdays] = useState<number[]>([1, 2, 3, 4, 5]);
   const [doSchedule, setDoSchedule] = useState(true);
 
-  // Step 5: Import
+  // Step 3: Lessons
+  const [lessons, setLessons] = useState<ParsedLesson[]>([]);
+
+  // Import state
   const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState("");
   const [result, setResult] = useState<{
     success: boolean;
     curriculumId?: string;
@@ -358,9 +357,10 @@ export default function CurriculumImportClient({
     setLessons((prev) => prev.map((l) => ({ ...l, included })));
   }, []);
 
-  // --- Step 5: Import ---
+  // --- Import ---
   const doImport = useCallback(async () => {
     setImporting(true);
+    setImportError("");
     setResult(null);
     try {
       // 1. Create curriculum
@@ -378,10 +378,10 @@ export default function CurriculumImportClient({
 
       const curricResult = await createCurriculum(fd);
       if ("error" in curricResult) {
-        setResult({ success: false, error: curricResult.error });
+        setImportError(curricResult.error || "Failed to create curriculum");
         return;
       }
-      const curriculumId = curricResult.id;
+      const curriculumId = curricResult.id!;
 
       // 2. For multiple children, create additional assignments
       if (selectedChildIds.length > 1 && schoolYearId) {
@@ -411,10 +411,7 @@ export default function CurriculumImportClient({
           : undefined
       );
       if ("error" in lessonsResult) {
-        setResult({
-          success: false,
-          error: `Curriculum created but lessons failed: ${lessonsResult.error}`,
-        });
+        setImportError(`Curriculum created but lessons failed: ${lessonsResult.error}`);
         return;
       }
 
@@ -440,16 +437,10 @@ export default function CurriculumImportClient({
         }
       }
 
-      // 5. Set weekday schedule and auto-schedule if requested
-      if (selectedChildIds.length > 0 && schoolYearId && weekdays.length > 0) {
-        // Get assignment IDs to set weekdays
+      // 5. Auto-schedule if requested and assigned
+      if (selectedChildIds.length > 0 && schoolYearId && doSchedule) {
         for (const childId of selectedChildIds) {
-          // setAssignmentDays needs assignment ID — we need to look it up
-          // Instead, use the assignment we know was created
-          // We'll use assignCurriculum's implicit creation + autoSchedule
-          if (doSchedule) {
-            await autoScheduleLessons(curriculumId, childId);
-          }
+          await autoScheduleLessons(curriculumId, childId);
         }
       }
 
@@ -459,12 +450,9 @@ export default function CurriculumImportClient({
         lessonCount: lessonsResult.created,
         resourceCount,
       });
-      setStep(5);
+      setStep(4);
     } catch (err) {
-      setResult({
-        success: false,
-        error: err instanceof Error ? err.message : "Import failed",
-      });
+      setImportError(err instanceof Error ? err.message : "Import failed");
     } finally {
       setImporting(false);
     }
@@ -476,7 +464,6 @@ export default function CurriculumImportClient({
     lessons,
     selectedChildIds,
     schoolYearId,
-    weekdays,
     doSchedule,
   ]);
 
@@ -618,6 +605,77 @@ export default function CurriculumImportClient({
               </div>
             </div>
 
+            {/* Optional: Assign to children */}
+            <div className="border-t border-border-light pt-4">
+              <h3 className="mb-2 text-sm font-semibold text-primary">
+                Assign to Children (optional)
+              </h3>
+              <p className="mb-3 text-xs text-muted">
+                You can assign later from the curriculum page.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {childrenList.map((child) => (
+                  <button
+                    key={child.id}
+                    type="button"
+                    onClick={() =>
+                      setSelectedChildIds((prev) =>
+                        prev.includes(child.id)
+                          ? prev.filter((id) => id !== child.id)
+                          : [...prev, child.id]
+                      )
+                    }
+                    className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+                      selectedChildIds.includes(child.id)
+                        ? "bg-interactive text-white"
+                        : "bg-muted text-secondary hover:bg-surface"
+                    }`}
+                  >
+                    {child.name}
+                  </button>
+                ))}
+              </div>
+
+              {selectedChildIds.length > 0 && (
+                <div className="mt-3 space-y-3">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-secondary">
+                      School Year
+                    </label>
+                    <select
+                      value={schoolYearId}
+                      onChange={(e) => setSchoolYearId(e.target.value)}
+                      className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-focus"
+                    >
+                      <option value="">Select school year...</option>
+                      {schoolYears.map((y) => (
+                        <option key={y.id} value={y.id}>
+                          {y.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-secondary">
+                      Schedule Days
+                    </label>
+                    <WeekdayPicker selected={weekdays} onChange={setWeekdays} />
+                  </div>
+
+                  <label className="flex items-center gap-2 text-sm text-secondary">
+                    <input
+                      type="checkbox"
+                      checked={doSchedule}
+                      onChange={(e) => setDoSchedule(e.target.checked)}
+                      className="h-4 w-4 rounded border-border accent-interactive"
+                    />
+                    Auto-schedule lessons to dates after import
+                  </label>
+                </div>
+              )}
+            </div>
+
             <div className="flex justify-between">
               <button
                 onClick={() => setStep(1)}
@@ -715,6 +773,12 @@ export default function CurriculumImportClient({
               </div>
             ))}
 
+            {importError && (
+              <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
+                {importError}
+              </div>
+            )}
+
             <div className="flex justify-between">
               <button
                 onClick={() => setStep(2)}
@@ -723,132 +787,25 @@ export default function CurriculumImportClient({
                 Back
               </button>
               <button
-                onClick={() => setStep(4)}
-                disabled={!step3Valid}
+                onClick={doImport}
+                disabled={
+                  !step3Valid ||
+                  importing ||
+                  (selectedChildIds.length > 0 && !schoolYearId)
+                }
                 className="rounded-lg bg-interactive px-6 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
               >
-                Next: Assign
+                {importing
+                  ? "Importing..."
+                  : `Import ${includedCount} Lesson${includedCount !== 1 ? "s" : ""}`}
               </button>
             </div>
           </div>
         </Card>
       )}
 
-      {/* Step 4: Assign (Optional) */}
-      {step === 4 && (
-        <Card title="Assign to Children (Optional)">
-          <div className="space-y-4">
-            <p className="text-sm text-secondary">
-              You can assign this curriculum to children now, or skip and assign
-              later.
-            </p>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-secondary">
-                Children
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {childrenList.map((child) => (
-                  <button
-                    key={child.id}
-                    type="button"
-                    onClick={() =>
-                      setSelectedChildIds((prev) =>
-                        prev.includes(child.id)
-                          ? prev.filter((id) => id !== child.id)
-                          : [...prev, child.id]
-                      )
-                    }
-                    className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
-                      selectedChildIds.includes(child.id)
-                        ? "bg-interactive text-white"
-                        : "bg-muted text-secondary hover:bg-surface"
-                    }`}
-                  >
-                    {child.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {selectedChildIds.length > 0 && (
-              <>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-secondary">
-                    School Year
-                  </label>
-                  <select
-                    value={schoolYearId}
-                    onChange={(e) => setSchoolYearId(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-focus"
-                  >
-                    <option value="">Select school year...</option>
-                    {schoolYears.map((y) => (
-                      <option key={y.id} value={y.id}>
-                        {y.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-secondary">
-                    Schedule Days
-                  </label>
-                  <WeekdayPicker selected={weekdays} onChange={setWeekdays} />
-                </div>
-
-                <label className="flex items-center gap-2 text-sm text-secondary">
-                  <input
-                    type="checkbox"
-                    checked={doSchedule}
-                    onChange={(e) => setDoSchedule(e.target.checked)}
-                    className="h-4 w-4 rounded border-border accent-interactive"
-                  />
-                  Auto-schedule lessons to dates after import
-                </label>
-              </>
-            )}
-
-            <div className="flex justify-between">
-              <button
-                onClick={() => setStep(3)}
-                className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-secondary transition hover:bg-surface"
-              >
-                Back
-              </button>
-              <div className="flex gap-2">
-                {selectedChildIds.length === 0 && (
-                  <button
-                    onClick={() => {
-                      setSelectedChildIds([]);
-                      setSchoolYearId("");
-                      doImport();
-                    }}
-                    disabled={importing}
-                    className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-secondary transition hover:bg-surface disabled:opacity-50"
-                  >
-                    Skip & Import
-                  </button>
-                )}
-                <button
-                  onClick={doImport}
-                  disabled={
-                    importing ||
-                    (selectedChildIds.length > 0 && !schoolYearId)
-                  }
-                  className="rounded-lg bg-interactive px-6 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
-                >
-                  {importing ? "Importing..." : "Import Curriculum"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Step 5: Results */}
-      {step === 5 && result && (
+      {/* Step 4: Results */}
+      {step === 4 && result && (
         <Card title={result.success ? "Import Complete" : "Import Failed"}>
           {result.success ? (
             <div className="space-y-4">
@@ -902,7 +859,7 @@ export default function CurriculumImportClient({
                 {result.error}
               </div>
               <button
-                onClick={() => setStep(4)}
+                onClick={() => setStep(3)}
                 className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-secondary transition hover:bg-surface"
               >
                 Go Back
