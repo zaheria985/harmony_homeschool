@@ -109,7 +109,7 @@ export async function importFromPlatform(formData: FormData) {
 
     // Assign to child via active school year
     const yearRes = await pool.query(
-      `SELECT id FROM school_years WHERE is_active = true LIMIT 1`
+      `SELECT id FROM school_years WHERE CURRENT_DATE BETWEEN start_date AND end_date ORDER BY start_date DESC LIMIT 1`
     );
     if (yearRes.rows[0]) {
       await pool.query(
