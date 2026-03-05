@@ -1174,6 +1174,7 @@ export default function CurriculumBoard({
   const showCompletions = canMarkComplete(permissionLevel);
   const dragScroll1 = useDragScroll();
   const dragScroll2 = useDragScroll();
+  const [selectedSection, setSelectedSection] = useState<string | null>(null);
   const [addingToSection, setAddingToSection] = useState<string | null>(null);
   const [newLessonTitle, setNewLessonTitle] = useState("");
   const [newLessonUrl, setNewLessonUrl] = useState("");
@@ -1428,6 +1429,29 @@ export default function CurriculumBoard({
       sectionMap.get(key)!.push(lesson);
     }
 
+    // Auto-select first section if none selected
+    const activeSection = selectedSection && (sectionMap.has(selectedSection) || selectedSection === "__all__")
+      ? selectedSection
+      : sectionOrder[0] || null;
+
+    // Compute per-section completion counts for tab badges
+    const sectionStats = new Map<string, { total: number; completed: number }>();
+    for (const [name, sLessons] of sectionMap) {
+      const total = sLessons.length;
+      const completed = sLessons.filter((l) => {
+        const cIds = new Set(l.completions.map((c) => c.child_id));
+        return assignedChildren.length > 0 && assignedChildren.every((c) => cIds.has(c.id));
+      }).length;
+      sectionStats.set(name, { total, completed });
+    }
+
+    // Which lessons to show: all or just selected section
+    const visibleLessons = activeSection === "__all__"
+      ? dndFilteredLessons
+      : activeSection
+        ? (sectionMap.get(activeSection) || [])
+        : dndFilteredLessons;
+
     return (
       <div className="relative">
         {isPending && (
@@ -1449,6 +1473,59 @@ export default function CurriculumBoard({
           )}
         </div>
 
+        {/* Unit tabs */}
+        <div className="mb-3 flex items-center gap-1 overflow-x-auto pb-1">
+          {sectionOrder.map((name) => {
+            const stats = sectionStats.get(name);
+            const isActive = activeSection === name;
+            return (
+              <button
+                key={name}
+                onClick={() => setSelectedSection(name)}
+                className={`flex-shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                  isActive
+                    ? "bg-interactive text-white"
+                    : "bg-muted text-secondary hover:bg-surface"
+                }`}
+              >
+                {name}
+                {stats && (
+                  <span className={`ml-1.5 ${isActive ? "text-white/70" : "text-muted"}`}>
+                    {stats.completed}/{stats.total}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+          {unsectioned.length > 0 && (
+            <button
+              onClick={() => setSelectedSection("Other")}
+              className={`flex-shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                activeSection === "Other"
+                  ? "bg-interactive text-white"
+                  : "bg-muted text-secondary hover:bg-surface"
+              }`}
+            >
+              Other
+              <span className={`ml-1.5 ${activeSection === "Other" ? "text-white/70" : "text-muted"}`}>
+                {unsectioned.length}
+              </span>
+            </button>
+          )}
+          {sectionOrder.length > 1 && (
+            <button
+              onClick={() => setSelectedSection("__all__")}
+              className={`flex-shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                activeSection === "__all__"
+                  ? "bg-interactive text-white"
+                  : "bg-muted text-secondary hover:bg-surface"
+              }`}
+            >
+              All Units
+            </button>
+          )}
+        </div>
+
         <div
           className="relative rounded-xl overflow-hidden"
           style={backgroundImage ? {
@@ -1466,119 +1543,187 @@ export default function CurriculumBoard({
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div
-            ref={dragScroll1.scrollRef}
-            onMouseDown={dragScroll1.onMouseDown}
-            onMouseMove={dragScroll1.onMouseMove}
-            onMouseUp={dragScroll1.onMouseUp}
-            onMouseLeave={dragScroll1.onMouseLeave}
-            className="flex items-start gap-4 overflow-x-auto pb-4 cursor-grab"
-            style={{ scrollSnapType: "x mandatory" }}
-          >
-            {/* Resources Column */}
-            {hasResources && (
-              <div
-                className="w-64 flex-shrink-0 rounded-2xl border border-light bg-surface-muted shadow-warm"
-                style={{ scrollSnapAlign: "start" }}
-              >
-                <div className="border-b bg-surface px-4 py-3 rounded-t-2xl">
-                  <h3 className="text-sm font-semibold text-primary">
-                    Curriculum Resources
-                  </h3>
-                  <p className="text-xs text-muted">
-                    {curriculumResources.length} shared
-                  </p>
-                </div>
-                <div className="space-y-4 p-3">
-                  {Object.entries(resourcesByType).map(([group, resources]) => (
-                    <div key={group}>
-                      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
-                        {group}
-                      </p>
-                      <div className="space-y-1.5">
-                        {resources.map((r) => (
-                          <CurriculumResourceCard
-                            key={r.id}
-                            resource={r}
-                            lessons={lessons}
-                            canAttach={showAddLesson}
-                          />
-                        ))}
+          {activeSection === "__all__" ? (
+            /* All Units: horizontal columns like before */
+            <div
+              ref={dragScroll1.scrollRef}
+              onMouseDown={dragScroll1.onMouseDown}
+              onMouseMove={dragScroll1.onMouseMove}
+              onMouseUp={dragScroll1.onMouseUp}
+              onMouseLeave={dragScroll1.onMouseLeave}
+              className="flex items-start gap-4 overflow-x-auto pb-4 cursor-grab"
+              style={{ scrollSnapType: "x mandatory" }}
+            >
+              {hasResources && (
+                <div
+                  className="w-64 flex-shrink-0 rounded-2xl border border-light bg-surface-muted shadow-warm"
+                  style={{ scrollSnapAlign: "start" }}
+                >
+                  <div className="border-b bg-surface px-4 py-3 rounded-t-2xl">
+                    <h3 className="text-sm font-semibold text-primary">
+                      Curriculum Resources
+                    </h3>
+                    <p className="text-xs text-muted">
+                      {curriculumResources.length} shared
+                    </p>
+                  </div>
+                  <div className="space-y-4 p-3">
+                    {Object.entries(resourcesByType).map(([group, resources]) => (
+                      <div key={group}>
+                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
+                          {group}
+                        </p>
+                        <div className="space-y-1.5">
+                          {resources.map((r) => (
+                            <CurriculumResourceCard
+                              key={r.id}
+                              resource={r}
+                              lessons={lessons}
+                              canAttach={showAddLesson}
+                            />
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+              {sectionOrder.map((sectionName) => (
+                <SectionColumn
+                  key={sectionName}
+                  sectionName={sectionName}
+                  lessons={sectionMap.get(sectionName)!}
+                  subjectColor={subjectColor}
+                  assignedChildren={assignedChildren}
+                  isPending={isPending}
+                  onCompletionToggle={handleCompletionToggle}
+                  isAddingHere={addingToSection === sectionName}
+                  newLessonTitle={addingToSection === sectionName ? newLessonTitle : ""}
+                  onNewLessonTitleChange={setNewLessonTitle}
+                  newLessonUrl={addingToSection === sectionName ? newLessonUrl : ""}
+                  onNewLessonUrlChange={setNewLessonUrl}
+                  onAddClick={() => { setAddingToSection(sectionName); setNewLessonTitle(""); setNewLessonUrl(""); }}
+                  onSave={() => handleAddLesson(sectionName)}
+                  onCancel={() => { setAddingToSection(null); setNewLessonTitle(""); setNewLessonUrl(""); }}
+                  isSaving={isSaving}
+                  showAddLesson={showAddLesson}
+                  showCompletions={showCompletions}
+                  showActions={showRowActions}
+                  onViewLesson={handleViewLesson}
+                  onEditLesson={setEditingLesson}
+                  onDeleteLesson={handleDeleteLesson}
+                  onTitleClick={setViewingLesson}
+                  onResourcePreview={setPreviewResource}
+                  onOpenLessonCard={handleOpenLessonCard}
+                />
+              ))}
+              {unsectioned.length > 0 && (
+                <SectionColumn
+                  sectionName="Other"
+                  lessons={unsectioned}
+                  subjectColor={subjectColor}
+                  assignedChildren={assignedChildren}
+                  isPending={isPending}
+                  onCompletionToggle={handleCompletionToggle}
+                  isAddingHere={addingToSection === "Other"}
+                  newLessonTitle={addingToSection === "Other" ? newLessonTitle : ""}
+                  onNewLessonTitleChange={setNewLessonTitle}
+                  newLessonUrl={addingToSection === "Other" ? newLessonUrl : ""}
+                  onNewLessonUrlChange={setNewLessonUrl}
+                  onAddClick={() => { setAddingToSection("Other"); setNewLessonTitle(""); setNewLessonUrl(""); }}
+                  onSave={() => handleAddLesson("Other")}
+                  onCancel={() => { setAddingToSection(null); setNewLessonTitle(""); setNewLessonUrl(""); }}
+                  isSaving={isSaving}
+                  showAddLesson={showAddLesson}
+                  showCompletions={showCompletions}
+                  showActions={showRowActions}
+                  onViewLesson={handleViewLesson}
+                  onEditLesson={setEditingLesson}
+                  onDeleteLesson={handleDeleteLesson}
+                  onTitleClick={setViewingLesson}
+                  onResourcePreview={setPreviewResource}
+                  onOpenLessonCard={handleOpenLessonCard}
+                />
+              )}
+            </div>
+          ) : (
+            /* Single unit: show lessons as a grid of cards */
+            <div className="pb-4">
+              {activeSection && (
+                <SortableContext items={visibleLessons.map((l) => l.id)} strategy={verticalListSortingStrategy}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 p-3">
+                    {visibleLessons.map((lesson) => (
+                      <SortableLessonCard key={lesson.id} id={lesson.id}>
+                        <LessonMiniCard
+                          lesson={lesson}
+                          assignedChildren={assignedChildren}
+                          isPending={isPending}
+                          onCompletionToggle={handleCompletionToggle}
+                          showCompletions={showCompletions}
+                          showActions={showRowActions}
+                          onView={() => handleViewLesson(lesson.id)}
+                          onEdit={() => setEditingLesson(lesson)}
+                          onDeleteLesson={() => handleDeleteLesson(lesson.id)}
+                          onTitleClick={() => setViewingLesson(lesson)}
+                          onResourcePreview={setPreviewResource}
+                          onOpenLessonCard={handleOpenLessonCard}
+                        />
+                      </SortableLessonCard>
+                    ))}
+                  </div>
+                </SortableContext>
+              )}
+              {showAddLesson && activeSection && activeSection !== "__all__" && (
+                <div className="px-3 pt-2">
+                  {addingToSection === activeSection ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={newLessonTitle}
+                        onChange={(e) => setNewLessonTitle(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") handleAddLesson(activeSection); if (e.key === "Escape") { setAddingToSection(null); setNewLessonTitle(""); setNewLessonUrl(""); } }}
+                        placeholder="Lesson title..."
+                        autoFocus
+                        className="flex-1 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-focus"
+                      />
+                      <button
+                        onClick={() => handleAddLesson(activeSection)}
+                        disabled={isSaving || !newLessonTitle.trim()}
+                        className="rounded-lg bg-interactive px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+                      >
+                        Add
+                      </button>
+                      <button
+                        onClick={() => { setAddingToSection(null); setNewLessonTitle(""); setNewLessonUrl(""); }}
+                        className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-secondary"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => { setAddingToSection(activeSection); setNewLessonTitle(""); setNewLessonUrl(""); }}
+                      className="text-xs font-medium text-interactive hover:underline"
+                    >
+                      + Add lesson
+                    </button>
+                  )}
+                </div>
+              )}
+              {visibleLessons.length === 0 && (
+                <div className="flex w-full items-center justify-center py-16 text-sm text-muted">
+                  {statusFilter === "all" ? "No lesson cards in this unit yet." : `No ${statusFilter} lesson cards.`}
+                </div>
+              )}
+            </div>
+          )}
 
-            {/* Lesson columns */}
-            {sectionOrder.map((sectionName) => (
-              <SectionColumn
-                key={sectionName}
-                sectionName={sectionName}
-                lessons={sectionMap.get(sectionName)!}
-                subjectColor={subjectColor}
-                assignedChildren={assignedChildren}
-                isPending={isPending}
-                onCompletionToggle={handleCompletionToggle}
-                isAddingHere={addingToSection === sectionName}
-                newLessonTitle={addingToSection === sectionName ? newLessonTitle : ""}
-                onNewLessonTitleChange={setNewLessonTitle}
-                newLessonUrl={addingToSection === sectionName ? newLessonUrl : ""}
-                onNewLessonUrlChange={setNewLessonUrl}
-                onAddClick={() => { setAddingToSection(sectionName); setNewLessonTitle(""); setNewLessonUrl(""); }}
-                onSave={() => handleAddLesson(sectionName)}
-                onCancel={() => { setAddingToSection(null); setNewLessonTitle(""); setNewLessonUrl(""); }}
-                isSaving={isSaving}
-                showAddLesson={showAddLesson}
-                showCompletions={showCompletions}
-                showActions={showRowActions}
-                onViewLesson={handleViewLesson}
-                onEditLesson={setEditingLesson}
-                onDeleteLesson={handleDeleteLesson}
-                onTitleClick={setViewingLesson}
-                onResourcePreview={setPreviewResource}
-                onOpenLessonCard={handleOpenLessonCard}
-              />
-            ))}
-
-            {/* Unsectioned lesson cards */}
-            {unsectioned.length > 0 && (
-              <SectionColumn
-                sectionName="Other"
-                lessons={unsectioned}
-                subjectColor={subjectColor}
-                assignedChildren={assignedChildren}
-                isPending={isPending}
-                onCompletionToggle={handleCompletionToggle}
-                isAddingHere={addingToSection === "Other"}
-                newLessonTitle={addingToSection === "Other" ? newLessonTitle : ""}
-                onNewLessonTitleChange={setNewLessonTitle}
-                newLessonUrl={addingToSection === "Other" ? newLessonUrl : ""}
-                onNewLessonUrlChange={setNewLessonUrl}
-                onAddClick={() => { setAddingToSection("Other"); setNewLessonTitle(""); setNewLessonUrl(""); }}
-                onSave={() => handleAddLesson("Other")}
-                onCancel={() => { setAddingToSection(null); setNewLessonTitle(""); setNewLessonUrl(""); }}
-                isSaving={isSaving}
-                showAddLesson={showAddLesson}
-                showCompletions={showCompletions}
-                showActions={showRowActions}
-                onViewLesson={handleViewLesson}
-                onEditLesson={setEditingLesson}
-                onDeleteLesson={handleDeleteLesson}
-                onTitleClick={setViewingLesson}
-                onResourcePreview={setPreviewResource}
-                onOpenLessonCard={handleOpenLessonCard}
-              />
-            )}
-
-            {/* Empty state */}
-            {dndFilteredLessons.length === 0 && (
-              <div className="flex w-full items-center justify-center py-16 text-sm text-muted">
-                {statusFilter === "all" ? "No lesson cards in this curriculum yet." : `No ${statusFilter} lesson cards.`}
-              </div>
-            )}
-          </div>
+          {/* Empty state for all-units view */}
+          {activeSection === "__all__" && dndFilteredLessons.length === 0 && (
+            <div className="flex w-full items-center justify-center py-16 text-sm text-muted">
+              {statusFilter === "all" ? "No lesson cards in this curriculum yet." : `No ${statusFilter} lesson cards.`}
+            </div>
+          )}
 
           <DragOverlay>
             {activeDragLesson && (
