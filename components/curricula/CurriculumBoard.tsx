@@ -1647,72 +1647,304 @@ export default function CurriculumBoard({
               )}
             </div>
           ) : (
-            /* Single unit: show lessons as a grid of cards */
-            <div className="pb-4">
-              {activeSection && (
-                <SortableContext items={visibleLessons.map((l) => l.id)} strategy={verticalListSortingStrategy}>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 p-3">
-                    {visibleLessons.map((lesson) => (
-                      <SortableLessonCard key={lesson.id} id={lesson.id}>
-                        <LessonMiniCard
-                          lesson={lesson}
-                          assignedChildren={assignedChildren}
-                          isPending={isPending}
-                          onCompletionToggle={handleCompletionToggle}
-                          showCompletions={showCompletions}
-                          showActions={showRowActions}
-                          onView={() => handleViewLesson(lesson.id)}
-                          onEdit={() => setEditingLesson(lesson)}
-                          onDeleteLesson={() => handleDeleteLesson(lesson.id)}
-                          onTitleClick={() => setViewingLesson(lesson)}
-                          onResourcePreview={setPreviewResource}
-                          onOpenLessonCard={handleOpenLessonCard}
-                        />
-                      </SortableLessonCard>
+            /* Single unit: per-lesson horizontal columns, same layout as non-section view */
+            <div
+              ref={dragScroll1.scrollRef}
+              onMouseDown={dragScroll1.onMouseDown}
+              onMouseMove={dragScroll1.onMouseMove}
+              onMouseUp={dragScroll1.onMouseUp}
+              onMouseLeave={dragScroll1.onMouseLeave}
+              className="flex items-start gap-4 overflow-x-auto pb-4 cursor-grab"
+              style={{ scrollSnapType: "x mandatory" }}
+            >
+              {/* Resources Column */}
+              {hasResources && (
+                <div
+                  className="w-64 flex-shrink-0 rounded-2xl border border-light bg-surface-muted shadow-warm"
+                  style={{ scrollSnapAlign: "start" }}
+                >
+                  <div className="border-b bg-surface px-4 py-3 rounded-t-2xl">
+                    <h3 className="text-sm font-semibold text-primary">
+                      Curriculum Resources
+                    </h3>
+                    <p className="text-xs text-muted">
+                      {curriculumResources.length} shared
+                    </p>
+                  </div>
+                  <div className="space-y-4 p-3">
+                    {Object.entries(resourcesByType).map(([group, resources]) => (
+                      <div key={group}>
+                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
+                          {group}
+                        </p>
+                        <div className="space-y-1.5">
+                          {resources.map((r) => (
+                            <CurriculumResourceCard
+                              key={r.id}
+                              resource={r}
+                              lessons={lessons}
+                              canAttach={showAddLesson}
+                            />
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
-                </SortableContext>
+                </div>
               )}
-              {showAddLesson && activeSection && activeSection !== "__all__" && (
-                <div className="px-3 pt-2">
+
+              {/* Per-lesson columns for selected unit */}
+              {visibleLessons.map((lesson, idx) => {
+                const completedChildIds = new Set(
+                  lesson.completions.map((c) => c.child_id),
+                );
+                const allCompleted =
+                  assignedChildren.length > 0 &&
+                  assignedChildren.every((c) => completedChildIds.has(c.id));
+                const colDisplayStatus = allCompleted
+                  ? "completed"
+                  : lesson.effective_status || lesson.status;
+                const borderColor = allCompleted
+                  ? "border-success-400"
+                  : statusColors[colDisplayStatus] || "border-light";
+
+                return (
+                  <div
+                    key={lesson.id}
+                    className={`w-64 flex-shrink-0 rounded-2xl border-2 bg-surface shadow-warm transition-shadow hover:shadow-warm-md ${borderColor}`}
+                    style={{ scrollSnapAlign: "start" }}
+                  >
+                    <div
+                      className="h-1.5 rounded-t-[10px]"
+                      style={{ backgroundColor: subjectColor || "#6366f1" }}
+                    />
+                    <div className="border-b px-4 py-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted">
+                          Lesson Card {idx + 1}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <Badge variant={statusBadge[colDisplayStatus] || "default"}>
+                            {colDisplayStatus === "in_progress"
+                              ? "In Progress"
+                              : colDisplayStatus.charAt(0).toUpperCase() +
+                                colDisplayStatus.slice(1)}
+                          </Badge>
+                          {showRowActions && (
+                            <RowActions
+                              onView={() => handleViewLesson(lesson.id)}
+                              onEdit={() => setEditingLesson(lesson)}
+                              onDelete={() => handleDeleteLesson(lesson.id)}
+                            />
+                          )}
+                        </div>
+                      </div>
+                      {lesson.planned_date && (
+                        <p className="mt-0.5 text-xs text-muted">
+                          {new Date(
+                            lesson.planned_date + "T00:00:00",
+                          ).toLocaleDateString(undefined, {
+                            weekday: "short",
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setViewingLesson(lesson)}
+                      className="block w-full text-left px-4 py-3 transition-colors hover:bg-surface-muted"
+                    >
+                      <h4 className="text-sm font-semibold text-primary line-clamp-2">
+                        {lesson.title}
+                      </h4>
+                      {lesson.description && (
+                        <p className="mt-1 text-xs text-muted line-clamp-2">
+                          {lesson.description}
+                        </p>
+                      )}
+                      {lesson.estimated_duration && (
+                        <p className="mt-1 text-[10px] text-muted">
+                          ~{lesson.estimated_duration} min
+                        </p>
+                      )}
+                    </button>
+                    {lesson.resources.length > 0 && (
+                      <div className="border-t px-3 py-2">
+                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
+                          Resources ({lesson.resources.length})
+                        </p>
+                        <div className="space-y-1.5">
+                          {lesson.resources.map((r) => {
+                            const rType = r.global_type || r.type;
+                            const isVideo = rType === "youtube" || rType === "video";
+                            return (
+                              <ResourceMiniCard
+                                key={r.id}
+                                type={rType}
+                                url={r.url}
+                                title={r.title}
+                                thumbnailUrl={r.global_thumbnail_url || r.thumbnail_url}
+                                onPreview={isVideo ? () => setPreviewResource({
+                                  title: r.title || "Untitled", type: rType, url: r.url,
+                                  thumbnailUrl: r.global_thumbnail_url || r.thumbnail_url,
+                                }) : undefined}
+                              />
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    {lesson.cards && lesson.cards.length > 0 && (
+                      <div className="border-t px-3 py-2">
+                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
+                          Cards ({lesson.cards.length})
+                        </p>
+                        <div className="space-y-1.5">
+                          {lesson.cards.map((card) => {
+                            const ytId = card.url ? extractYoutubeId(card.url) : null;
+                            const thumb = card.thumbnail_url || (ytId ? `https://img.youtube.com/vi/${ytId}/mqdefault.jpg` : null)
+                              || card.resource_thumbnail_url;
+                            const cardTitle = card.title || card.resource_title || card.url || "Untitled";
+
+                            if (card.card_type === "youtube" && thumb) {
+                              return (
+                                <button
+                                  key={card.id}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (card.url) setPreviewResource({
+                                      title: cardTitle, type: "youtube", url: card.url, thumbnailUrl: thumb,
+                                    });
+                                  }}
+                                  className="group relative block w-full overflow-hidden rounded-lg border border-light text-left transition-colors hover:border-primary-200"
+                                >
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={thumb} alt="" className="w-full object-cover" />
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); handleOpenLessonCard(card, lesson.cards); }}
+                                    className="absolute right-1 top-1 rounded bg-black/50 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                                    title="View details"
+                                  >
+                                    <span className="text-[10px]">&#x2197;</span>
+                                  </button>
+                                  <div className="flex items-center gap-1.5 px-2 py-1">
+                                    <span className="text-[10px] text-red-500">&#9654;</span>
+                                    <span className="truncate text-[10px] text-secondary group-hover:text-interactive">{cardTitle}</span>
+                                  </div>
+                                </button>
+                              );
+                            }
+
+                            return (
+                              <button
+                                key={card.id}
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); handleOpenLessonCard(card, lesson.cards); }}
+                                className="group flex w-full items-center gap-1.5 rounded-lg border border-light px-2 py-1 text-left transition-colors hover:border-primary-200"
+                              >
+                                <span className="text-[10px]">
+                                  {card.card_type === "image" ? "\uD83D\uDDBC" : "\uD83D\uDD17"}
+                                </span>
+                                <span className="truncate text-[10px] text-secondary group-hover:text-interactive">{cardTitle}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    {showCompletions && assignedChildren.length > 0 && (
+                      <div className="border-t px-3 py-2">
+                        <div className="space-y-1">
+                          {assignedChildren.map((child) => {
+                            const isComplete = completedChildIds.has(child.id);
+                            return (
+                              <label
+                                key={child.id}
+                                className="flex items-center gap-2 cursor-pointer"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isComplete}
+                                  onChange={() =>
+                                    handleCompletionToggle(
+                                      lesson.id,
+                                      child.id,
+                                      !isComplete,
+                                    )
+                                  }
+                                  className="h-3.5 w-3.5 rounded border-gray-300 text-interactive"
+                                />
+                                <span
+                                  className={`text-xs ${isComplete ? "text-success-600 line-through" : "text-secondary"}`}
+                                >
+                                  {child.name}
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {visibleLessons.length === 0 && (
+                <div className="flex w-full items-center justify-center py-16 text-sm text-muted">
+                  {statusFilter === "all" ? "No lesson cards in this unit yet." : `No ${statusFilter} lesson cards.`}
+                </div>
+              )}
+
+              {/* Add lesson button for this unit */}
+              {showAddLesson && activeSection && (
+                <div className="w-64 flex-shrink-0" style={{ scrollSnapAlign: "start" }}>
                   {addingToSection === activeSection ? (
-                    <div className="flex items-center gap-2">
+                    <div className="rounded-2xl border-2 border-dashed border-light bg-surface p-3 space-y-2">
                       <input
                         type="text"
                         value={newLessonTitle}
                         onChange={(e) => setNewLessonTitle(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter") handleAddLesson(activeSection); if (e.key === "Escape") { setAddingToSection(null); setNewLessonTitle(""); setNewLessonUrl(""); } }}
                         placeholder="Lesson title..."
+                        className="w-full rounded-lg border border-light bg-surface px-3 py-1.5 text-sm"
                         autoFocus
-                        className="flex-1 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-focus"
+                        onKeyDown={(e) => { if (e.key === "Enter") handleAddLesson(activeSection); if (e.key === "Escape") { setAddingToSection(null); setNewLessonTitle(""); setNewLessonUrl(""); } }}
                       />
-                      <button
-                        onClick={() => handleAddLesson(activeSection)}
-                        disabled={isSaving || !newLessonTitle.trim()}
-                        className="rounded-lg bg-interactive px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
-                      >
-                        Add
-                      </button>
-                      <button
-                        onClick={() => { setAddingToSection(null); setNewLessonTitle(""); setNewLessonUrl(""); }}
-                        className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-secondary"
-                      >
-                        Cancel
-                      </button>
+                      <input
+                        type="text"
+                        value={newLessonUrl}
+                        onChange={(e) => setNewLessonUrl(e.target.value)}
+                        placeholder="URL (optional)"
+                        className="w-full rounded-lg border border-light bg-surface px-3 py-1.5 text-sm"
+                        onKeyDown={(e) => { if (e.key === "Enter") handleAddLesson(activeSection); }}
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleAddLesson(activeSection)}
+                          disabled={isSaving || !newLessonTitle.trim()}
+                          className="rounded-lg bg-interactive px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
+                        >
+                          {isSaving ? "Adding..." : "Add"}
+                        </button>
+                        <button
+                          onClick={() => { setAddingToSection(null); setNewLessonTitle(""); setNewLessonUrl(""); }}
+                          className="rounded-lg bg-muted px-3 py-1 text-xs font-medium text-secondary"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <button
                       onClick={() => { setAddingToSection(activeSection); setNewLessonTitle(""); setNewLessonUrl(""); }}
-                      className="text-xs font-medium text-interactive hover:underline"
+                      className="flex w-full items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-light bg-surface/50 py-8 text-sm text-muted transition-colors hover:border-interactive hover:text-interactive"
                     >
-                      + Add lesson
+                      + Add Lesson
                     </button>
                   )}
-                </div>
-              )}
-              {visibleLessons.length === 0 && (
-                <div className="flex w-full items-center justify-center py-16 text-sm text-muted">
-                  {statusFilter === "all" ? "No lesson cards in this unit yet." : `No ${statusFilter} lesson cards.`}
                 </div>
               )}
             </div>
