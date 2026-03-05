@@ -129,7 +129,7 @@ export async function importFromPlatform(formData: FormData) {
         : "planned";
 
       await pool.query(
-        `INSERT INTO lessons (title, description, scheduled_date, status, curriculum_id, order_index)
+        `INSERT INTO lessons (title, description, planned_date, status, curriculum_id, order_index)
          VALUES ($1, $2, $3, $4, $5, $6)`,
         [
           title,
