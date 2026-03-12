@@ -9,7 +9,6 @@ const SUPPORTED_IMAGE_TYPES = new Set([
   "image/webp",
   "image/gif",
   "image/avif",
-  "image/svg+xml",
 ]);
 
 function uploadsBaseDir(): string {
@@ -24,10 +23,9 @@ function extensionFor(file: File): string {
   if (file.type === "image/webp") return ".webp";
   if (file.type === "image/gif") return ".gif";
   if (file.type === "image/avif") return ".avif";
-  if (file.type === "image/svg+xml") return ".svg";
 
   const fromName = path.extname(file.name || "").toLowerCase();
-  if ([".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif", ".svg"].includes(fromName)) {
+  if ([".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif"].includes(fromName)) {
     return fromName === ".jpeg" ? ".jpg" : fromName;
   }
 
@@ -41,7 +39,7 @@ export async function saveUploadedImage(
   if (!file || file.size === 0) return null;
 
   if (!SUPPORTED_IMAGE_TYPES.has(file.type)) {
-    return { error: "Unsupported image format. Please upload JPG, PNG, WEBP, GIF, AVIF, or SVG." };
+    return { error: "Unsupported image format. Please upload JPG, PNG, WEBP, GIF, or AVIF." };
   }
 
   if (file.size > MAX_IMAGE_SIZE_BYTES) {

@@ -557,28 +557,36 @@ export async function createLesson(formData: FormData) {
 
   const { title, curriculum_id, planned_date, description, section, grade_weight, is_recurring, recurrence_rule, recurrence_end } = data.data;
 
-  const res = await pool.query(
-    `INSERT INTO lessons (title, curriculum_id, planned_date, description, section, grade_weight, is_recurring, recurrence_rule, recurrence_end)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-    [title, curriculum_id, planned_date || null, description || null, section || null, grade_weight, is_recurring, recurrence_rule || null, recurrence_end || null]
-  );
+  let lessonId: string;
+  try {
+    const res = await pool.query(
+      `INSERT INTO lessons (title, curriculum_id, planned_date, description, section, grade_weight, is_recurring, recurrence_rule, recurrence_end)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+      [title, curriculum_id, planned_date || null, description || null, section || null, grade_weight, is_recurring, recurrence_rule || null, recurrence_end || null]
+    );
 
-  const lessonId = res.rows[0].id;
-  const rawTags = formData.get("tags");
-  if (typeof rawTags === "string" && rawTags.trim()) {
-    const { parseTagNames } = await import("@/lib/utils/resource-tags");
-    const tagNames = parseTagNames(rawTags);
-    for (const tagName of tagNames) {
-      const tagRes = await pool.query(
-        `INSERT INTO tags (name) VALUES ($1)
-         ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id`,
-        [tagName]
-      );
-      await pool.query(
-        `INSERT INTO lesson_tags (lesson_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-        [lessonId, tagRes.rows[0].id]
-      );
+    lessonId = res.rows[0].id;
+    const rawTags = formData.get("tags");
+    if (typeof rawTags === "string" && rawTags.trim()) {
+      const { parseTagNames } = await import("@/lib/utils/resource-tags");
+      const tagNames = parseTagNames(rawTags);
+      for (const tagName of tagNames) {
+        const tagRes = await pool.query(
+          `INSERT INTO tags (name) VALUES ($1)
+           ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id`,
+          [tagName]
+        );
+        await pool.query(
+          `INSERT INTO lesson_tags (lesson_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [lessonId, tagRes.rows[0].id]
+        );
+      }
     }
+  } catch (err) {
+    console.error("Failed to create lesson", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { error: "Failed to create lesson" };
   }
 
   revalidateAll();
@@ -939,31 +947,39 @@ export async function applySubjectTemplate(templateKey: string) {
     return { error: "Unknown template" };
   }
 
-  // Get existing subject names to skip duplicates
-  const existing = await pool.query(`SELECT LOWER(name) AS name FROM subjects`);
-  const existingNames = new Set(existing.rows.map((r: { name: string }) => r.name));
+  try {
+    // Get existing subject names to skip duplicates
+    const existing = await pool.query(`SELECT LOWER(name) AS name FROM subjects`);
+    const existingNames = new Set(existing.rows.map((r: { name: string }) => r.name));
 
-  const toCreate = template.subjects.filter(
-    (s) => !existingNames.has(s.name.toLowerCase())
-  );
-
-  if (toCreate.length === 0) {
-    return { success: true, created: 0, skipped: template.subjects.length };
-  }
-
-  for (const s of toCreate) {
-    await pool.query(
-      `INSERT INTO subjects (name, color) VALUES ($1, $2)`,
-      [s.name, s.color]
+    const toCreate = template.subjects.filter(
+      (s) => !existingNames.has(s.name.toLowerCase())
     );
-  }
 
-  revalidateAll();
-  return {
-    success: true,
-    created: toCreate.length,
-    skipped: template.subjects.length - toCreate.length,
-  };
+    if (toCreate.length === 0) {
+      return { success: true, created: 0, skipped: template.subjects.length };
+    }
+
+    for (const s of toCreate) {
+      await pool.query(
+        `INSERT INTO subjects (name, color) VALUES ($1, $2)`,
+        [s.name, s.color]
+      );
+    }
+
+    revalidateAll();
+    return {
+      success: true,
+      created: toCreate.length,
+      skipped: template.subjects.length - toCreate.length,
+    };
+  } catch (err) {
+    console.error("Failed to apply subject template", {
+      templateKey,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { error: "Failed to apply subject template" };
+  }
 }
 
 const createCurriculumSchema = z.object({
@@ -1083,12 +1099,20 @@ export async function assignCurriculum(formData: FormData) {
 
   const { curriculum_id, child_id, school_year_id } = data.data;
 
-  await pool.query(
-    `INSERT INTO curriculum_assignments (curriculum_id, child_id, school_year_id)
-     VALUES ($1, $2, $3)
-     ON CONFLICT (curriculum_id, child_id, school_year_id) DO NOTHING`,
-    [curriculum_id, child_id, school_year_id]
-  );
+  try {
+    await pool.query(
+      `INSERT INTO curriculum_assignments (curriculum_id, child_id, school_year_id)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (curriculum_id, child_id, school_year_id) DO NOTHING`,
+      [curriculum_id, child_id, school_year_id]
+    );
+  } catch (err) {
+    console.error("Failed to assign curriculum", {
+      curriculum_id, child_id, school_year_id,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { error: "Failed to assign curriculum" };
+  }
 
   revalidateAll();
   return { success: true };
@@ -1099,10 +1123,18 @@ export async function unassignCurriculum(curriculumId: string, childId: string) 
   const parsedCh = z.string().uuid().safeParse(childId);
   if (!parsedCu.success || !parsedCh.success) return { error: "Invalid input" };
 
-  await pool.query(
-    `DELETE FROM curriculum_assignments WHERE curriculum_id = $1 AND child_id = $2`,
-    [parsedCu.data, parsedCh.data]
-  );
+  try {
+    await pool.query(
+      `DELETE FROM curriculum_assignments WHERE curriculum_id = $1 AND child_id = $2`,
+      [parsedCu.data, parsedCh.data]
+    );
+  } catch (err) {
+    console.error("Failed to unassign curriculum", {
+      curriculumId, childId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { error: "Failed to unassign curriculum" };
+  }
 
   revalidateAll();
   return { success: true };
@@ -1141,10 +1173,15 @@ export async function updateSubject(formData: FormData) {
     ? null
     : savedThumbnail?.path || thumbnail_url || null;
 
-  await pool.query(
-    `UPDATE subjects SET name = $1, color = $2, thumbnail_url = $3 WHERE id = $4`,
-    [name, color || null, nextThumbnailUrl, id]
-  );
+  try {
+    await pool.query(
+      `UPDATE subjects SET name = $1, color = $2, thumbnail_url = $3 WHERE id = $4`,
+      [name, color || null, nextThumbnailUrl, id]
+    );
+  } catch (err) {
+    console.error("Failed to update subject", String(err));
+    return { error: "Failed to update subject" };
+  }
 
   revalidateAll();
   return { success: true, thumbnail_url: nextThumbnailUrl };
@@ -1154,7 +1191,15 @@ export async function deleteSubject(subjectId: string) {
   const parsed = z.string().uuid().safeParse(subjectId);
   if (!parsed.success) return { error: "Invalid subject ID" };
 
-  await pool.query("DELETE FROM subjects WHERE id = $1", [parsed.data]);
+  try {
+    await pool.query("DELETE FROM subjects WHERE id = $1", [parsed.data]);
+  } catch (err) {
+    console.error("Failed to delete subject", {
+      subjectId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { error: "Failed to delete subject" };
+  }
 
   revalidateAll();
   return { success: true };

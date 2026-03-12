@@ -7,8 +7,8 @@ import {
   updateGradingScale,
   deleteGradingScale,
   setDefaultScale,
-  type GradingScale,
 } from "@/lib/actions/grades";
+import type { GradingScale } from "@/lib/types";
 
 type ThresholdDraft = {
   letter: string;

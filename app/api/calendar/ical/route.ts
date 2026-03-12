@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import pool from "@/lib/db";
 
 function escapeIcal(text: string): string {
@@ -43,8 +44,10 @@ export async function GET(request: NextRequest) {
 
   // Verify token matches ICAL_TOKEN env var
   const expectedToken = process.env.ICAL_TOKEN;
-  if (expectedToken && token !== expectedToken) {
-    return new NextResponse("Unauthorized", { status: 401 });
+  if (expectedToken) {
+    if (!token || Buffer.byteLength(token) !== Buffer.byteLength(expectedToken) || !timingSafeEqual(Buffer.from(token), Buffer.from(expectedToken))) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
   }
 
   // --- Fetch lessons ---

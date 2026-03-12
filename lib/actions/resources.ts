@@ -792,8 +792,8 @@ export async function promoteInlineResource(lessonResourceId: string) {
   try {
     await client.query("BEGIN");
     const globalRes = await client.query(
-      `INSERT INTO resources (title, type, url, thumbnail_url, is_global)
-       VALUES ($1, $2, $3, $4, true) RETURNING id`,
+      `INSERT INTO resources (title, type, url, thumbnail_url)
+       VALUES ($1, $2, $3, $4) RETURNING id`,
       [lr.title || "Untitled", lr.type || "link", lr.url, lr.thumbnail_url]
     );
     const globalId = globalRes.rows[0].id;

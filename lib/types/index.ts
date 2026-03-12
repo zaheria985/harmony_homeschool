@@ -12,3 +12,19 @@ export type SessionUser = {
 export type ActionResult<T = void> =
   | { success: true; data?: T }
   | { error: string };
+
+export type GradeThreshold = {
+  id: string;
+  scale_id: string;
+  letter: string;
+  min_score: number;
+  color: string | null;
+};
+
+export type GradingScale = {
+  id: string;
+  name: string;
+  is_default: boolean;
+  created_at: string;
+  thresholds: GradeThreshold[];
+};

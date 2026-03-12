@@ -36,6 +36,6 @@ export default withAuth(
 export const config = {
   matcher: [
     // Protect all routes except login, api/auth, and static files
-    "/((?!login|signup|api/auth|_next/static|_next/image|favicon.ico|uploads).*)",
+    "/((?!login|signup|api/auth|api/cron|api/webhooks|api/calendar/ical|_next/static|_next/image|favicon.ico|uploads).*)",
   ],
 };

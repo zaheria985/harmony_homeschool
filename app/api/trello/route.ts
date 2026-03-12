@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import {
   isTrelloConfigured,
   getBoards,
@@ -7,6 +9,11 @@ import {
 } from "@/lib/trello";
 
 export async function GET(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   if (!isTrelloConfigured()) {
     return NextResponse.json(
       { error: "Trello is not configured. Set TRELLO_API_KEY and TRELLO_TOKEN." },

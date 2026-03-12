@@ -14,17 +14,21 @@ function verifySignature(body: string, signature: string | null): boolean {
     .update(body)
     .digest("hex");
 
-  return crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expected)
-  );
+  const sigBuf = Buffer.from(signature);
+  const expBuf = Buffer.from(expected);
+  if (sigBuf.length !== expBuf.length) return false;
+  return crypto.timingSafeEqual(sigBuf, expBuf);
 }
 
 export async function POST(request: NextRequest) {
   const body = await request.text();
   const signature = request.headers.get("x-vikunja-signature");
 
-  if (process.env.VIKUNJA_WEBHOOK_SECRET && !verifySignature(body, signature)) {
+  if (!process.env.VIKUNJA_WEBHOOK_SECRET) {
+    return NextResponse.json({ error: "Webhook secret not configured" }, { status: 403 });
+  }
+
+  if (!verifySignature(body, signature)) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 

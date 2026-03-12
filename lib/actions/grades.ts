@@ -3,6 +3,7 @@
 import { z } from "zod";
 import pool from "@/lib/db";
 import { revalidatePath } from "next/cache";
+import type { GradeThreshold, GradingScale } from "@/lib/types";
 
 // ── Schemas ──────────────────────────────────────────────────────────────
 
@@ -26,24 +27,6 @@ const UpdateScaleSchema = z.object({
 const IdSchema = z.object({
   id: z.string().uuid(),
 });
-
-// ── Types ────────────────────────────────────────────────────────────────
-
-export type GradeThreshold = {
-  id: string;
-  scale_id: string;
-  letter: string;
-  min_score: number;
-  color: string | null;
-};
-
-export type GradingScale = {
-  id: string;
-  name: string;
-  is_default: boolean;
-  created_at: string;
-  thresholds: GradeThreshold[];
-};
 
 // ── Queries ──────────────────────────────────────────────────────────────
 

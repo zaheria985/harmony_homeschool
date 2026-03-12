@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     books,
     tags,
   ] = await Promise.all([
-    pool.query("SELECT id, name, avatar_emoji, created_at FROM children ORDER BY name"),
+    pool.query("SELECT id, name, emoji, created_at FROM children ORDER BY name"),
     pool.query("SELECT id, name, color FROM subjects ORDER BY name"),
     pool.query(
       `SELECT cu.id, cu.name, cu.description, cu.course_type, cu.grade_type, cu.status,
