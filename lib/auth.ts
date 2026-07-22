@@ -7,6 +7,47 @@ function readStringField(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }
 
+/**
+ * In-memory login throttle keyed by lowercased email.
+ *
+ * After MAX_ATTEMPTS consecutive failures, the key is locked for LOCK_MS.
+ * A successful login clears the counter. This is a single-process limiter —
+ * if Harmony is ever run behind multiple app instances, move this to a shared
+ * store (Redis/Postgres) so the limit holds across processes.
+ */
+const MAX_ATTEMPTS = 5;
+const LOCK_MS = 15 * 60 * 1000;
+const loginAttempts = new Map<string, { count: number; lockedUntil: number }>();
+
+function loginKey(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+function isLockedOut(email: string): boolean {
+  const entry = loginAttempts.get(loginKey(email));
+  if (!entry) return false;
+  if (entry.lockedUntil > Date.now()) return true;
+  if (entry.lockedUntil !== 0 && entry.lockedUntil <= Date.now()) {
+    // Lock expired — reset.
+    loginAttempts.delete(loginKey(email));
+  }
+  return false;
+}
+
+function recordFailure(email: string): void {
+  const key = loginKey(email);
+  const entry = loginAttempts.get(key) ?? { count: 0, lockedUntil: 0 };
+  entry.count += 1;
+  if (entry.count >= MAX_ATTEMPTS) {
+    entry.lockedUntil = Date.now() + LOCK_MS;
+  }
+  loginAttempts.set(key, entry);
+}
+
+function recordSuccess(email: string): void {
+  loginAttempts.delete(loginKey(email));
+}
+
 function readNullableStringField(value: unknown): string | null {
   if (typeof value === "string") return value;
   if (value === null) return null;
@@ -24,17 +65,27 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
+        // Reject locked-out accounts before spending a bcrypt compare.
+        if (isLockedOut(credentials.email)) return null;
+
         const result = await pool.query(
           "SELECT id, name, email, password_hash, role, child_id, permission_level FROM users WHERE email = $1",
           [credentials.email]
         );
 
         const user = result.rows[0];
-        if (!user) return null;
+        if (!user) {
+          recordFailure(credentials.email);
+          return null;
+        }
 
         const valid = await compare(credentials.password, user.password_hash);
-        if (!valid) return null;
+        if (!valid) {
+          recordFailure(credentials.email);
+          return null;
+        }
 
+        recordSuccess(credentials.email);
         return {
           id: user.id,
           name: user.name,
