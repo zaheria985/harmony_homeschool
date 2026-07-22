@@ -12,11 +12,14 @@ export async function getCurrentUser() {
 
   return {
     id: readString(user?.id) || "",
-    role: readString(user?.role) || "parent",
+    // Fail closed: no role means unauthenticated, not parent. Consumers that
+    // gate on `role === "kid"` still work; anything trusting a bare truthy
+    // role should migrate to lib/server/authz.ts.
+    role: readString(user?.role) || "",
     childId: readString(user?.child_id) || null,
     email: readString(user?.email) || null,
     name: readString(user?.name) || null,
-    permissionLevel: readString(user?.permission_level) || "full",
+    permissionLevel: readString(user?.permission_level) || "view_only",
   };
 }
 

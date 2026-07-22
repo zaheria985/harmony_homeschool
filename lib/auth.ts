@@ -56,7 +56,8 @@ export const authOptions: NextAuthOptions = {
         token.role = readStringField(userRecord.role) || undefined;
         token.id = readStringField(userRecord.id) || undefined;
         token.child_id = readNullableStringField(userRecord.child_id);
-        token.permission_level = readStringField(userRecord.permission_level) || "full";
+        // Fail closed: an unknown permission level is the least privileged.
+        token.permission_level = readStringField(userRecord.permission_level) || "view_only";
       }
       return token;
     },
@@ -69,9 +70,11 @@ export const authOptions: NextAuthOptions = {
           permission_level?: string;
         };
         sessionUser.id = readStringField(token.id) || "";
-        sessionUser.role = readStringField(token.role) || "parent";
+        // Fail closed: never fabricate a parent role from a missing claim.
+        // Downstream authz (lib/server/authz.ts) rejects an empty/unknown role.
+        sessionUser.role = readStringField(token.role) || "";
         sessionUser.child_id = readNullableStringField(token.child_id);
-        sessionUser.permission_level = readStringField(token.permission_level) || "full";
+        sessionUser.permission_level = readStringField(token.permission_level) || "view_only";
       }
       return session;
     },
