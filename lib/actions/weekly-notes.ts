@@ -1,5 +1,6 @@
 "use server";
 
+import { requireParent, requireUser } from "@/lib/server/authz";
 import { z } from "zod";
 import pool from "@/lib/db";
 import { revalidatePath } from "next/cache";
@@ -10,6 +11,8 @@ const saveSchema = z.object({
 });
 
 export async function saveWeeklyNote(weekStart: string, content: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = saveSchema.safeParse({ weekStart, content });
   if (!parsed.success) return { error: "Invalid input" };
 
@@ -26,6 +29,9 @@ export async function saveWeeklyNote(weekStart: string, content: string) {
 }
 
 export async function getWeeklyNotes(weekStarts: string[]): Promise<Record<string, string>> {
+  const _authUser = await requireUser();
+  if (!_authUser) return {};
+
   if (weekStarts.length === 0) return {};
   const placeholders = weekStarts.map((_, i) => `$${i + 1}::date`).join(",");
   const res = await pool.query(

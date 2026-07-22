@@ -1,5 +1,6 @@
 "use server";
 
+import { requireParent } from "@/lib/server/authz";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { PoolClient } from "pg";
@@ -51,6 +52,8 @@ async function canKidEditBooklist(booklistId: string, childId: string) {
 }
 
 export async function createBooklist(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const user = await getCurrentUser();
   if (user.role === "kid") {
     return { error: "Students cannot create shared booklists" };
@@ -107,6 +110,8 @@ export async function createBooklist(formData: FormData) {
 }
 
 export async function updateBooklist(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const user = await getCurrentUser();
   if (user.role === "kid") {
     return { error: "Students cannot edit shared booklists" };
@@ -169,6 +174,8 @@ export async function updateBooklist(formData: FormData) {
 }
 
 export async function deleteBooklist(id: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const user = await getCurrentUser();
   if (user.role === "kid") {
     return { error: "Students cannot delete shared booklists" };
@@ -196,6 +203,8 @@ const addBookToBooklistSchema = z.object({
 });
 
 export async function addBookToBooklist(booklistId: string, resourceId: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const user = await getCurrentUser();
   const parsed = addBookToBooklistSchema.safeParse({ booklistId, resourceId });
   if (!parsed.success) {
@@ -244,6 +253,8 @@ const addBookToPersonalWishlistSchema = z.object({
 });
 
 export async function addBookToPersonalWishlist(title: string, author: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const user = await getCurrentUser();
   if (user.role !== "kid" || !user.childId) {
     return { error: "Only student accounts can use this flow" };
@@ -351,6 +362,8 @@ export async function bulkImportBooks(
   books: { title: string; author: string }[],
   booklistId?: string,
 ) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const user = await getCurrentUser();
   if (user.role === "kid") {
     return { error: "Students cannot bulk import books" };
@@ -443,6 +456,8 @@ export async function createBooklistFromTags(
   tags: string[],
   description?: string
 ) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = createBooklistFromTagsSchema.safeParse({ name, tags, description });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message || "Invalid input" };
@@ -514,6 +529,8 @@ export async function linkBooklistToCurriculum(
   curriculumId: string,
   booklistId: string,
 ) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = linkBooklistSchema.safeParse({ curriculumId, booklistId });
   if (!parsed.success) return { error: "Invalid input" };
 
@@ -540,6 +557,8 @@ export async function unlinkBooklistFromCurriculum(
   curriculumId: string,
   booklistId: string,
 ) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = linkBooklistSchema.safeParse({ curriculumId, booklistId });
   if (!parsed.success) return { error: "Invalid input" };
 

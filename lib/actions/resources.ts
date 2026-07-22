@@ -1,5 +1,6 @@
 "use server";
 
+import { requireParent } from "@/lib/server/authz";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { PoolClient } from "pg";
@@ -105,6 +106,8 @@ export async function replaceLessonResources(input: {
   lesson_id: string;
   resources: Array<{ type: "youtube" | "pdf" | "filerun" | "url"; url: string; title?: string }>;
 }) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = replaceLessonResourcesSchema.safeParse(input);
   if (!parsed.success) {
     return { error: parsed.error.errors[0]?.message || "Invalid input" };
@@ -151,6 +154,8 @@ export async function replaceLessonResources(input: {
 }
 
 export async function addResource(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const data = addLessonResourceSchema.safeParse({
     lesson_id: formData.get("lesson_id"),
     type: formData.get("type"),
@@ -192,6 +197,8 @@ export async function addResource(formData: FormData) {
 }
 
 export async function deleteLessonResource(resourceId: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = z.string().uuid().safeParse(resourceId);
   if (!parsed.success) return { error: "Invalid resource ID" };
 
@@ -235,6 +242,8 @@ const createGlobalResourceSchema = z.object({
 });
 
 export async function createGlobalResource(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const data = createGlobalResourceSchema.safeParse({
     title: formData.get("title"),
     type: formData.get("type"),
@@ -335,6 +344,8 @@ const updateGlobalResourceSchema = z.object({
 });
 
 export async function updateGlobalResource(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const data = updateGlobalResourceSchema.safeParse({
     id: formData.get("id"),
     title: formData.get("title"),
@@ -400,6 +411,8 @@ export async function updateGlobalResource(formData: FormData) {
 }
 
 export async function deleteGlobalResource(resourceId: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = z.string().uuid().safeParse(resourceId);
   if (!parsed.success) return { error: "Invalid resource ID" };
 
@@ -433,6 +446,8 @@ export async function deleteGlobalResource(resourceId: string) {
 }
 
 export async function bulkDeleteResources(ids: string[]) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = z.array(z.string().uuid()).min(1).safeParse(ids);
   if (!parsed.success) {
     console.error("[bulkDeleteResources] Zod validation failed:", parsed.error.issues);
@@ -482,6 +497,8 @@ export async function attachResourceToLessons(
   resourceId: string,
   lessonIds: string[]
 ) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const data = attachSchema.safeParse({ resourceId, lessonIds });
   if (!data.success) {
     return { error: data.error.errors[0]?.message || "Invalid input" };
@@ -538,6 +555,8 @@ export async function detachResourceFromLesson(
   resourceId: string,
   lessonId: string
 ) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsedR = z.string().uuid().safeParse(resourceId);
   const parsedL = z.string().uuid().safeParse(lessonId);
   if (!parsedR.success || !parsedL.success) return { error: "Invalid input" };
@@ -568,6 +587,8 @@ const bulkSupplySchema = z.object({
 });
 
 export async function bulkAddSuppliesToLesson(lessonId: string, lines: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = bulkSupplySchema.safeParse({ lessonId, lines });
   if (!parsed.success) return { error: "Invalid input" };
 
@@ -646,6 +667,8 @@ export async function bulkCreateLessonResources(
     }>;
   }>
 ) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = z.array(bulkLessonResourceSchema).safeParse(items);
   if (!parsed.success) {
     return { error: parsed.error.errors[0]?.message || "Invalid input" };
@@ -721,6 +744,8 @@ export async function attachResourceToCurriculum(
   curriculumId: string,
   notes?: string
 ) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsedR = z.string().uuid().safeParse(resourceId);
   const parsedC = z.string().uuid().safeParse(curriculumId);
   if (!parsedR.success || !parsedC.success) return { error: "Invalid input" };
@@ -751,6 +776,8 @@ export async function detachResourceFromCurriculum(
   resourceId: string,
   curriculumId: string
 ) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsedR = z.string().uuid().safeParse(resourceId);
   const parsedC = z.string().uuid().safeParse(curriculumId);
   if (!parsedR.success || !parsedC.success) return { error: "Invalid input" };
@@ -776,6 +803,8 @@ export async function detachResourceFromCurriculum(
 }
 
 export async function promoteInlineResource(lessonResourceId: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = z.string().uuid().safeParse(lessonResourceId);
   if (!parsed.success) return { error: "Invalid ID" };
 
@@ -819,6 +848,8 @@ const bulkImportSchema = z.object({
 });
 
 export async function bulkImportResources(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = bulkImportSchema.safeParse({
     text: formData.get("text"),
   });
@@ -892,6 +923,8 @@ export async function bulkImportResources(formData: FormData) {
 }
 
 export async function bulkAddTagsToResources(resourceIds: string[], tagNames: string[]) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsedIds = z.array(z.string().uuid()).min(1).safeParse(resourceIds);
   const parsedTags = z.array(z.string().min(1)).min(1).safeParse(tagNames);
   if (!parsedIds.success || !parsedTags.success) return { error: "Invalid input" };
@@ -947,6 +980,8 @@ export async function bulkFindOrCreateAndAttachBooks(
     source?: string;
   }>
 ) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = z.array(bookAttachmentSchema).safeParse(items);
   if (!parsed.success) {
     return { error: parsed.error.errors[0]?.message || "Invalid input" };

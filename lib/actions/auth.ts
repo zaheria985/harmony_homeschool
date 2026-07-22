@@ -1,27 +1,39 @@
 "use server";
 
+import { requireParent, requireUser } from "@/lib/server/authz";
+import { signupAvailability, inviteCodeMatches } from "@/lib/server/signup-policy";
 import { z } from "zod";
 import { hash, compare } from "bcryptjs";
 import pool from "@/lib/db";
 import { revalidatePath } from "next/cache";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 
 const signupSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email"),
   password: z.string().min(8, "Password must be at least 8 characters"),
+  inviteCode: z.string().optional(),
 });
 
 export async function signupUser(formData: FormData) {
+  const availability = await signupAvailability();
+  if (!availability.allowed) {
+    return { error: "Signup is disabled on this instance." };
+  }
+
   const parsed = signupSchema.safeParse({
     name: formData.get("name"),
     email: formData.get("email"),
     password: formData.get("password"),
+    inviteCode: formData.get("inviteCode") || undefined,
   });
 
   if (!parsed.success) {
     return { error: parsed.error.errors[0].message };
+  }
+
+  // The very first account bootstraps the instance and needs no invite code.
+  if (availability.requiresInviteCode && !inviteCodeMatches(parsed.data.inviteCode)) {
+    return { error: "Invalid invite code" };
   }
 
   const { name, email, password } = parsed.data;
@@ -51,6 +63,8 @@ const createKidSchema = z.object({
 });
 
 export async function createKidAccount(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = createKidSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
@@ -96,9 +110,10 @@ const updateEmailSchema = z.object({
 });
 
 export async function updateEmail(formData: FormData) {
-  const session = await getServerSession(authOptions);
-  const userId = (session?.user as { id?: string } | undefined)?.id;
-  if (!userId) return { error: "Not authenticated" };
+  // Self-service: any signed-in user may change their own email.
+  const _authUser = await requireUser();
+  if (!_authUser) return { error: "Unauthorized" };
+  const userId = _authUser.id;
 
   const parsed = updateEmailSchema.safeParse({
     newEmail: formData.get("newEmail"),
@@ -149,9 +164,10 @@ const updatePasswordSchema = z
   });
 
 export async function updatePassword(formData: FormData) {
-  const session = await getServerSession(authOptions);
-  const userId = (session?.user as { id?: string } | undefined)?.id;
-  if (!userId) return { error: "Not authenticated" };
+  // Self-service: any signed-in user may change their own password.
+  const _authUser = await requireUser();
+  if (!_authUser) return { error: "Unauthorized" };
+  const userId = _authUser.id;
 
   const parsed = updatePasswordSchema.safeParse({
     currentPassword: formData.get("currentPassword"),
@@ -190,6 +206,8 @@ const updatePermissionSchema = z.object({
 });
 
 export async function updateKidPermission(userId: string, permissionLevel: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = updatePermissionSchema.safeParse({ userId, permissionLevel });
   if (!parsed.success) return { error: "Invalid input" };
 
@@ -212,6 +230,8 @@ const resetPasswordSchema = z.object({
 });
 
 export async function resetKidPassword(userId: string, newPassword: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = resetPasswordSchema.safeParse({ userId, newPassword });
   if (!parsed.success) return { error: parsed.error.errors[0].message };
 
@@ -230,6 +250,8 @@ export async function resetKidPassword(userId: string, newPassword: string) {
 }
 
 export async function deleteKidAccount(userId: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   // Verify target is a kid account
   const userRes = await pool.query("SELECT role FROM users WHERE id = $1", [userId]);
   if (userRes.rows.length === 0) {

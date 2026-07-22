@@ -1,5 +1,6 @@
 "use server";
 
+import { requireParent, requireUser } from "@/lib/server/authz";
 import { z } from "zod";
 import pool from "@/lib/db";
 import { revalidatePath } from "next/cache";
@@ -31,6 +32,9 @@ const IdSchema = z.object({
 // ── Queries ──────────────────────────────────────────────────────────────
 
 export async function getGradingScales(): Promise<GradingScale[]> {
+  const _authUser = await requireUser();
+  if (!_authUser) return [];
+
   const scalesRes = await pool.query(
     `SELECT id, name, is_default, created_at FROM grading_scales ORDER BY is_default DESC, name`
   );
@@ -58,6 +62,9 @@ export async function getGradingScales(): Promise<GradingScale[]> {
 }
 
 export async function getDefaultScaleThresholds(): Promise<GradeThreshold[]> {
+  const _authUser = await requireUser();
+  if (!_authUser) return [];
+
   const res = await pool.query(
     `SELECT gt.id, gt.scale_id, gt.letter, gt.min_score, gt.color
      FROM grade_thresholds gt
@@ -74,6 +81,8 @@ export async function getDefaultScaleThresholds(): Promise<GradeThreshold[]> {
 // ── Mutations ────────────────────────────────────────────────────────────
 
 export async function createGradingScale(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const raw = {
     name: formData.get("name"),
     thresholds: JSON.parse(formData.get("thresholds") as string || "[]"),
@@ -112,6 +121,8 @@ export async function createGradingScale(formData: FormData) {
 }
 
 export async function updateGradingScale(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const raw = {
     id: formData.get("id"),
     name: formData.get("name"),
@@ -156,6 +167,8 @@ export async function updateGradingScale(formData: FormData) {
 }
 
 export async function deleteGradingScale(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = IdSchema.safeParse({ id: formData.get("id") });
   if (!parsed.success) return { error: "Invalid scale ID" };
 
@@ -175,6 +188,8 @@ export async function deleteGradingScale(formData: FormData) {
 }
 
 export async function setDefaultScale(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = IdSchema.safeParse({ id: formData.get("id") });
   if (!parsed.success) return { error: "Invalid scale ID" };
 

@@ -1,5 +1,6 @@
 "use server";
 
+import { requireParent } from "@/lib/server/authz";
 import { z } from "zod";
 import pool from "@/lib/db";
 import { revalidatePath } from "next/cache";
@@ -64,6 +65,8 @@ function detectFormat(text: string): "csv" | "json" {
 }
 
 export async function importFromPlatform(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const raw = {
     type: formData.get("type") as string,
     data: formData.get("data") as string,

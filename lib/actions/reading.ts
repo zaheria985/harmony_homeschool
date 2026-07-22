@@ -1,5 +1,6 @@
 "use server";
 
+import { requireParent } from "@/lib/server/authz";
 import { z } from "zod";
 import pool from "@/lib/db";
 import { revalidatePath } from "next/cache";
@@ -14,6 +15,8 @@ const addEntrySchema = z.object({
 });
 
 export async function addReadingEntry(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const data = addEntrySchema.safeParse({
     resourceId: formData.get("resourceId"),
     childId: formData.get("childId"),
@@ -48,6 +51,8 @@ export async function addReadingEntry(formData: FormData) {
 }
 
 export async function deleteReadingEntry(entryId: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = z.string().uuid().safeParse(entryId);
   if (!parsed.success) return { error: "Invalid ID" };
 

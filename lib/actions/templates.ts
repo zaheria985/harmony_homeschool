@@ -1,5 +1,6 @@
 "use server";
 
+import { requireParent } from "@/lib/server/authz";
 import { z } from "zod";
 import pool from "@/lib/db";
 import { revalidatePath } from "next/cache";
@@ -29,6 +30,8 @@ const saveAsTemplateSchema = z.object({
 
 /** Create or update a lesson template */
 export async function saveLessonTemplate(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const raw = {
     id: formData.get("id") || undefined,
     name: formData.get("name"),
@@ -69,6 +72,8 @@ export async function saveLessonTemplate(formData: FormData) {
 
 /** Delete a lesson template */
 export async function deleteLessonTemplate(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const id = formData.get("id");
   if (!id || typeof id !== "string") {
     return { error: "Template ID is required" };
@@ -87,6 +92,9 @@ export async function deleteLessonTemplate(formData: FormData) {
 
 /** Fetch all lesson templates */
 export async function getLessonTemplates() {
+  const _authUser = await requireParent();
+  if (!_authUser) return [];
+
   const res = await pool.query(
     `SELECT id, name, description, lessons, created_at, updated_at
      FROM lesson_templates
@@ -104,6 +112,8 @@ export async function getLessonTemplates() {
 
 /** Apply a template to a curriculum — creates lessons from the template */
 export async function applyLessonTemplate(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const raw = {
     templateId: formData.get("templateId"),
     curriculumId: formData.get("curriculumId"),
@@ -166,6 +176,8 @@ export async function applyLessonTemplate(formData: FormData) {
 
 /** Save current curriculum lessons as a new template */
 export async function saveAsTemplate(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const raw = {
     curriculumId: formData.get("curriculumId"),
     name: formData.get("name"),

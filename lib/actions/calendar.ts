@@ -1,5 +1,6 @@
 "use server";
 
+import { requireParent } from "@/lib/server/authz";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import pool from "@/lib/db";
@@ -135,6 +136,8 @@ const schoolYearSchema = z.object({
 });
 
 export async function createSchoolYear(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const data = schoolYearSchema.safeParse({
     label: formData.get("label"),
     start_date: formData.get("start_date"),
@@ -163,6 +166,8 @@ export async function createSchoolYear(formData: FormData) {
 }
 
 export async function deleteSchoolYear(id: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = z.string().uuid().safeParse(id);
   if (!parsed.success) return { error: "Invalid ID" };
 
@@ -172,6 +177,8 @@ export async function deleteSchoolYear(id: string) {
 }
 
 export async function updateSchoolYear(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const data = z
     .object({
       id: z.string().uuid(),
@@ -209,6 +216,8 @@ export async function updateSchoolYear(formData: FormData) {
 // ============================================================================
 
 export async function setSchoolDays(schoolYearId: string, weekdays: number[]) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsedId = z.string().uuid().safeParse(schoolYearId);
   const parsedDays = z
     .array(z.number().int().min(0).max(6))
@@ -243,6 +252,8 @@ const dateOverrideSchema = z.object({
 });
 
 export async function addDateOverride(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const data = dateOverrideSchema.safeParse({
     school_year_id: formData.get("school_year_id"),
     date: formData.get("date"),
@@ -273,6 +284,8 @@ export async function addDateOverride(formData: FormData) {
 }
 
 export async function removeDateOverride(id: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = z.string().uuid().safeParse(id);
   if (!parsed.success) return { error: "Invalid ID" };
 

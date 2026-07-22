@@ -1,5 +1,6 @@
 "use server";
 
+import { requireParent } from "@/lib/server/authz";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import pool from "@/lib/db";
@@ -25,6 +26,8 @@ function revalidateTags() {
 const createSchema = z.object({ name: z.string().trim().min(1) });
 
 export async function createTag(name: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = createSchema.safeParse({ name });
   if (!parsed.success) return { error: "Tag name is required" };
 
@@ -46,6 +49,8 @@ export async function createTag(name: string) {
 }
 
 export async function renameTag(tagId: string, newName: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = renameSchema.safeParse({ tagId, newName });
   if (!parsed.success) return { error: "Invalid input" };
 
@@ -65,6 +70,8 @@ export async function renameTag(tagId: string, newName: string) {
 }
 
 export async function deleteTag(tagId: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = deleteSchema.safeParse({ tagId });
   if (!parsed.success) return { error: "Invalid input" };
 
@@ -83,6 +90,8 @@ export async function deleteTag(tagId: string) {
 }
 
 export async function mergeTags(sourceTagId: string, targetTagId: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = mergeSchema.safeParse({ sourceTagId, targetTagId });
   if (!parsed.success) return { error: "Invalid input" };
   if (parsed.data.sourceTagId === parsed.data.targetTagId) return { error: "Pick two different tags" };

@@ -1,5 +1,6 @@
 "use server";
 
+import { requireParent } from "@/lib/server/authz";
 import { z } from "zod";
 import pool from "@/lib/db";
 import { revalidatePath } from "next/cache";
@@ -93,6 +94,8 @@ const updateLessonCardSchema = z.object({
 // ============================================================================
 
 export async function createLessonCard(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const data = createLessonCardSchema.safeParse({
     lesson_id: formData.get("lesson_id"),
     card_type: formData.get("card_type") || undefined,
@@ -168,6 +171,8 @@ export async function createLessonCard(formData: FormData) {
 }
 
 export async function updateLessonCard(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const data = updateLessonCardSchema.safeParse({
     id: formData.get("id"),
     card_type: formData.get("card_type") || undefined,
@@ -227,6 +232,8 @@ export async function updateLessonCard(formData: FormData) {
 }
 
 export async function deleteLessonCard(id: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   // Get lesson info before delete for revalidation
   const cardRes = await pool.query(
     `SELECT l.curriculum_id, lc.lesson_id FROM lesson_cards lc JOIN lessons l ON l.id = lc.lesson_id WHERE lc.id = $1`,
@@ -244,6 +251,8 @@ export async function deleteLessonCard(id: string) {
 }
 
 export async function reorderLessonCards(updates: { id: string; order_index: number }[]) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   if (updates.length === 0) return { success: true };
   if (updates.length > 500) return { error: "Too many cards to reorder at once" };
 
@@ -277,6 +286,8 @@ export async function bulkCreateLessonCards(
     }>;
   }>
 ) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   if (items.length === 0) return { success: true, created: 0 };
 
   // Lazy-import download helper (only needed for Trello imports)

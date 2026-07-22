@@ -1,5 +1,6 @@
 "use server";
 
+import { requireParent } from "@/lib/server/authz";
 import { z } from "zod";
 import { chatCompletion, isLlmConfigured } from "@/lib/llm";
 
@@ -16,6 +17,8 @@ export async function suggestLessons(input: {
   existingTitles: string[];
   count?: number;
 }): Promise<{ suggestions: string[] } | { error: string }> {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   if (!isLlmConfigured()) {
     return { error: "AI is not configured. Set LLM_API_KEY in your environment." };
   }
@@ -77,6 +80,8 @@ const lessonDescriptionSchema = z.object({
 export async function generateLessonDescription(formData: FormData): Promise<
   { success: true; description: string } | { error: string }
 > {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   if (!isLlmConfigured()) {
     return { error: "AI is not configured. Set LLM_API_KEY in your environment." };
   }
@@ -127,6 +132,8 @@ const curriculumPlanSchema = z.object({
 export async function generateCurriculumPlan(formData: FormData): Promise<
   { success: true; lessons: { title: string; description: string }[] } | { error: string }
 > {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   if (!isLlmConfigured()) {
     return { error: "AI is not configured. Set LLM_API_KEY in your environment." };
   }
@@ -203,6 +210,8 @@ const suggestResourcesSchema = z.object({
 export async function suggestResources(formData: FormData): Promise<
   { success: true; suggestions: { title: string; type: string; description: string }[] } | { error: string }
 > {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   if (!isLlmConfigured()) {
     return { error: "AI is not configured. Set LLM_API_KEY in your environment." };
   }

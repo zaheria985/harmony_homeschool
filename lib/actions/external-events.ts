@@ -1,5 +1,6 @@
 "use server";
 
+import { requireParent, requireUser } from "@/lib/server/authz";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { PoolClient } from "pg";
@@ -73,6 +74,8 @@ async function replaceExceptions(client: PoolClient, eventId: string, dates: str
 }
 
 export async function createExternalEvent(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const denied = await ensureAdmin();
   if (denied) return denied;
 
@@ -191,6 +194,8 @@ export async function createExternalEvent(formData: FormData) {
 }
 
 export async function updateExternalEvent(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const denied = await ensureAdmin();
   if (denied) return denied;
 
@@ -278,6 +283,8 @@ export async function updateExternalEvent(formData: FormData) {
 }
 
 export async function deleteExternalEvent(id: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const denied = await ensureAdmin();
   if (denied) return denied;
 
@@ -301,6 +308,8 @@ export async function deleteExternalEvent(id: string) {
 }
 
 export async function previewImportedExternalDates(raw: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const denied = await ensureAdmin();
   if (denied) return denied;
   return parseImportedDates(raw);
@@ -313,6 +322,8 @@ const occurrenceNoteSchema = z.object({
 });
 
 export async function saveOccurrenceNote(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const denied = await ensureAdmin();
   if (denied) return denied;
 
@@ -358,6 +369,9 @@ export async function saveOccurrenceNote(formData: FormData) {
 }
 
 export async function getOccurrenceNotes(eventIds: string[], date: string) {
+  const _authUser = await requireUser();
+  if (!_authUser) return [];
+
   if (eventIds.length === 0) return [];
 
   const placeholders = eventIds.map((_, i) => `$${i + 1}`).join(", ");

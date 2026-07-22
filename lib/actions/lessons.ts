@@ -1,9 +1,14 @@
 "use server";
 
+import { requireParent } from "@/lib/server/authz";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import pool from "@/lib/db";
 import { saveUploadedImage } from "@/lib/server/uploads";
+import {
+  bumpOverdueLessonsCore,
+  bumpOverdueLessonsForAllCore,
+} from "@/lib/server/lesson-bump";
 import { getCurrentUser } from "@/lib/session";
 import {
   addDays,
@@ -32,6 +37,8 @@ const statusSchema = z.enum(["planned", "in_progress", "completed"]);
 const optionalDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional();
 
 export async function updateLessonStatus(id: string, status: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = statusSchema.safeParse(status);
   if (!parsed.success) {
     return { error: "Invalid status" };
@@ -61,6 +68,8 @@ const rescheduleSchema = z.object({
 });
 
 export async function rescheduleLesson(lessonId: string, newDate: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = rescheduleSchema.safeParse({ lessonId, newDate });
   if (!parsed.success) {
     return { error: "Invalid input" };
@@ -192,130 +201,22 @@ export async function rescheduleLesson(lessonId: string, newDate: string) {
  * Called lazily on page load. Idempotent.
  */
 export async function bumpOverdueLessons(childId: string, today: string, includeToday = false) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = z.string().uuid().safeParse(childId);
   if (!parsed.success) return { error: "Invalid childId" };
 
-  const assignmentsRes = await pool.query(
-    `SELECT
-       ca.id,
-       ca.curriculum_id,
-       ca.school_year_id,
-       COALESCE(
-         NULLIF((
-           SELECT ARRAY_AGG(cad.weekday ORDER BY cad.weekday)
-           FROM curriculum_assignment_days cad
-           WHERE cad.assignment_id = ca.id
-         ), '{}'),
-         (
-           SELECT ARRAY_AGG(sd.weekday ORDER BY sd.weekday)
-           FROM school_days sd
-           WHERE sd.school_year_id = ca.school_year_id
-         )
-       ) AS weekdays
-     FROM curriculum_assignments ca
-     WHERE ca.child_id = $1`,
-    [childId]
-  );
-
-  const thresholdOp = includeToday ? "<=" : "<";
-  let bumped = 0;
-
-  // Process each curriculum assignment independently so rescheduling preserves
-  // the assignment's weekday/override constraints.
-  for (const assignment of assignmentsRes.rows as {
-    id: string;
-    curriculum_id: string;
-    school_year_id: string;
-    weekdays: number[] | null;
-  }[]) {
-    const weekdays = assignment.weekdays || [];
-    if (weekdays.length === 0) continue;
-
-    const lessonsRes = await pool.query(
-      `SELECT l.id, l.planned_date::text AS planned_date, l.order_index
-       FROM lessons l
-       WHERE l.curriculum_id = $1
-         AND l.status != 'completed'
-         AND l.planned_date IS NOT NULL
-       ORDER BY l.planned_date ASC, l.order_index ASC, l.id ASC`,
-      [assignment.curriculum_id]
-    );
-
-    if (lessonsRes.rows.length === 0) continue;
-
-    // We only reschedule the first overdue lesson and everything after it,
-    // preserving order while moving the sequence forward to valid school days.
-    const firstAffectedIndex = (lessonsRes.rows as { planned_date: string }[]).findIndex((lesson) =>
-      includeToday ? lesson.planned_date <= today : lesson.planned_date < today
-    );
-
-    if (firstAffectedIndex < 0) continue;
-
-    const overridesRes = await pool.query(
-      `SELECT date::text, type
-       FROM date_overrides
-       WHERE school_year_id = $1`,
-      [assignment.school_year_id]
-    );
-    const overrides = new Map<string, "exclude" | "include">();
-    for (const row of overridesRes.rows as { date: string; type: "exclude" | "include" }[]) {
-      overrides.set(row.date, row.type);
-    }
-
-    const weekdaySet = new Set<number>(weekdays);
-    let cursor = parseDateKey(includeToday ? formatDateKey(addDays(parseDateKey(today), 1)) : today);
-    const affected = lessonsRes.rows.slice(firstAffectedIndex) as Array<{
-      id: string;
-      planned_date: string;
-      order_index: number;
-    }>;
-    const updates: Array<{ id: string; plannedDate: string }> = [];
-
-    for (const lesson of affected) {
-      const nextDate = nextValidSchoolDate(cursor, weekdaySet, overrides);
-      const nextDateKey = formatDateKey(nextDate);
-      cursor = addDays(nextDate, 1);
-
-      if (lesson.planned_date === nextDateKey) continue;
-      updates.push({ id: lesson.id, plannedDate: nextDateKey });
-    }
-
-    if (updates.length > 0) {
-      const ids = updates.map((update) => update.id);
-      const dates = updates.map((update) => update.plannedDate);
-      const updateRes = await pool.query(
-        `UPDATE lessons AS l
-         SET planned_date = u.planned_date::date
-         FROM (
-           SELECT UNNEST($1::uuid[]) AS id, UNNEST($2::text[]) AS planned_date
-         ) AS u
-         WHERE l.id = u.id
-           AND l.planned_date IS DISTINCT FROM u.planned_date::date`,
-        [ids, dates]
-      );
-      bumped += updateRes.rowCount || 0;
-    }
-  }
-
-  if (bumped > 0) {
-    revalidateAll();
-  }
-
+  const bumped = await bumpOverdueLessonsCore(parsed.data, today, includeToday);
   return { success: true, bumped };
 }
 
 export async function bumpOverdueLessonsForAll(today: string, includeToday = true) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const dateOk = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).safeParse(today);
   if (!dateOk.success) return { error: "Invalid date" };
 
-  const childrenRes = await pool.query("SELECT id FROM children");
-  let bumped = 0;
-
-  for (const row of childrenRes.rows as { id: string }[]) {
-    const result = await bumpOverdueLessons(row.id, today, includeToday);
-    if ("bumped" in result && typeof result.bumped === "number") bumped += result.bumped;
-  }
-
+  const bumped = await bumpOverdueLessonsForAllCore(dateOk.data, includeToday);
   return { success: true, bumped };
 }
 
@@ -324,6 +225,8 @@ export async function bumpOverdueLessonsForAll(today: string, includeToday = tru
  * curriculum backward to fill the gap, respecting weekday constraints.
  */
 export async function shiftLessonsAfterCompletion(lessonId: string, childId: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   // Get the completed lesson's curriculum and planned date
   const lessonRes = await pool.query(
     `SELECT l.curriculum_id, l.planned_date::text AS planned_date
@@ -429,6 +332,8 @@ export async function shiftLessonsAfterCompletion(lessonId: string, childId: str
 }
 
 export async function updateLessonTitle(id: string, title: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsedId = z.string().uuid().safeParse(id);
   const parsedTitle = z.string().min(1).safeParse(title);
   if (!parsedId.success || !parsedTitle.success) return { error: "Invalid input" };
@@ -448,6 +353,8 @@ export async function updateLessonTitle(id: string, title: string) {
 }
 
 export async function bulkUpdateLessonDate(lessonIds: string[], newDate: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsedDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).safeParse(newDate);
   const parsedIds = z.array(z.string().uuid()).min(1).safeParse(lessonIds);
   if (!parsedDate.success || !parsedIds.success) return { error: "Invalid input" };
@@ -479,6 +386,8 @@ export async function bulkUpdateLessonDate(lessonIds: string[], newDate: string)
 }
 
 export async function bulkUpdateLessonStatus(lessonIds: string[], status: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsedStatus = statusSchema.safeParse(status);
   const parsedIds = z.array(z.string().uuid()).min(1).safeParse(lessonIds);
   if (!parsedStatus.success || !parsedIds.success) return { error: "Invalid input" };
@@ -539,6 +448,8 @@ const bulkCreateOptionsSchema = z.object({
 });
 
 export async function createLesson(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const data = createLessonSchema.safeParse({
     title: formData.get("title"),
     curriculum_id: formData.get("curriculum_id"),
@@ -606,6 +517,8 @@ export async function bulkCreateLessons(
   }>,
   options?: { childIds?: string[]; schoolYearId?: string }
 ) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const data = bulkCreateLessonsSchema.safeParse(lessons);
   const opts = bulkCreateOptionsSchema.safeParse(options || {});
   if (!data.success) {
@@ -732,6 +645,8 @@ const updateLessonSchema = z.object({
 });
 
 export async function updateLesson(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const data = updateLessonSchema.safeParse({
     id: formData.get("id"),
     title: formData.get("title"),
@@ -785,6 +700,8 @@ export async function toggleChecklistItem(
   itemIndex: number,
   checked: boolean,
 ) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = z.object({
     lessonId: z.string().uuid(),
     itemIndex: z.number().int().min(0),
@@ -820,6 +737,8 @@ export async function toggleChecklistItem(
 }
 
 export async function deleteLesson(lessonId: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = z.string().uuid().safeParse(lessonId);
   if (!parsed.success) return { error: "Invalid lesson ID" };
 
@@ -838,6 +757,8 @@ export async function deleteLesson(lessonId: string) {
 }
 
 export async function bulkDeleteLessons(lessonIds: string[]) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = z.array(z.string().uuid()).min(1).max(500).safeParse(lessonIds);
   if (!parsed.success) return { error: "Invalid lesson IDs" };
 
@@ -861,6 +782,8 @@ const createSubjectSchema = z.object({
 });
 
 export async function createSubject(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const data = createSubjectSchema.safeParse({
     name: formData.get("name"),
     color: formData.get("color") || undefined,
@@ -937,6 +860,8 @@ const applyTemplateSchema = z.object({
 });
 
 export async function applySubjectTemplate(templateKey: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const data = applyTemplateSchema.safeParse({ templateKey });
   if (!data.success) {
     return { error: data.error.errors[0]?.message || "Invalid input" };
@@ -1000,6 +925,8 @@ const createCurriculumSchema = z.object({
 });
 
 export async function createCurriculum(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const data = createCurriculumSchema.safeParse({
     name: formData.get("name"),
     subject_id: formData.get("subject_id"),
@@ -1087,6 +1014,8 @@ const assignCurriculumSchema = z.object({
 });
 
 export async function assignCurriculum(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const data = assignCurriculumSchema.safeParse({
     curriculum_id: formData.get("curriculum_id"),
     child_id: formData.get("child_id"),
@@ -1119,6 +1048,8 @@ export async function assignCurriculum(formData: FormData) {
 }
 
 export async function unassignCurriculum(curriculumId: string, childId: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsedCu = z.string().uuid().safeParse(curriculumId);
   const parsedCh = z.string().uuid().safeParse(childId);
   if (!parsedCu.success || !parsedCh.success) return { error: "Invalid input" };
@@ -1148,6 +1079,8 @@ const updateSubjectSchema = z.object({
 });
 
 export async function updateSubject(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const data = updateSubjectSchema.safeParse({
     id: formData.get("id"),
     name: formData.get("name"),
@@ -1188,6 +1121,8 @@ export async function updateSubject(formData: FormData) {
 }
 
 export async function deleteSubject(subjectId: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = z.string().uuid().safeParse(subjectId);
   if (!parsed.success) return { error: "Invalid subject ID" };
 
@@ -1223,6 +1158,8 @@ const updateCurriculumSchema = z.object({
 });
 
 export async function updateCurriculum(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const data = updateCurriculumSchema.safeParse({
     id: formData.get("id"),
     name: formData.get("name"),
@@ -1402,6 +1339,8 @@ export async function updateCurriculum(formData: FormData) {
 }
 
 export async function updateCurriculumBackground(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const curriculumId = formData.get("curriculum_id");
   const remove = formData.get("remove") === "true";
   const url = formData.get("url");
@@ -1436,6 +1375,8 @@ export async function updateCurriculumBackground(formData: FormData) {
 export async function reorderLessons(
   updates: { id: string; order_index: number; section: string | null }[]
 ) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = z
     .array(
       z.object({
@@ -1476,6 +1417,8 @@ export async function reorderLessons(
 }
 
 export async function deleteCurriculum(curriculumId: string, force = false) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = z.string().uuid().safeParse(curriculumId);
   if (!parsed.success) return { error: "Invalid curriculum ID" };
 
@@ -1517,6 +1460,8 @@ const archiveSchema = z.object({
  * Sets archived = true for lessons with status = 'completed'.
  */
 export async function archiveCompletedLessons(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const yearId = formData.get("yearId") as string | null;
   const parsed = archiveSchema.safeParse({
     yearId: yearId || undefined,
@@ -1563,6 +1508,8 @@ const unarchiveSchema = z.object({
  * Sets archived = false.
  */
 export async function unarchiveLessons(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const curriculumId = formData.get("curriculumId") as string | null;
   const yearId = formData.get("yearId") as string | null;
   const parsed = unarchiveSchema.safeParse({
@@ -1609,6 +1556,8 @@ const importCurriculumSchema = z.object({
 });
 
 export async function importCurriculum(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = importCurriculumSchema.safeParse({
     json: formData.get("json"),
     subjectId: formData.get("subjectId"),
@@ -1760,6 +1709,8 @@ const reassignSchema = z.object({
 });
 
 export async function reassignLessonToChild(lessonId: string, newChildId: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = reassignSchema.safeParse({ lessonId, newChildId });
   if (!parsed.success) {
     return { error: parsed.error.errors[0]?.message || "Invalid input" };

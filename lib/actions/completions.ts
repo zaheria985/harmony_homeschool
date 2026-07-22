@@ -1,11 +1,11 @@
 "use server";
 
+import { requireParent, requireUser, scopedChildId } from "@/lib/server/authz";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import pool from "@/lib/db";
 import { completionValuePayload } from "@/lib/utils/completion-values";
 import { shiftLessonsAfterCompletion } from "@/lib/actions/lessons";
-import { getCurrentUser } from "@/lib/session";
 
 const parsedGradeSchema = z
   .string()
@@ -45,6 +45,12 @@ const completeSchema = z.object({
 });
 
 export async function markLessonComplete(formData: FormData) {
+  const currentUser = await requireUser();
+  if (!currentUser) return { error: "Unauthorized" };
+  if (currentUser.permissionLevel === "view_only") {
+    return { error: "You do not have permission to mark lessons complete" };
+  }
+
   const data = completeSchema.safeParse({
     lessonId: formData.get("lessonId"),
     childId: formData.get("childId"),
@@ -58,12 +64,15 @@ export async function markLessonComplete(formData: FormData) {
     return { error: data.error.issues[0]?.message || "Invalid input" };
   }
 
-  const { lessonId, childId, gradeType, grade, passFail, notes } = data.data;
+  const { lessonId, gradeType, grade, passFail, notes } = data.data;
 
-  const currentUser = await getCurrentUser();
+  // A kid may only ever act on their own student record — the submitted
+  // childId is not trusted.
+  const childId = scopedChildId(currentUser, data.data.childId);
+  if (!childId) return { error: "No student is linked to this account" };
 
-  // If user has mark_complete permission (not full), insert into pending queue
-  if (currentUser.permissionLevel === "mark_complete") {
+  // Kids never write a completion directly; it queues for parent approval.
+  if (currentUser.role === "kid" || currentUser.permissionLevel === "mark_complete") {
     const payload = completionValuePayload({
       gradeType,
       grade,
@@ -104,15 +113,8 @@ export async function markLessonComplete(formData: FormData) {
   try {
     await client.query("BEGIN");
 
-    // Get the parent user for completed_by_user_id
-    const userRes = await client.query(
-      "SELECT id FROM users WHERE role = 'parent' LIMIT 1"
-    );
-    const userId = userRes.rows[0]?.id;
-    if (!userId) {
-      await client.query("ROLLBACK");
-      return { error: "No parent user found" };
-    }
+    // Only parents reach this path; attribute the completion to them.
+    const userId = currentUser.id;
 
     const payload = completionValuePayload({
       gradeType,
@@ -192,9 +194,15 @@ export async function markLessonComplete(formData: FormData) {
 }
 
 export async function markLessonIncomplete(lessonId: string, childId: string) {
+  const currentUser = await requireUser();
+  if (!currentUser) return { error: "Unauthorized" };
+  if (currentUser.permissionLevel === "view_only") {
+    return { error: "You do not have permission to change completions" };
+  }
+
   const parsed = z
     .object({ lessonId: z.string().uuid(), childId: z.string().uuid() })
-    .safeParse({ lessonId, childId });
+    .safeParse({ lessonId, childId: scopedChildId(currentUser, childId) });
   if (!parsed.success) return { error: "Invalid input" };
 
   const client = await pool.connect();
@@ -239,6 +247,8 @@ const updateGradeSchema = z.object({
 });
 
 export async function updateGrade(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const data = updateGradeSchema.safeParse({
     completionId: formData.get("completionId"),
     grade: formData.get("grade"),
@@ -271,6 +281,9 @@ export async function updateGrade(formData: FormData) {
 const uuidSchema = z.string().uuid();
 
 export async function getPendingCompletions() {
+  const _authUser = await requireParent();
+  if (!_authUser) return [];
+
   const res = await pool.query(`
     SELECT pc.id, pc.lesson_id, pc.child_id, pc.notes, pc.grade, pc.created_at,
            l.title as lesson_title, l.section as lesson_section,
@@ -286,6 +299,9 @@ export async function getPendingCompletions() {
 }
 
 export async function getPendingCompletionCount() {
+  const _authUser = await requireParent();
+  if (!_authUser) return 0;
+
   const res = await pool.query(
     "SELECT COUNT(*) as count FROM pending_completions"
   );
@@ -293,6 +309,8 @@ export async function getPendingCompletionCount() {
 }
 
 export async function approvePendingCompletion(pendingId: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = uuidSchema.safeParse(pendingId);
   if (!parsed.success) return { error: "Invalid pending completion ID" };
 
@@ -311,15 +329,8 @@ export async function approvePendingCompletion(pendingId: string) {
       return { error: "Pending completion not found" };
     }
 
-    // Get the parent user for completed_by_user_id
-    const userRes = await client.query(
-      "SELECT id FROM users WHERE role = 'parent' LIMIT 1"
-    );
-    const userId = userRes.rows[0]?.id;
-    if (!userId) {
-      await client.query("ROLLBACK");
-      return { error: "No parent user found" };
-    }
+    // Attribute the completion to the parent who approved it.
+    const userId = _authUser.id;
 
     // Insert into lesson_completions
     await client.query(
@@ -370,6 +381,8 @@ export async function approvePendingCompletion(pendingId: string) {
 }
 
 export async function rejectPendingCompletion(pendingId: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = uuidSchema.safeParse(pendingId);
   if (!parsed.success) return { error: "Invalid pending completion ID" };
 
@@ -404,6 +417,8 @@ export async function copyCompletionsToChild(
   sourceChildId: string,
   targetChildId: string
 ) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const data = copyCompletionsSchema.safeParse({
     curriculumId,
     sourceChildId,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
-import { bumpOverdueLessonsForAll } from "@/lib/actions/lessons";
+import { bumpOverdueLessonsForAllCore } from "@/lib/server/lesson-bump";
 function todayDateKey() {
   const now = new Date();
   const year = now.getUTCFullYear();
@@ -29,11 +29,15 @@ export async function POST(request: NextRequest) {
   ) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const result = await bumpOverdueLessonsForAll(todayDateKey(), true);
-  if ("error" in result) {
-    return NextResponse.json({ error: result.error }, { status: 500 });
+  // Authorized by CRON_SECRET above; call the core directly since there is
+  // no user session on a scheduled run.
+  try {
+    const bumped = await bumpOverdueLessonsForAllCore(todayDateKey(), true);
+    return NextResponse.json({ success: true, bumped });
+  } catch (err) {
+    console.error("[cron/bump-lessons] failed", err);
+    return NextResponse.json({ error: "Bump failed" }, { status: 500 });
   }
-  return NextResponse.json({ success: true, bumped: result.bumped });
 }
 export async function GET(request: NextRequest) {
   return POST(request);

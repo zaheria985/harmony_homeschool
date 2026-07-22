@@ -1,5 +1,6 @@
 "use server";
 
+import { requireParent } from "@/lib/server/authz";
 import { revalidatePath } from "next/cache";
 import { createTask, updateTask, deleteTask } from "@/lib/vikunja";
 import {
@@ -20,6 +21,11 @@ interface SyncResult {
 }
 
 export async function syncToVikunja(): Promise<SyncResult> {
+  const _authUser = await requireParent();
+  if (!_authUser) {
+    return { success: false, error: "Unauthorized", created: 0, deleted: 0, skipped: 0 };
+  }
+
   const projectId = Number(process.env.VIKUNJA_PROJECT_ID);
   if (!projectId || !process.env.VIKUNJA_URL || !process.env.VIKUNJA_API_TOKEN) {
     return { success: false, error: "Vikunja not configured", created: 0, deleted: 0, skipped: 0 };

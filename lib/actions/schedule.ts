@@ -1,5 +1,6 @@
 "use server";
 
+import { requireParent } from "@/lib/server/authz";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import pool from "@/lib/db";
@@ -22,6 +23,8 @@ const autoScheduleSchema = z.object({
 
 
 export async function setAssignmentDays(assignmentId: string, weekdays: number[]) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = setAssignmentDaysSchema.safeParse({ assignmentId, weekdays });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message || "Invalid input" };
@@ -75,6 +78,8 @@ export async function setAssignmentDays(assignmentId: string, weekdays: number[]
 }
 
 export async function clearSchedule(curriculumId: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = z.string().uuid().safeParse(curriculumId);
   if (!parsed.success) return { error: "Invalid curriculum ID" };
 
@@ -96,6 +101,8 @@ export async function clearSchedule(curriculumId: string) {
 }
 
 export async function rescheduleAllLessons(curriculumId: string, childId: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = autoScheduleSchema.safeParse({ curriculumId, childId });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message || "Invalid input" };
 
@@ -113,6 +120,8 @@ export async function rescheduleAllLessons(curriculumId: string, childId: string
 }
 
 export async function autoScheduleLessons(curriculumId: string, childId: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = autoScheduleSchema.safeParse({ curriculumId, childId });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message || "Invalid input" };

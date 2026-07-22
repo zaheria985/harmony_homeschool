@@ -1,5 +1,6 @@
 "use server";
 
+import { requireParent } from "@/lib/server/authz";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import pool from "@/lib/db";
@@ -16,6 +17,8 @@ async function verifyParentOwnsChild(parentUserId: string, childId: string): Pro
 const nameSchema = z.string().min(1).max(100);
 
 export async function createChild(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const name = nameSchema.safeParse(formData.get("name"));
   const emoji = formData.get("emoji") as string | null;
   const uploadedBanner = formData.get("banner_file");
@@ -49,6 +52,8 @@ export async function createChild(formData: FormData) {
 }
 
 export async function updateChild(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const id = z.string().uuid().safeParse(formData.get("id"));
   const name = nameSchema.safeParse(formData.get("name"));
   const emoji = formData.get("emoji") as string | null;
@@ -87,6 +92,8 @@ export async function updateChild(formData: FormData) {
 }
 
 export async function deleteChild(childId: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
   const parsed = z.string().uuid().safeParse(childId);
   if (!parsed.success) return { error: "Invalid child ID" };
 
