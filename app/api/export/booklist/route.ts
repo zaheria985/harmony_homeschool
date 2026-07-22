@@ -7,7 +7,8 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session?.user) {
+  const user = session?.user as { role?: string } | undefined;
+  if (!user || user.role === "kid") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

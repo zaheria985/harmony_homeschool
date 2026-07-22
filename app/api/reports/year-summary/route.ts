@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getChildById, getYearSummaryReport } from "@/lib/queries/students";
+import { resolveParentChildScopeForRequest } from "@/lib/auth-scope";
 import pool from "@/lib/db";
 
 export async function GET(request: NextRequest) {
@@ -19,6 +20,14 @@ export async function GET(request: NextRequest) {
       { error: "childId and yearId are required" },
       { status: 400 }
     );
+  }
+
+  const scope = await resolveParentChildScopeForRequest(
+    session.user as { id?: string; role?: string; child_id?: string | null },
+    childId
+  );
+  if (scope.error) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const child = await getChildById(childId);

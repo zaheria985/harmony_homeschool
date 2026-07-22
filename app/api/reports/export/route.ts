@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import PDFDocument from "pdfkit";
 import { getProgressReport } from "@/lib/queries/reports";
+import { resolveParentChildScopeForRequest } from "@/lib/auth-scope";
 import pool from "@/lib/db";
 
 export async function GET(request: NextRequest) {
@@ -15,6 +16,16 @@ export async function GET(request: NextRequest) {
   const childId = searchParams.get("childId");
   if (!childId) {
     return NextResponse.json({ error: "childId required" }, { status: 400 });
+  }
+
+  // Ensure the caller may see this child (kids are pinned to their own record;
+  // parents may only export a child they own).
+  const scope = await resolveParentChildScopeForRequest(
+    session.user as { id?: string; role?: string; child_id?: string | null },
+    childId
+  );
+  if (scope.error) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const yearId = searchParams.get("yearId") || undefined;
 
