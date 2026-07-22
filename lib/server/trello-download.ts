@@ -19,6 +19,25 @@ function extFromUrl(url: string): string {
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
+// Only Trello-hosted URLs may be fetched. Without this allowlist the function
+// is a server-side request forgery primitive: a caller-supplied URL is fetched
+// by the server and its body written into the public uploads directory.
+const ALLOWED_HOSTS = new Set(["trello.com", "api.trello.com"]);
+const ALLOWED_HOST_SUFFIXES = [".trellocdn.com"];
+
+function isAllowedTrelloUrl(raw: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (parsed.protocol !== "https:") return false;
+  const host = parsed.hostname.toLowerCase();
+  if (ALLOWED_HOSTS.has(host)) return true;
+  return ALLOWED_HOST_SUFFIXES.some((suffix) => host.endsWith(suffix));
+}
+
 /**
  * Download a file from a Trello attachment URL, save locally, return the
  * relative path (servable via /uploads/...).
@@ -30,6 +49,11 @@ export async function downloadTrelloFile(
 ): Promise<{ localPath: string } | null> {
   const key = process.env.TRELLO_API_KEY || "";
   const token = process.env.TRELLO_TOKEN || "";
+
+  if (!isAllowedTrelloUrl(trelloUrl)) {
+    console.warn("[trello-download] refused non-Trello URL", trelloUrl.slice(0, 80));
+    return null;
+  }
 
   // Trello attachment download endpoint requires OAuth header auth,
   // not query params. Swap trello.com → api.trello.com for the domain.
@@ -44,11 +68,37 @@ export async function downloadTrelloFile(
     const timeout = setTimeout(() => controller.abort(), 30_000);
 
     console.log("[trello-download] fetching", trelloUrl.slice(0, 80));
-    const response = await fetch(fetchUrl, {
+    // Follow redirects manually so each hop can be re-checked against the
+    // allowlist — an open redirect on a Trello host must not bounce us out.
+    let response = await fetch(fetchUrl, {
       signal: controller.signal,
-      redirect: "follow",
+      redirect: "manual",
       headers,
     });
+
+    let redirectHops = 0;
+    while (
+      response.status >= 300 &&
+      response.status < 400 &&
+      response.headers.get("location") &&
+      redirectHops < 5
+    ) {
+      const location = new URL(
+        response.headers.get("location") as string,
+        response.url || fetchUrl
+      ).toString();
+      if (!isAllowedTrelloUrl(location)) {
+        clearTimeout(timeout);
+        console.warn("[trello-download] refused redirect target", location.slice(0, 80));
+        return null;
+      }
+      redirectHops += 1;
+      response = await fetch(location, {
+        signal: controller.signal,
+        redirect: "manual",
+        headers,
+      });
+    }
     clearTimeout(timeout);
 
     if (!response.ok) {
