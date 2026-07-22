@@ -1,7 +1,7 @@
 "use client";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 
 function normalizeCallbackUrl(rawCallbackUrl: string | null) {
   if (!rawCallbackUrl) return "/dashboard";
@@ -21,6 +21,20 @@ function LoginForm() {
   const callbackUrl = normalizeCallbackUrl(searchParams.get("callbackUrl"));
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [signupAllowed, setSignupAllowed] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/signup-status")
+      .then((res) => (res.ok ? res.json() : { allowed: false }))
+      .then((data) => {
+        if (active) setSignupAllowed(Boolean(data.allowed));
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -96,12 +110,14 @@ function LoginForm() {
               {loading ? "Signing in..." : "Sign In"}
             </button>
           </form>
-          <p className="mt-4 text-center text-sm text-muted">
-            Don&apos;t have an account?{" "}
-            <a href="/signup" className="text-[var(--brand)] hover:underline">
-              Create one
-            </a>
-          </p>
+          {signupAllowed && (
+            <p className="mt-4 text-center text-sm text-muted">
+              Don&apos;t have an account?{" "}
+              <a href="/signup" className="text-[var(--brand)] hover:underline">
+                Create one
+              </a>
+            </p>
+          )}
         </div>
       </div>
     </div>
