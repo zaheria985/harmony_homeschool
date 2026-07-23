@@ -24,7 +24,7 @@ export default function SubjectCard({
   return (
     <Link
       href={`/week/${weekStart}/${date}/${subjectId}${qs}`}
-      className={`block rounded-lg border p-3 transition-colors hover:border-interactive-border hover:shadow-sm ${allDone ? "border-success-200 bg-[var(--success-bg)]/50 dark:border-success-900/40/20" : "border-light bg-surface-slate"}`}
+      className={`block rounded-lg border p-3 transition-colors hover:border-interactive-border hover:shadow-sm ${allDone ? "border-success-200 bg-[var(--success-bg)]/50 dark:border-success-900/40" : "border-light bg-surface-slate"}`}
     >
       {" "}
       <div className="flex items-center gap-2">

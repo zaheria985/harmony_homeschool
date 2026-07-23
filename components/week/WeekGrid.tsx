@@ -350,7 +350,7 @@ export default function WeekGrid({
     <>
       {" "}
       {bumpedCount > 0 && (
-        <div className="mb-4 rounded-lg border border-[var(--warning-border)] bg-[var(--warning-bg)] px-3 py-2 text-sm text-[var(--warning-text)] dark:border-amber-800/60/20 dark:text-amber-300">
+        <div className="mb-4 rounded-lg border border-[var(--warning-border)] bg-[var(--warning-bg)] px-3 py-2 text-sm text-[var(--warning-text)] dark:border-amber-800/60 dark:text-amber-300">
           {" "}
           Auto-rescheduled {bumpedCount} overdue lesson
           {bumpedCount === 1 ? "" : "s"} to upcoming school days.{" "}
@@ -466,7 +466,7 @@ export default function WeekGrid({
                       event.preventDefault();
                       handleDrop(day.date);
                     }}
-                    className={`flex min-h-[150px] flex-col rounded-2xl border transition-colors md:min-h-[140px] ${today ? "border-interactive-border bg-interactive-light/30/20" : "border-light bg-surface-slate"} ${dropTargetDate === day.date ? "border-primary-400 ring-2 ring-primary-200" : ""} ${totalLessons > 0 ? "cursor-pointer hover:border-interactive-border hover:shadow-sm" : ""}`}
+                    className={`flex min-h-[150px] flex-col rounded-2xl border transition-colors md:min-h-[140px] ${today ? "border-interactive-border bg-interactive-light/30" : "border-light bg-surface-slate"} ${dropTargetDate === day.date ? "border-primary-400 ring-2 ring-primary-200" : ""} ${totalLessons > 0 ? "cursor-pointer hover:border-interactive-border hover:shadow-sm" : ""}`}
                   >
                     {" "}
                     {/* Day header */}{" "}

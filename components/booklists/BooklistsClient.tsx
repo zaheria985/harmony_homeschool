@@ -419,7 +419,7 @@ export default function BooklistsClient({
                   e.preventDefault();
                   handleDrop(list.id);
                 }}
-                className={`w-72 flex-shrink-0 snap-start rounded-2xl border p-3 transition-colors flex flex-col ${dragOverListId === list.id ? "border-interactive-border bg-interactive-light/70/20" : "border-light bg-surface-muted/60/40"}`}
+                className={`w-72 flex-shrink-0 snap-start rounded-2xl border p-3 transition-colors flex flex-col ${dragOverListId === list.id ? "border-interactive-border bg-interactive-light/70" : "border-light bg-surface-muted/60"}`}
               >
                 {" "}
                 <div className="mb-3 flex items-start justify-between gap-2 border-b border-light pb-2">

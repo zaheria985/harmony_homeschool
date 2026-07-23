@@ -10,7 +10,7 @@ export default function LessonCard({ lesson, onLessonClick }: { lesson: DaySubje
   const isCompleted = effectiveStatus === "completed";
   return (
     <div
-      className={`rounded-2xl border p-4 ${isCompleted ? "border-success-200 bg-[var(--success-bg)]/30 dark:border-success-900/40/20" : "border-light bg-surface-slate"}`}
+      className={`rounded-2xl border p-4 ${isCompleted ? "border-success-200 bg-[var(--success-bg)]/30 dark:border-success-900/40" : "border-light bg-surface-slate"}`}
     >
       {" "}
       <div className="flex items-start gap-3">

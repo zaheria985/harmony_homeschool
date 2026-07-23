@@ -110,7 +110,7 @@ export default function CalendarConfigClient({
         </button>{" "}
       </div>{" "}
       {error && (
-        <div className="rounded-lg border border-[var(--error-border)] bg-[var(--error-bg)] p-3 text-sm text-red-700 dark:border-red-800/60/20 dark:text-red-300">
+        <div className="rounded-lg border border-[var(--error-border)] bg-[var(--error-bg)] p-3 text-sm text-red-700 dark:border-red-800/60 dark:text-red-300">
           {" "}
           {error}{" "}
         </div>

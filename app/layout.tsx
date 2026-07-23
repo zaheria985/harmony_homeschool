@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Sidebar from "@/components/ui/Sidebar";
 import Providers from "@/components/Providers";
@@ -6,6 +6,12 @@ import Providers from "@/components/Providers";
 export const metadata: Metadata = {
   title: "Harmony - Homeschool Tracker",
   description: "Track and manage your homeschool activities",
+  manifest: "/manifest.webmanifest",
+  icons: { icon: "/icon.svg", apple: "/icon.svg" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#5a7a5e",
 };
 
 export default function RootLayout({

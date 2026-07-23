@@ -322,7 +322,7 @@ export default function AdminBulkPasteClient({
                 {rows.map((row, index) => (
                   <tr
                     key={`${index}-${row.title}`}
-                    className={row.error ? "bg-[var(--error-bg)]/60/20" : ""}
+                    className={row.error ? "bg-[var(--error-bg)]/60" : ""}
                   >
                     {" "}
                     <td className="px-3 py-2 align-top">
