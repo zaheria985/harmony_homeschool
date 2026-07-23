@@ -136,7 +136,9 @@ CREATE TABLE lesson_cards (
     og_title        TEXT,
     og_description  TEXT,
     og_image        TEXT,
-    resource_id     UUID REFERENCES resources(id) ON DELETE SET NULL,
+    -- FK added after CREATE TABLE resources below; `resources` does not exist
+    -- yet at this point, and an inline REFERENCES here fails a fresh install.
+    resource_id     UUID,
     order_index     INT NOT NULL DEFAULT 0,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -158,6 +160,14 @@ CREATE TABLE resources (
                         CHECK (category IN ('learning', 'asset')),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Deferred FK for lesson_cards.resource_id (declared above, before `resources`
+-- existed). Kept idempotent so re-applying schema.sql is safe.
+ALTER TABLE lesson_cards
+    DROP CONSTRAINT IF EXISTS lesson_cards_resource_id_fkey;
+ALTER TABLE lesson_cards
+    ADD CONSTRAINT lesson_cards_resource_id_fkey
+    FOREIGN KEY (resource_id) REFERENCES resources(id) ON DELETE SET NULL;
 
 CREATE TABLE curriculum_resources (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
