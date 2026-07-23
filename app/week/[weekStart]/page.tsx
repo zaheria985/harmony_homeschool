@@ -49,7 +49,9 @@ export default async function WeeklyBoardPage({
   const lastWeekEnd = getFullWeekEnd(lastWeekStart);
   const parentId = user.role === "parent" ? user.id : undefined;
 
-  const [lessonsByWeek, externalEvents] = await Promise.all([
+  // getWeeklyNotes has no dependency on the other two, so it belongs in the
+  // same batch rather than adding a serial round-trip after it.
+  const [lessonsByWeek, externalEvents, weeklyNotes] = await Promise.all([
     Promise.all(
       weekStarts.map((weekStart) =>
         isAllKids
@@ -63,8 +65,8 @@ export default async function WeeklyBoardPage({
       isAllKids ? undefined : childParam,
       parentId,
     ),
+    getWeeklyNotes(weekStarts),
   ]);
-  const weeklyNotes = await getWeeklyNotes(weekStarts);
 
   const externalEventsByDate = new Map<string, typeof externalEvents>();
   for (const event of externalEvents) {
