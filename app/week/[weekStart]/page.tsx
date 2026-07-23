@@ -7,7 +7,7 @@ import {
   toDateStr,
 } from "@/lib/utils/dates";
 import { todayKey } from "@/lib/utils/timezone";
-import { bumpOverdueLessons } from "@/lib/actions/lessons";
+import { lazyBumpIfNoScheduler } from "@/lib/server/lesson-bump";
 import { getWeeklyNotes } from "@/lib/actions/weekly-notes";
 import WeekGrid from "@/components/week/WeekGrid";
 import type { WeekLesson } from "@/lib/queries/week";
@@ -33,16 +33,9 @@ export default async function WeeklyBoardPage({
     return <p className="text-muted">No children found. Add a child first.</p>;
   }
 
-  // Auto-bump overdue lessons (for each child when viewing all)
-  const today = todayKey();
-  let bumpedCount = 0;
-  if (isAllKids) {
-    const results = await Promise.all(children.map((c) => bumpOverdueLessons(c.id, today)));
-    bumpedCount = results.reduce((sum, r) => sum + (r && "bumped" in r ? (r.bumped ?? 0) : 0), 0);
-  } else {
-    const result = await bumpOverdueLessons(childParam, today);
-    bumpedCount = result && "bumped" in result ? (result.bumped ?? 0) : 0;
-  }
+  // Bumping is owned by the nightly cron, not page render. This fallback is a
+  // no-op when CRON_SECRET is set, and runs at most once a day otherwise.
+  await lazyBumpIfNoScheduler(todayKey());
 
   const initialWeekStart = params.weekStart;
   const weekStarts = Array.from({ length: 6 }, (_, index) => {
@@ -148,5 +141,5 @@ export default async function WeeklyBoardPage({
     return { weekStart, label: formatWeekLabel(weekStart), days };
   });
 
-  return <WeekGrid weeks={weeks} bumpedCount={bumpedCount} weeklyNotes={weeklyNotes} allChildren={children} />;
+  return <WeekGrid weeks={weeks} weeklyNotes={weeklyNotes} allChildren={children} />;
 }

@@ -36,12 +36,41 @@ function revalidateAll() {
   }
 }
 
+/**
+ * Cheap pre-check: does this child have anything worth bumping?
+ *
+ * The full routine issues a query per curriculum assignment, so on a typical
+ * day — when nothing is overdue — this one query replaces dozens.
+ */
+async function hasOverdueLessons(
+  childId: string,
+  today: string,
+  includeToday: boolean
+): Promise<boolean> {
+  const comparison = includeToday ? "<=" : "<";
+  const res = await pool.query(
+    `SELECT EXISTS (
+       SELECT 1
+       FROM lessons l
+       JOIN curriculum_assignments ca ON ca.curriculum_id = l.curriculum_id
+       WHERE ca.child_id = $1
+         AND l.status != 'completed'
+         AND l.planned_date IS NOT NULL
+         AND l.planned_date ${comparison} $2::date
+     ) AS overdue`,
+    [childId, today]
+  );
+  return Boolean(res.rows[0]?.overdue);
+}
+
 /** Move overdue incomplete lessons for one child forward. Idempotent. */
 export async function bumpOverdueLessonsCore(
   childId: string,
   today: string,
   includeToday = false
 ): Promise<number> {
+  if (!(await hasOverdueLessons(childId, today, includeToday))) return 0;
+
   const assignmentsRes = await pool.query(
     `SELECT
        ca.id,
@@ -163,4 +192,34 @@ export async function bumpOverdueLessonsForAllCore(
   }
 
   return bumped;
+}
+
+/**
+ * Fallback for deployments with no scheduler.
+ *
+ * Bumping is normally owned by the nightly cron. When CRON_SECRET is unset the
+ * cron sidecar disables itself, so without this nothing would ever bump —
+ * a silent regression. This runs at most once per day per process, and the
+ * EXISTS pre-check above makes the no-op case a single query.
+ *
+ * Deliberately never throws: a failed bump must not break page rendering.
+ */
+let lastLazyBumpDay: string | null = null;
+
+export async function lazyBumpIfNoScheduler(today: string): Promise<void> {
+  if (process.env.CRON_SECRET) return; // the cron owns it
+  if (lastLazyBumpDay === today) return;
+
+  // Set before awaiting so concurrent requests do not all pile in.
+  lastLazyBumpDay = today;
+
+  try {
+    const bumped = await bumpOverdueLessonsForAllCore(today, false);
+    if (bumped > 0) {
+      console.log(`[lesson-bump] lazy fallback moved ${bumped} lesson(s); set CRON_SECRET to use the scheduler instead`);
+    }
+  } catch (err) {
+    lastLazyBumpDay = null; // allow a retry on the next request
+    console.error("[lesson-bump] lazy fallback failed:", err);
+  }
 }

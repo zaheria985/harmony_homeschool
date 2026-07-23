@@ -14,8 +14,8 @@ import LessonCompleteCheckbox from "@/components/lessons/LessonCompleteCheckbox"
 import VikunjaSyncButton from "@/components/dashboard/VikunjaSyncButton";
 import PendingApprovalsWidget from "@/components/dashboard/PendingApprovalsWidget";
 import { getPendingCompletions } from "@/lib/actions/completions";
-import { bumpOverdueLessons } from "@/lib/actions/lessons";
 import { todayKey } from "@/lib/utils/timezone";
+import { lazyBumpIfNoScheduler } from "@/lib/server/lesson-bump";
 import { parseDate } from "@/lib/utils/dates";
 type UpcomingItem = Record<string, string | number | null>;
 type GroupedDay = { dayKey: string; dayLabel: string };
@@ -44,12 +44,10 @@ export default async function DashboardPage({
   const parentId = user.role === "parent" ? user.id : undefined;
   const isParent = user.role === "parent" || user.permissionLevel === "full";
 
-  // Bump overdue lessons before fetching data so missed lessons appear on today
-  const allChildren = await getAllChildren(parentId);
   const todayStr = todayKey();
-  await Promise.all(
-    (allChildren as Array<{ id: string }>).map((c) => bumpOverdueLessons(c.id, todayStr))
-  );
+  // Bumping is owned by the nightly cron, not page render. This fallback is a
+  // no-op when CRON_SECRET is set, and runs at most once a day otherwise.
+  await lazyBumpIfNoScheduler(todayStr);
 
   const [stats, upcoming, children, pendingCompletions] = await Promise.all([
     getDashboardStats(parentId),

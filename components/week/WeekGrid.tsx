@@ -139,12 +139,10 @@ function moveLesson(
 }
 export default function WeekGrid({
   weeks,
-  bumpedCount = 0,
   weeklyNotes = {},
   allChildren = [],
 }: {
   weeks: WeekData[];
-  bumpedCount?: number;
   weeklyNotes?: Record<string, string>;
   allChildren?: { id: string; name: string }[];
 }) {
@@ -349,13 +347,6 @@ export default function WeekGrid({
   return (
     <>
       {" "}
-      {bumpedCount > 0 && (
-        <div className="mb-4 rounded-lg border border-[var(--warning-border)] bg-[var(--warning-bg)] px-3 py-2 text-sm text-[var(--warning-text)] dark:border-amber-800/60 dark:text-amber-300">
-          {" "}
-          Auto-rescheduled {bumpedCount} overdue lesson
-          {bumpedCount === 1 ? "" : "s"} to upcoming school days.{" "}
-        </div>
-      )}{" "}
       {(allSubjects.length > 1 || allCourses.length > 1) && (
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <select value={subjectFilter}
