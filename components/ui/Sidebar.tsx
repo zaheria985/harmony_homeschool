@@ -1,4 +1,5 @@
 "use client";
+import SearchCommand from "@/components/ui/SearchCommand";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -137,6 +138,9 @@ export default function Sidebar() {
               <Moon size={16} className="text-[var(--text-tertiary)]" />
             )}
           </button>
+        </div>
+        <div className="px-3 pt-3">
+          <SearchCommand />
         </div>
         <nav className="flex-1 space-y-1 px-3 py-4">
           {visibleItems.map((item) => {
