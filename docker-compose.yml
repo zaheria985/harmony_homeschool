@@ -69,19 +69,21 @@ services:
           echo "[cron] Set CRON_SECRET in .env to enable it."
           while true; do sleep 3600; done
         fi
-        echo "[cron] started; will bump lessons daily at $${BUMP_HOUR}:00 UTC"
+        echo "[cron] started; bump at $${BUMP_HOUR}:00 UTC, digest at $${DIGEST_HOUR}:00 UTC"
+        run_job() {
+          echo "[cron] $$(date -u) running $$1"
+          curl -fsS -X POST -H "Authorization: Bearer $$CRON_SECRET" "http://app:3000/api/cron/$$1" && echo "" || echo "[cron] $$1 failed"
+        }
         while true; do
-          now=$$(date -u +%H)
-          now=$${now#0}
-          target=$${BUMP_HOUR#0}
-          delta=$$(( target - now ))
-          [ $$delta -le 0 ] && delta=$$(( delta + 24 ))
-          sleep $$(( delta * 3600 ))
-          echo "[cron] $$(date -u) running bump-lessons"
-          curl -fsS -X POST \
-            -H "Authorization: Bearer $$CRON_SECRET" \
-            http://app:3000/api/cron/bump-lessons \
-            && echo "" || echo "[cron] bump failed"
+          now=$$(date -u +%H); now=$${now#0}
+          next=25; job=""
+          for pair in "$${BUMP_HOUR#0}:bump-lessons" "$${DIGEST_HOUR#0}:daily-digest"; do
+            hour=$${pair%%:*}; name=$${pair#*:}
+            delta=$$(( hour - now )); [ $$delta -le 0 ] && delta=$$(( delta + 24 ))
+            if [ $$delta -lt $$next ]; then next=$$delta; job=$$name; fi
+          done
+          sleep $$(( next * 3600 ))
+          run_job "$$job"
           sleep 3600
         done
 

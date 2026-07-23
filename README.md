@@ -271,6 +271,53 @@ Visit `http://localhost:3000`.
 - ⚠️ `npm run db:seed` is **destructive** — it deletes all data and installs a
   demo family. It refuses to run unless `SEED_DEMO=true`.
 
+## Daily Digest (Home Assistant)
+
+The cron sidecar can POST a "what's due today" summary to a webhook each
+morning. Set `HA_WEBHOOK_URL` in `.env`; leave it unset and the job is a no-op.
+
+Preview the payload without sending it:
+
+```bash
+curl -s -X POST -H "Authorization: Bearer $CRON_SECRET" "http://localhost:3000/api/cron/daily-digest?dry=1" | jq
+```
+
+The payload looks like:
+
+```json
+{
+  "date": "2026-07-22",
+  "totalDueToday": 7,
+  "totalOverdue": 2,
+  "summary": "Emma: 4 due, 1 overdue \u00b7 Noah: 3 due",
+  "children": [
+    { "childName": "Emma", "dueToday": 4, "overdue": 1,
+      "lessons": [{ "title": "Fractions review", "course": "Math 5", "overdue": false }] }
+  ]
+}
+```
+
+On the Home Assistant side, create a webhook automation and use `summary`
+directly, or build your own message from `children`:
+
+```yaml
+automation:
+  - alias: Harmony daily digest
+    trigger:
+      - platform: webhook
+        webhook_id: harmony-digest
+        allowed_methods: [POST]
+        local_only: true
+    action:
+      - service: notify.mobile_app_applejack
+        data:
+          title: "School today"
+          message: "{{ trigger.json.summary }}"
+```
+
+Then set `HA_WEBHOOK_URL=https://<your-ha-host>/api/webhook/harmony-digest`.
+Timing is `DIGEST_HOUR` (UTC, default `12` = 7am CDT / 6am CST).
+
 ## Backups
 
 The `backup` service in `docker-compose.yml` runs a nightly `pg_dump` into
