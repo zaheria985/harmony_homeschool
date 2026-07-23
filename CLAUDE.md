@@ -176,6 +176,9 @@ docker compose build app    # MUST pass before pushing
 - **Books** are standalone (`books` table) with status (wishlist/reading/completed)
 - **Reading log** tracks pages/minutes per book per child (`reading_log` table)
 - **Pending completions** queue for kid-submitted completions awaiting parent approval (`pending_completions` table)
+- **Attendance** is derived from completed lessons (by the lesson's `planned_date`); `attendance_days` stores only exceptions (absent/holiday/extra day, or a per-day minutes override). `app_settings` holds the default instructional minutes per day
+- **Audit log** (`audit_log`) records approvals and account admin; write via `recordAudit()` in `lib/server/audit.ts`, passing the transaction client when inside one
+- **Curricula** have a nullable `credits` used by the transcript export
 - **Curricula** have `actual_start_date`/`actual_end_date` auto-set on lesson completion
 - **Curricula** have `grade_type` (numeric, pass_fail, combo) and `course_type` (curriculum, unit_study)
 
