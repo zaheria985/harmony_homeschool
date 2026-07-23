@@ -157,6 +157,8 @@ export default function WeekGrid({
   const [isPending, startTransition] = useTransition();
   const suppressNextClick = useRef(false);
   const longPressTimerRef = useRef<number | null>(null);
+  const todayCellRef = useRef<HTMLDivElement | null>(null);
+  const hasScrolledToToday = useRef(false);
   const [subjectFilter, setSubjectFilter] = useState("");
   const [courseFilter, setCourseFilter] = useState("");
   const [localNotes, setLocalNotes] = useState<Record<string, string>>(weeklyNotes);
@@ -290,6 +292,19 @@ export default function WeekGrid({
       router.refresh();
     });
   }
+  // On phones each day is a full-width card, so the current week is several
+  // screens tall. Bring today into view once on first render; on desktop the
+  // whole week is already visible, so leave the scroll position alone.
+  useEffect(() => {
+    if (hasScrolledToToday.current) return;
+    const cell = todayCellRef.current;
+    if (!cell) return;
+    if (window.matchMedia("(min-width: 768px)").matches) return;
+
+    hasScrolledToToday.current = true;
+    cell.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [displayWeeks]);
+
   // React attaches touchmove as a *passive* root listener, so preventDefault()
   // inside onTouchMove is silently ignored and the page scrolls out from under
   // a drag on phones and tablets. While a drag is active, attach our own
@@ -439,7 +454,7 @@ export default function WeekGrid({
                 {localNotes[week.weekStart]}
               </button>
             )}
-            <div className="grid grid-cols-2 gap-2 md:grid-cols-7">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-7">
               {" "}
               {week.days.map((day) => {
                 const today = isToday(day.date);
@@ -455,6 +470,7 @@ export default function WeekGrid({
                 return (
                   <div
                     key={day.date}
+                    ref={today ? todayCellRef : undefined}
                     data-day-date={day.date}
                     role={totalLessons > 0 ? "button" : undefined}
                     tabIndex={totalLessons > 0 ? 0 : undefined}
@@ -488,7 +504,7 @@ export default function WeekGrid({
                       event.preventDefault();
                       handleDrop(day.date);
                     }}
-                    className={`flex min-h-[150px] flex-col rounded-2xl border transition-colors md:min-h-[140px] ${today ? "border-interactive-border bg-interactive-light/30" : "border-light bg-surface-slate"} ${dropTargetDate === day.date ? "border-primary-400 ring-2 ring-primary-200" : ""} ${totalLessons > 0 ? "cursor-pointer hover:border-interactive-border hover:shadow-sm" : ""}`}
+                    className={`flex min-h-[110px] flex-col rounded-2xl border transition-colors sm:min-h-[150px] md:min-h-[140px] ${today ? "border-interactive-border bg-interactive-light/30" : "border-light bg-surface-slate"} ${dropTargetDate === day.date ? "border-primary-400 ring-2 ring-primary-200" : ""} ${totalLessons > 0 ? "cursor-pointer hover:border-interactive-border hover:shadow-sm" : ""}`}
                   >
                     {" "}
                     {/* Day header */}{" "}
