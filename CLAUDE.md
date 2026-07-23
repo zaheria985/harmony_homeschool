@@ -66,13 +66,23 @@ export default async function Page() {
 ```
 
 ### 2. Server actions (mutations)
+
+**Every exported action MUST start with an authorization guard.** Server
+actions are POST endpoints that bypass `middleware.ts` (it only matches page
+paths), so an unguarded action is callable by any kid session — or by anyone
+at all, with no session.
+
 ```typescript
 "use server";
 import { z } from "zod";
 import pool from "@/lib/db";
 import { revalidatePath } from "next/cache";
+import { requireParent } from "@/lib/server/authz";
 
 export async function doAction(formData: FormData) {
+  const user = await requireParent();          // ← required, first line
+  if (!user) return { error: "Unauthorized" };
+
   const data = schema.safeParse({ /* extract */ });
   if (!data.success) return { error: "..." };
   await pool.query("INSERT INTO table (col) VALUES ($1)", [param]);
@@ -80,6 +90,17 @@ export async function doAction(formData: FormData) {
   return { success: true };
 }
 ```
+
+- `requireParent()` — the default for anything that mutates data.
+- `requireUser()` — only for actions kids legitimately call. When the caller is
+  a kid, resolve the child with `scopedChildId(user, suppliedChildId)`; never
+  trust a caller-supplied `childId`. Check `user.permissionLevel` too
+  (`view_only` must not mutate).
+- Both return `null` when unauthorized — return `{ error: "Unauthorized" }`.
+- Needs to run without a session (a cron job)? Put the logic in `lib/server/`
+  and call it from a secret-authenticated route — see `lib/server/lesson-bump.ts`
+  and `app/api/cron/bump-lessons/route.ts`. Do **not** export an unguarded
+  action.
 
 ### 3. Queries
 ```typescript
@@ -95,6 +116,12 @@ Only use `"use client"` for interactivity (useState, onClick). Default is server
 
 ## Common Pitfalls
 
+- **Unguarded server action** → callable by any kid session, or with no session
+  at all. Start every action with `requireParent()`/`requireUser()` (Key Patterns §2)
+- **`new Date()` for "today" in server code** → wrong day on a container whose
+  timezone differs from the family's; use `todayKey()` from `lib/utils/timezone.ts`
+- **Unquoted compose value containing `": "`** → breaks YAML parsing and takes
+  the whole stack down on deploy; quote it (`tests/compose-validity.test.ts` catches this)
 - **Missing `force-dynamic`** on DB pages → Docker build fails
 - **Forgetting `revalidatePath()`** after mutations → stale UI
 - **SQL interpolation** (`${id}`) → SQL injection; always use `$1`, `$2`
@@ -166,7 +193,14 @@ All PKs are UUID. All FKs indexed. See spec for full per-feature data models.
 ## Active Constraints
 
 - **Next.js 14** — NOT 15. `searchParams` is a plain object, not a Promise.
-- **Auth bypassed** — landing page redirects to `/dashboard` (no login flow)
+- **Auth is live** — NextAuth (JWT) + `middleware.ts` for pages + a
+  `requireParent()`/`requireUser()` guard inside every server action. Sessions
+  fail closed: a missing role is unauthenticated, not a parent.
+- **Public signup is off** unless `SIGNUP_ENABLED=true` or the `users` table is
+  empty (first-run bootstrap).
+- **Server-side "today"** must come from `todayKey()` (`lib/utils/timezone.ts`),
+  never `new Date()` — it honors `APP_TIMEZONE`. Client components may keep
+  using browser-local time.
 - **Docker builds without DB** — all DB pages need `force-dynamic`
 - **No UI libraries** — Tailwind only (no shadcn, etc.)
 - **Direct SQL only** — no ORM

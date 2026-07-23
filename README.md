@@ -55,9 +55,13 @@ docker compose up -d
 
 5. Open `http://localhost:3000`
 
-**Default login:**
-- Email: `parent@harmony.local`
-- Password: `harmony123`
+**Create your first account.** Public signup is disabled by default, but is
+allowed while the database has no users — so on a brand-new install just visit
+`http://localhost:3000/signup` and create your parent account. After that,
+signup closes automatically.
+
+To reopen it later (e.g. to add another parent), set `SIGNUP_ENABLED=true` in
+`.env` — optionally with `SIGNUP_INVITE_CODE` — and turn it back off afterwards.
 
 ## Docker Compose Options
 
@@ -83,7 +87,7 @@ services:
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       NEXTAUTH_URL: ${NEXTAUTH_URL}
       BOOTSTRAP_SCHEMA: ${BOOTSTRAP_SCHEMA:-1}
-      SEED_DEFAULT_USER: ${SEED_DEFAULT_USER:-1}
+      SEED_DEFAULT_USER: ${SEED_DEFAULT_USER:-0}
     ports:
       - "3000:3000"
     volumes:
@@ -179,7 +183,10 @@ services:
       NEXTAUTH_SECRET: change-me-to-a-random-string
       NEXTAUTH_URL: http://YOUR_UNRAID_IP:3432
       BOOTSTRAP_SCHEMA: "1"
-      SEED_DEFAULT_USER: "1"
+      # Leave at "0" and create your account at /signup on first visit.
+      # Setting "1" creates the publicly-known parent@harmony.local /
+      # harmony123 login — change its password immediately if you do.
+      SEED_DEFAULT_USER: "0"
     ports:
       - "3432:3000"
     volumes:
@@ -192,7 +199,8 @@ Replace `YOUR_UNRAID_IP` with your server's IP address (e.g. `192.168.1.100`).
 - Waits for Postgres to be ready
 - Applies the full schema if the database is empty
 - Runs any pending migrations
-- Seeds a default login account (disable with `SEED_DEFAULT_USER: "0"`)
+- Leaves account creation to you — visit `/signup` on first load to create the
+  first parent account (enable the legacy demo login with `SEED_DEFAULT_USER: "1"`)
 
 ## Docker Image Publishing
 
@@ -231,10 +239,11 @@ cp .env.example .env
 npm run db:migrate
 ```
 
-5. Seed local demo data:
+5. Seed local demo data (optional, **destructive** — deletes all existing data,
+   so never run this against a database you care about):
 
 ```bash
-npm run db:seed
+SEED_DEMO=true npm run db:seed
 ```
 
 6. Start development server:
@@ -252,7 +261,7 @@ Visit `http://localhost:3000`.
 - `npm run build` - Build production app
 - `npm run db:migrate` - Apply schema and SQL migrations
 - `npm run db:check` - Validate migration state without applying
-- `npm run db:seed` - Seed sample data
+- `npm run db:seed` - Seed demo data (**destructive**; requires `SEED_DEMO=true`)
 
 ## Database Notes
 
