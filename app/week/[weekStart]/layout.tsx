@@ -1,6 +1,7 @@
 import { getChildren } from "@/lib/queries/week";
 import ChildSelector from "@/components/week/ChildSelector";
 import WeekNav from "@/components/week/WeekNav";
+import ShiftLessonsButton from "@/components/week/ShiftLessonsButton";
 import Breadcrumbs from "@/components/week/Breadcrumbs";
 import { getCurrentUser } from "@/lib/session";
 export const dynamic = "force-dynamic";
@@ -24,6 +25,12 @@ export default async function WeekLayout({
         <div className="flex items-center gap-3">
           {" "}
           <WeekNav weekStart={params.weekStart} />{" "}
+          {user.role === "parent" && (
+            <ShiftLessonsButton
+              weekStart={params.weekStart}
+              childrenList={childrenList}
+            />
+          )}{" "}
           {childrenList.length > 1 && (
             <ChildSelectorWrapper childrenList={childrenList} />
           )}{" "}
