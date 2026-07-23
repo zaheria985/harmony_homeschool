@@ -31,7 +31,7 @@ services:
       LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
       FILERUN_BASE_URL: ${FILERUN_BASE_URL:-}
       UPLOADS_DIR: /app/public/uploads
-      SEED_DEFAULT_USER: ${SEED_DEFAULT_USER:-1}
+      SEED_DEFAULT_USER: ${SEED_DEFAULT_USER:-0}
     volumes:
       - uploads:/app/public/uploads
     ports:

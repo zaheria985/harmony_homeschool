@@ -24,8 +24,11 @@ services:
       DATABASE_URL: postgresql://harmony:${POSTGRES_PASSWORD}@db:5432/harmony
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?Set NEXTAUTH_SECRET (generate with: openssl rand -base64 32)}
       NEXTAUTH_URL: ${NEXTAUTH_URL}
-      # Set to 0 to skip adding the default demo account on first boot.
-      SEED_DEFAULT_USER: ${SEED_DEFAULT_USER:-1}
+      # Off by default: the publicly-known parent@harmony.local / harmony123
+      # account is NOT created. On a fresh install, create the first account
+      # via /signup (allowed while the users table is empty). Set to 1 only if
+      # you want the demo login and will change its password immediately.
+      SEED_DEFAULT_USER: ${SEED_DEFAULT_USER:-0}
       # Vikunja integration (optional)
       VIKUNJA_URL: ${VIKUNJA_URL:-}
       VIKUNJA_API_TOKEN: ${VIKUNJA_API_TOKEN:-}
