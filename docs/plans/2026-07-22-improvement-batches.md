@@ -36,7 +36,7 @@ The review confirmed these are correct — preserve them:
 | `CALENDAR_ICAL_TOKEN` | 1 | required secret for the iCal feed; feed 403s when unset |
 | `SEED_DEMO` | 1 | seed script only creates the default parent account when `true` |
 | `CRON_SECRET` | 2 | existing var, finally wired into compose + cron sidecar |
-| `APP_TIMEZONE` | 2 | IANA TZ for all school-date math (default `America/New_York`) |
+| `APP_TIMEZONE` | 2 | IANA TZ for all school-date math (default `America/Chicago`) |
 | `HA_WEBHOOK_URL` | 3 | optional Home Assistant webhook for the daily digest |
 
 ---
@@ -283,9 +283,9 @@ Fix: one modifier per class (e.g. `bg-interactive-light/30`). **Do not** fix `co
 
 **PROBLEM:** Two date modules disagree: `dates.ts` uses local time (`getDay`, `getFullYear`, local-midnight construction, `isToday`), while `school-dates.ts` uses UTC (`parseDateKey` → `T00:00:00.000Z`, `getUTCDay`, `formatDateKey`). On a server not running in UTC, school-day checks, "today" highlighting, and the nightly bump can land on the **wrong calendar day**.
 
-**FIX:** Introduce `APP_TIMEZONE` (default `America/New_York`). Add a single `todayKey()` helper that computes the current date-key in that zone via `Intl.DateTimeFormat` parts, and route **all** "what day is it right now" decisions through it — the cron route, `isToday`, and week-start computation. **Keep `school-dates.ts`'s pure key math as-is** — it is date-key-in / date-key-out and already tested; the bug is only where "now" enters the system.
+**FIX:** Introduce `APP_TIMEZONE` (default `America/Chicago`). Add a single `todayKey()` helper that computes the current date-key in that zone via `Intl.DateTimeFormat` parts, and route **all** "what day is it right now" decisions through it — the cron route, `isToday`, and week-start computation. **Keep `school-dates.ts`'s pure key math as-is** — it is date-key-in / date-key-out and already tested; the bug is only where "now" enters the system.
 
-**ACCEPT:** Existing date tests still pass. New test: with `APP_TIMEZONE=America/New_York` and a clock mocked to 03:00 UTC, `todayKey()` returns the *previous* calendar date, and the cron bumps based on that key.
+**ACCEPT:** Existing date tests still pass. New test: with `APP_TIMEZONE=America/Chicago` and a clock mocked to 03:00 UTC, `todayKey()` returns the *previous* calendar date, and the cron bumps based on that key.
 
 ---
 

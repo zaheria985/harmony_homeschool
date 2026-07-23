@@ -277,8 +277,12 @@ The `backup` service in `docker-compose.yml` runs a nightly `pg_dump` into
 `./backups` on the host and keeps the last 14 days. It starts with one
 immediate backup so you get a dump as soon as the stack comes up.
 
-Tune with env vars: `BACKUP_HOUR` (0–23 UTC, default `2`) and
-`BACKUP_KEEP_DAYS` (default `14`).
+Tune with env vars: `BACKUP_HOUR` (0–23 **UTC**, default `8` = 3am CDT / 2am
+CST) and `BACKUP_KEEP_DAYS` (default `14`).
+
+Note both scheduled jobs use **UTC** hours, while the app's date logic uses
+`APP_TIMEZONE` (default `America/Chicago`). The lesson-bump cron defaults to
+`BUMP_HOUR=23` (6pm CDT / 5pm CST) so it runs after the school day.
 
 **Check it is working:**
 

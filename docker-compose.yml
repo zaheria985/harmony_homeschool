@@ -23,7 +23,7 @@ services:
     environment:
       DATABASE_URL: postgresql://harmony:${POSTGRES_PASSWORD}@db:5432/harmony
       NEXTAUTH_SECRET: "${NEXTAUTH_SECRET:?Set NEXTAUTH_SECRET - generate with openssl rand -base64 32}"
-      APP_TIMEZONE: ${APP_TIMEZONE:-America/New_York}
+      APP_TIMEZONE: ${APP_TIMEZONE:-America/Chicago}
       NEXTAUTH_URL: ${NEXTAUTH_URL}
       # Off by default: the publicly-known parent@harmony.local / harmony123
       # account is NOT created. On a fresh install, create the first account
@@ -55,7 +55,11 @@ services:
       - app
     environment:
       CRON_SECRET: ${CRON_SECRET:-}
-      BUMP_HOUR: ${BUMP_HOUR:-5}
+      # UTC hour. 23Z = 6pm CDT / 5pm CST — after the school day, matching the
+      # existing vercel.json schedule. Do NOT set this near local midnight: the
+      # bump uses includeToday, so it would push the new day's lessons forward
+      # before that day has even started.
+      BUMP_HOUR: ${BUMP_HOUR:-23}
     entrypoint:
       - sh
       - -c
@@ -94,7 +98,8 @@ services:
       PGUSER: harmony
       PGDATABASE: harmony
       PGPASSWORD: ${POSTGRES_PASSWORD}
-      BACKUP_HOUR: ${BACKUP_HOUR:-2}
+      # UTC hour. 8Z = 3am CDT / 2am CST — overnight, low usage.
+      BACKUP_HOUR: ${BACKUP_HOUR:-8}
       KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
     volumes:
       - ./backups:/backups

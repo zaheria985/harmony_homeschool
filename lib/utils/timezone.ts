@@ -5,7 +5,7 @@
  * disagreed with one another: lib/utils/dates.ts works in the server's local
  * time, lib/utils/school-dates.ts works in UTC. That only matters where "now"
  * enters the system — a container running UTC would roll over to tomorrow at
- * 20:00 for an America/New_York family, bumping lessons a day early.
+ * 19:00 for an America/Chicago family, bumping lessons a day early.
  *
  * All *server-side* code that needs today's date must go through here.
  * Client components should keep using the browser's local time, which is
@@ -13,7 +13,7 @@
  * two agree.
  */
 
-export const DEFAULT_APP_TIMEZONE = "America/New_York";
+export const DEFAULT_APP_TIMEZONE = "America/Chicago";
 
 export function appTimeZone(): string {
   const configured = process.env.APP_TIMEZONE?.trim();

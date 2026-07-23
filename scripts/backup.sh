@@ -11,7 +11,7 @@
 #   PGDATABASE    database name                    (default: harmony)
 #   PGPASSWORD    database password                (required)
 #   BACKUP_DIR    where dumps are written          (default: /backups)
-#   BACKUP_HOUR   hour of day to run, 0-23, UTC    (default: 2)
+#   BACKUP_HOUR   hour of day to run, 0-23, UTC    (default: 8 = 3am US Central)
 #   KEEP_DAYS     how many dumps to retain         (default: 14)
 #   RUN_ON_START  dump once at startup if "true"   (default: true)
 
@@ -21,7 +21,7 @@ PGHOST="${PGHOST:-db}"
 PGUSER="${PGUSER:-harmony}"
 PGDATABASE="${PGDATABASE:-harmony}"
 BACKUP_DIR="${BACKUP_DIR:-/backups}"
-BACKUP_HOUR="${BACKUP_HOUR:-2}"
+BACKUP_HOUR="${BACKUP_HOUR:-8}"
 KEEP_DAYS="${KEEP_DAYS:-14}"
 RUN_ON_START="${RUN_ON_START:-true}"
 
