@@ -202,6 +202,10 @@ Replace `YOUR_UNRAID_IP` with your server's IP address (e.g. `192.168.1.100`).
 - Leaves account creation to you — visit `/signup` on first load to create the
   first parent account (enable the legacy demo login with `SEED_DEFAULT_USER: "1"`)
 
+**Set up backups.** The stack above has none. See
+[Backups on Unraid](#backups-on-unraid) — the `backup` service from
+`docker-compose.yml` will not work here, and there is a drop-in replacement.
+
 ## Docker Image Publishing
 
 - Image: `ghcr.io/zaheria985/harmony_homeschool`
@@ -270,6 +274,87 @@ Visit `http://localhost:3000`.
 - Schema source is `db/schema.sql`.
 - ⚠️ `npm run db:seed` is **destructive** — it deletes all data and installs a
   demo family. It refuses to run unless `SEED_DEMO=true`.
+
+### Backups on Unraid
+
+⚠️ The `backup` service in `docker-compose.yml` **does not work as-is under
+Unraid's Compose Manager.** It mounts `./scripts/backup.sh` and `./backups`,
+which are relative to the compose project directory — on Unraid that lives on
+the **USB boot flash**. The script file will not exist (you paste YAML rather
+than clone the repo), and nightly dumps would be written to the boot flash.
+
+Use this self-contained service instead. It needs no repo files and writes to
+the array:
+
+```yaml
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGUSER: harmony
+      PGPASSWORD: harmony        # match POSTGRES_PASSWORD in the db service
+      PGDATABASE: harmony
+      KEEP_DAYS: "14"
+    volumes:
+      - /mnt/user/backups/harmony:/backups
+    entrypoint:
+      - sh
+      - -c
+      - |
+        while true; do
+          f=/backups/harmony-$$(date -u +%Y%m%d-%H%M%S).dump
+          echo "[backup] $$(date -u) -> $$f"
+          if pg_dump -Fc -f "$$f.partial"; then
+            mv "$$f.partial" "$$f"
+            find /backups -name 'harmony-*.dump' -mtime +$$KEEP_DAYS -delete
+          else
+            rm -f "$$f.partial"; echo "[backup] FAILED"
+          fi
+          sleep 86400
+        done
+```
+
+Create the destination first (Unraid terminal): `mkdir -p /mnt/user/backups/harmony`
+
+Put it on a share that is **not** `appdata`, so it is covered by your normal
+share backups and survives an appdata restore. Dumps are written to a
+`.partial` name first, so an interrupted run never leaves a file that looks
+complete.
+
+**Manual backup, any time** — find the container, then dump. Do **not** pass
+`-t`: a TTY corrupts the binary dump.
+
+```bash
+docker ps --format '{{.Names}}' | grep -i harmony
+```
+
+```bash
+mkdir -p /mnt/user/backups/harmony && docker exec harmony-db-1 pg_dump -U harmony -Fc harmony > "/mnt/user/backups/harmony/manual-$(date +%Y%m%d-%H%M%S).dump"
+```
+
+**Restore** (overwrites current data — take a fresh dump first):
+
+```bash
+docker exec -i harmony-db-1 pg_restore -U harmony -d harmony --clean --if-exists < /mnt/user/backups/harmony/harmony-YYYYMMDD-HHMMSS.dump
+```
+
+**Verify a dump without touching live data:**
+
+```bash
+docker exec -i harmony-db-1 createdb -U harmony harmony_verify && docker exec -i harmony-db-1 pg_restore -U harmony -d harmony_verify < /mnt/user/backups/harmony/harmony-YYYYMMDD-HHMMSS.dump && docker exec -i harmony-db-1 psql -U harmony -d harmony_verify -c "SELECT count(*) FROM children; SELECT count(*) FROM lessons;" && docker exec -i harmony-db-1 dropdb -U harmony harmony_verify
+```
+
+Replace `harmony-db-1` with the name from the `docker ps` command above —
+Compose Manager derives it from your stack name.
+
+Unraid's **CA Appdata Backup** plugin complements this but does not replace it:
+it archives the Postgres data directory, ideally with the container stopped,
+whereas `pg_dump` produces a consistent logical dump from a running database
+and can restore a single table.
 
 ## Daily Digest (Home Assistant)
 
