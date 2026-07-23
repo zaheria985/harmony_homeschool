@@ -88,6 +88,8 @@ CREATE TABLE curricula (
     end_date    DATE,
     actual_start_date DATE,
     actual_end_date   DATE,
+    -- Credit value for transcripts; null until a parent sets it.
+    credits     NUMERIC(4,2),
     notes       TEXT
 );
 
