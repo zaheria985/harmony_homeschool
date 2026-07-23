@@ -407,3 +407,30 @@ CREATE INDEX idx_event_occurrence_notes_event_id    ON event_occurrence_notes(ev
 
 -- grading scales
 CREATE INDEX idx_grade_thresholds_scale_id ON grade_thresholds(scale_id);
+
+-- ============================================================================
+-- ATTENDANCE
+-- ============================================================================
+
+-- Attendance is derived from completed lessons; this table stores only the
+-- exceptions (absences, holidays, days that count without lesson records).
+CREATE TABLE attendance_days (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    child_id    UUID NOT NULL REFERENCES children(id) ON DELETE CASCADE,
+    date        DATE NOT NULL,
+    status      TEXT NOT NULL DEFAULT 'present'
+                    CHECK (status IN ('present', 'absent', 'holiday')),
+    minutes     INTEGER CHECK (minutes IS NULL OR minutes >= 0),
+    note        TEXT,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (child_id, date)
+);
+
+CREATE INDEX idx_attendance_days_child ON attendance_days(child_id);
+CREATE INDEX idx_attendance_days_date ON attendance_days(date);
+
+CREATE TABLE app_settings (
+    key         TEXT PRIMARY KEY,
+    value       TEXT NOT NULL,
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);

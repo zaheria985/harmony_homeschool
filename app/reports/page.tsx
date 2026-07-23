@@ -96,7 +96,15 @@ export default async function ReportsPage({
   return (
     <div>
       {" "}
-      <PageHeader title="Progress Reports" />{" "}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <PageHeader title="Progress Reports" />
+        <Link
+          href="/reports/attendance"
+          className="rounded-lg border border-light px-3 py-2 text-sm text-secondary hover:border-interactive-border hover:text-interactive"
+        >
+          Attendance &amp; Hours
+        </Link>
+      </div>{" "}
       {schoolYears.length > 0 && (
         <div className="mb-4 flex items-center gap-2">
           <span className="text-sm text-muted">School Year:</span>
