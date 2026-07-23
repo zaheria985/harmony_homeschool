@@ -755,22 +755,22 @@ export default function EditableLessonsTable({
     <>
       {/* Toolbar */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <select value={childFilter} onChange={(e) => setChildFilter(e.target.value)}
+        <select value={childFilter} aria-label="Filter by student" onChange={(e) => setChildFilter(e.target.value)}
           className="rounded-lg border border-light bg-surface px-3 py-2 text-sm">
           <option value="">All Students</option>
           {childOptions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
-        <select value={subjectFilter} onChange={(e) => { setSubjectFilter(e.target.value); setCurriculumFilter(""); }}
+        <select value={subjectFilter} aria-label="Filter by subject" onChange={(e) => { setSubjectFilter(e.target.value); setCurriculumFilter(""); }}
           className="rounded-lg border border-light bg-surface px-3 py-2 text-sm">
           <option value="">All Subjects</option>
           {subjectOptions.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
-        <select value={curriculumFilter} onChange={(e) => setCurriculumFilter(e.target.value)}
+        <select value={curriculumFilter} aria-label="Filter by course" onChange={(e) => setCurriculumFilter(e.target.value)}
           className="rounded-lg border border-light bg-surface px-3 py-2 text-sm">
           <option value="">All Courses</option>
           {curriculumOptions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
+        <select value={statusFilter} aria-label="Filter by status" onChange={(e) => setStatusFilter(e.target.value)}
           className="rounded-lg border border-light bg-surface px-3 py-2 text-sm">
           <option value="">All Statuses</option>
           <option value="planned">Planned</option>
@@ -778,10 +778,10 @@ export default function EditableLessonsTable({
           <option value="completed">Completed</option>
         </select>
         <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
-          title="From date"
+          title="From date" aria-label="Filter from date"
           className="rounded-lg border border-light bg-surface px-3 py-2 text-sm" />
         <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
-          title="To date"
+          title="To date" aria-label="Filter to date"
           className="rounded-lg border border-light bg-surface px-3 py-2 text-sm" />
         {(childFilter || subjectFilter || curriculumFilter || statusFilter || dateFrom || dateTo) && (
           <button type="button" onClick={() => { setChildFilter(""); setSubjectFilter(""); setCurriculumFilter(""); setStatusFilter(""); setDateFrom(""); setDateTo(""); }}
@@ -792,6 +792,7 @@ export default function EditableLessonsTable({
         <input
           type="text"
           placeholder="Search lessons..."
+          aria-label="Search lessons"
           value={globalFilter}
           onChange={(e) => setGlobalFilter(e.target.value)}
           className="rounded-lg border px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-focus"

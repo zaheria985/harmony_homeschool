@@ -170,8 +170,17 @@ export default function SubjectsView({
             return (
               <div
                 key={subject.id}
+                role="link"
+                tabIndex={0}
+                aria-label={`Open ${subject.name}`}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    router.push(`/subjects/${subject.id}`);
+                  }
+                }}
                 onClick={() => router.push(`/subjects/${subject.id}`)}
-                className="group relative cursor-pointer rounded-2xl border border-light bg-surface shadow-warm transition-shadow hover:shadow-warm-md"
+                className="group relative cursor-pointer rounded-2xl border border-light bg-surface shadow-warm transition-shadow hover:shadow-warm-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               >
                 {/* Color bar */}{" "}
                 <div

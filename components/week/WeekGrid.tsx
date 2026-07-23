@@ -363,12 +363,14 @@ export default function WeekGrid({
       {(allSubjects.length > 1 || allCourses.length > 1) && (
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <select value={subjectFilter}
+            aria-label="Filter by subject"
             onChange={(e) => { setSubjectFilter(e.target.value); setCourseFilter(""); }}
             className="rounded-lg border border-light bg-surface px-3 py-2 text-sm">
             <option value="">All Subjects</option>
             {allSubjects.map(name => <option key={name} value={name}>{name}</option>)}
           </select>
-          <select value={courseFilter} onChange={(e) => setCourseFilter(e.target.value)}
+          <select value={courseFilter} aria-label="Filter by course"
+            onChange={(e) => setCourseFilter(e.target.value)}
             className="rounded-lg border border-light bg-surface px-3 py-2 text-sm">
             <option value="">All Courses</option>
             {allCourses.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
@@ -428,12 +430,14 @@ export default function WeekGrid({
               </div>
             )}
             {!editingNoteWeek && localNotes[week.weekStart] && (
-              <p
-                className="mb-2 cursor-pointer rounded-lg bg-surface-muted px-2 py-1 text-xs text-tertiary italic hover:bg-surface-subtle"
+              <button
+                type="button"
+                className="mb-2 block w-full cursor-pointer rounded-lg bg-surface-muted px-2 py-1 text-left text-xs italic text-tertiary hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-focus"
                 onClick={() => setEditingNoteWeek(week.weekStart)}
+                aria-label={`Edit note for ${week.label}`}
               >
                 {localNotes[week.weekStart]}
-              </p>
+              </button>
             )}
             <div className="grid grid-cols-2 gap-2 md:grid-cols-7">
               {" "}
@@ -452,6 +456,20 @@ export default function WeekGrid({
                   <div
                     key={day.date}
                     data-day-date={day.date}
+                    role={totalLessons > 0 ? "button" : undefined}
+                    tabIndex={totalLessons > 0 ? 0 : undefined}
+                    aria-label={
+                      totalLessons > 0
+                        ? `${formatWeekdayShort(day.date)} ${formatShortDate(day.date)}, ${totalLessons} lesson${totalLessons === 1 ? "" : "s"}`
+                        : undefined
+                    }
+                    onKeyDown={(event) => {
+                      if (totalLessons === 0) return;
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        handleDayClick(day, totalLessons);
+                      }
+                    }}
                     onClick={() => handleDayClick(day, totalLessons)}
                     onDragOver={(event) => {
                       if (
