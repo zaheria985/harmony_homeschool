@@ -39,3 +39,7 @@ ARCHITECTURE_DETAILED.md
 # OS files
 .DS_Store
 Thumbs.db
+
+# Database backups — contain real family data, never commit
+/backups/*
+!/backups/.gitkeep

@@ -37,6 +37,26 @@ services:
     ports:
       - "3000:3000"
 
+  # Nightly pg_dump into ./backups on the host. Keeps the last 14 days.
+  # Restore:  docker compose exec -T db pg_restore -U harmony -d harmony --clean --if-exists < backups/harmony-YYYYMMDD-HHMMSS.dump
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGUSER: harmony
+      PGDATABASE: harmony
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      BACKUP_HOUR: ${BACKUP_HOUR:-2}
+      KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+    volumes:
+      - ./backups:/backups
+      - ./scripts/backup.sh:/usr/local/bin/backup.sh:ro
+    entrypoint: ["sh", "/usr/local/bin/backup.sh"]
+
 volumes:
   pgdata:
   uploads:

@@ -259,6 +259,49 @@ Visit `http://localhost:3000`.
 - PostgreSQL is required.
 - Migrations are tracked in `db/migrations` and applied by `db/migrate.js`.
 - Schema source is `db/schema.sql`.
+- ⚠️ `npm run db:seed` is **destructive** — it deletes all data and installs a
+  demo family. It refuses to run unless `SEED_DEMO=true`.
+
+## Backups
+
+The `backup` service in `docker-compose.yml` runs a nightly `pg_dump` into
+`./backups` on the host and keeps the last 14 days. It starts with one
+immediate backup so you get a dump as soon as the stack comes up.
+
+Tune with env vars: `BACKUP_HOUR` (0–23 UTC, default `2`) and
+`BACKUP_KEEP_DAYS` (default `14`).
+
+**Check it is working:**
+
+```bash
+docker compose logs backup --tail 20 && ls -lh backups/
+```
+
+**Take a backup right now, on demand:**
+
+```bash
+docker compose exec -T db pg_dump -U harmony -Fc harmony > "backups/manual-$(date +%Y%m%d-%H%M%S).dump"
+```
+
+**Restore a dump** (this overwrites current data — take a fresh backup first):
+
+```bash
+docker compose exec -T db pg_restore -U harmony -d harmony --clean --if-exists < backups/harmony-YYYYMMDD-HHMMSS.dump
+```
+
+**Verify a dump without touching live data** — restore it into a scratch
+database and check the row counts look sane:
+
+```bash
+docker compose exec -T db createdb -U harmony harmony_verify
+docker compose exec -T db pg_restore -U harmony -d harmony_verify < backups/harmony-YYYYMMDD-HHMMSS.dump
+docker compose exec -T db psql -U harmony -d harmony_verify -c "SELECT count(*) AS children FROM children; SELECT count(*) AS lessons FROM lessons;"
+docker compose exec -T db dropdb -U harmony harmony_verify
+```
+
+`./backups` is gitignored — the dumps contain real family data, so never commit
+them. Copy them off the machine as well; a backup on the same disk as the
+database does not survive a disk failure.
 
 ## Environment Variables
 
