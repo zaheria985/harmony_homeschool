@@ -53,6 +53,23 @@ test("every foreign key references a table created earlier in schema.sql", () =>
   assert.deepEqual(problems, [], `schema.sql cannot apply to an empty database:\n${problems.join("\n")}`);
 });
 
+test("foreign keys to users(id) declare an ON DELETE action", () => {
+  // Without one, Postgres blocks deleting an account that is referenced
+  // anywhere — which is how deleteKidAccount used to fail for any kid who had
+  // completed a lesson.
+  const offenders = schemaLines()
+    .map((line, i) => ({ line, i }))
+    .filter(({ line }) => /REFERENCES\s+users\s*\(\s*id\s*\)/i.test(line))
+    .filter(({ line }) => !/ON DELETE/i.test(line))
+    .map(({ line, i }) => `line ${i + 1}: ${line.trim()}`);
+
+  assert.deepEqual(
+    offenders,
+    [],
+    `these FKs would block account deletion:\n${offenders.join("\n")}`
+  );
+});
+
 test("schema.sql creates the core tables the app depends on", () => {
   const joined = schemaLines().join("\n");
   for (const table of [

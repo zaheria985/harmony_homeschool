@@ -195,7 +195,9 @@ CREATE TABLE lesson_completions (
     lesson_id           UUID NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
     child_id            UUID NOT NULL REFERENCES children(id) ON DELETE CASCADE,
     completed_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
-    completed_by_user_id UUID NOT NULL REFERENCES users(id),
+    -- Nullable + SET NULL: deleting a user must not be blocked by, or destroy,
+    -- the completions they recorded. The completion belongs to the child.
+    completed_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     grade               NUMERIC(5,2),
     pass_fail           TEXT CHECK (pass_fail IN ('pass', 'fail')),
     notes               TEXT,
