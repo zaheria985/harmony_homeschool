@@ -1,6 +1,7 @@
 "use server";
 
 import { requireParent, requireUser } from "@/lib/server/authz";
+import { recordAudit } from "@/lib/server/audit";
 import { signupAvailability, inviteCodeMatches } from "@/lib/server/signup-policy";
 import { z } from "zod";
 import { hash, compare } from "bcryptjs";
@@ -99,6 +100,13 @@ export async function createKidAccount(formData: FormData) {
     }
     throw err;
   }
+
+  await recordAudit({
+    actorUserId: _authUser.id,
+    action: "create_kid_account",
+    entityType: "user",
+    detail: { email, childId, permissionLevel },
+  });
 
   revalidatePath("/settings/users");
   return { success: true };
@@ -220,6 +228,14 @@ export async function updateKidPermission(userId: string, permissionLevel: strin
     [parsed.data.permissionLevel, parsed.data.userId]
   );
 
+  await recordAudit({
+    actorUserId: _authUser.id,
+    action: "update_kid_permission",
+    entityType: "user",
+    entityId: parsed.data.userId,
+    detail: { permissionLevel: parsed.data.permissionLevel },
+  });
+
   revalidatePath("/settings/users");
   return { success: true };
 }
@@ -245,6 +261,13 @@ export async function resetKidPassword(userId: string, newPassword: string) {
     parsed.data.userId,
   ]);
 
+  await recordAudit({
+    actorUserId: _authUser.id,
+    action: "reset_kid_password",
+    entityType: "user",
+    entityId: parsed.data.userId,
+  });
+
   revalidatePath("/settings/users");
   return { success: true };
 }
@@ -262,6 +285,14 @@ export async function deleteKidAccount(userId: string) {
   }
 
   await pool.query("DELETE FROM users WHERE id = $1", [userId]);
+
+  await recordAudit({
+    actorUserId: _authUser.id,
+    action: "delete_kid_account",
+    entityType: "user",
+    entityId: userId,
+  });
+
   revalidatePath("/settings/users");
   return { success: true };
 }

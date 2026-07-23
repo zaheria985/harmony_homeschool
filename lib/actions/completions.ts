@@ -1,6 +1,7 @@
 "use server";
 
 import { requireParent, requireUser, scopedChildId } from "@/lib/server/authz";
+import { recordAudit } from "@/lib/server/audit";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import pool from "@/lib/db";
@@ -352,6 +353,22 @@ export async function approvePendingCompletion(pendingId: string) {
       parsed.data,
     ]);
 
+    // Inside the transaction: the record and the change commit together.
+    await recordAudit(
+      {
+        actorUserId: _authUser.id,
+        action: "approve_completion",
+        entityType: "lesson_completion",
+        entityId: pending.lesson_id,
+        detail: {
+          childId: pending.child_id,
+          submittedBy: pending.submitted_by,
+          grade: pending.grade,
+        },
+      },
+      client,
+    );
+
     await client.query("COMMIT");
 
     // Shift remaining lessons after approval
@@ -387,9 +404,28 @@ export async function rejectPendingCompletion(pendingId: string) {
   if (!parsed.success) return { error: "Invalid pending completion ID" };
 
   try {
+    const pendingRes = await pool.query(
+      "SELECT lesson_id, child_id, submitted_by FROM pending_completions WHERE id = $1",
+      [parsed.data],
+    );
+    const pending = pendingRes.rows[0];
+
     await pool.query("DELETE FROM pending_completions WHERE id = $1", [
       parsed.data,
     ]);
+
+    if (pending) {
+      await recordAudit({
+        actorUserId: _authUser.id,
+        action: "reject_completion",
+        entityType: "lesson_completion",
+        entityId: pending.lesson_id,
+        detail: {
+          childId: pending.child_id,
+          submittedBy: pending.submitted_by,
+        },
+      });
+    }
   } catch (err) {
     console.error("Failed to reject pending completion", {
       pendingId: parsed.data,

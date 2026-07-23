@@ -95,6 +95,20 @@ export default async function AdminPage() {
           </Card>
         </Link>
 
+        <Link href="/admin/audit">
+          <Card className="transition-shadow hover:shadow-md">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">📜</span>
+              <div>
+                <h3 className="text-lg font-semibold">Audit Log</h3>
+                <p className="text-sm text-muted">
+                  Who approved completions and changed accounts, and when
+                </p>
+              </div>
+            </div>
+          </Card>
+        </Link>
+
         <Link href="/admin/external-events">
           <Card className="transition-shadow hover:shadow-md">
             <div className="flex items-center gap-3">
