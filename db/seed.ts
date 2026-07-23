@@ -8,6 +8,27 @@ const pool = new Pool({
 });
 
 async function seed() {
+  // This script wipes all data and inserts a demo family. It must never run
+  // by default — on a real instance it would destroy the family's records and
+  // recreate a well-known parent@harmony.local / harmony123 login.
+  if (process.env.SEED_DEMO !== "true") {
+    console.log(
+      [
+        "Refusing to seed: SEED_DEMO is not set to \"true\".",
+        "",
+        "db:seed loads a DESTRUCTIVE demo dataset (it deletes existing data).",
+        "For a real instance, create your first account instead:",
+        "  1. Set SIGNUP_ENABLED=true (or start with an empty users table)",
+        "  2. Visit /signup to create the first parent account",
+        "  3. Turn SIGNUP_ENABLED back off",
+        "",
+        "To load the demo anyway: SEED_DEMO=true npm run db:seed",
+      ].join("\n")
+    );
+    await pool.end();
+    return;
+  }
+
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -26,8 +47,10 @@ async function seed() {
     await client.query("DELETE FROM children");
     await client.query("DELETE FROM users");
 
-    // 1. Parent user (password: harmony123)
-    const passwordHash = hashSync("harmony123", 10);
+    // 1. Demo parent user. Password is overridable so the demo login is not a
+    //    fixed, publicly-known credential.
+    const demoPassword = process.env.SEED_DEMO_PASSWORD || "harmony123";
+    const passwordHash = hashSync(demoPassword, 10);
     const userRes = await client.query(
       `INSERT INTO users (email, password_hash, name, role) VALUES ($1, $2, $3, 'parent') RETURNING id`,
       ["parent@harmony.local", passwordHash, "Parent"]
