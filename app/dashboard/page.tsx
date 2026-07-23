@@ -15,6 +15,8 @@ import VikunjaSyncButton from "@/components/dashboard/VikunjaSyncButton";
 import PendingApprovalsWidget from "@/components/dashboard/PendingApprovalsWidget";
 import { getPendingCompletions } from "@/lib/actions/completions";
 import { bumpOverdueLessons } from "@/lib/actions/lessons";
+import { todayKey } from "@/lib/utils/timezone";
+import { parseDate } from "@/lib/utils/dates";
 type UpcomingItem = Record<string, string | number | null>;
 type GroupedDay = { dayKey: string; dayLabel: string };
 type ExternalEventItem = {
@@ -44,7 +46,7 @@ export default async function DashboardPage({
 
   // Bump overdue lessons before fetching data so missed lessons appear on today
   const allChildren = await getAllChildren(parentId);
-  const todayStr = dayKeyFromDate(new Date());
+  const todayStr = todayKey();
   await Promise.all(
     (allChildren as Array<{ id: string }>).map((c) => bumpOverdueLessons(c.id, todayStr))
   );
@@ -55,8 +57,9 @@ export default async function DashboardPage({
     getAllChildren(parentId),
     isParent ? getPendingCompletions() : Promise.resolve([]),
   ]);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Anchor the upcoming-days list to today in the app timezone, so the list
+  // does not start on the wrong day when the container runs a different zone.
+  const today = parseDate(todayStr);
   const nextDays: GroupedDay[] = Array.from({ length: daysAhead }, (_, offset) => {
     const date = new Date(today);
     date.setDate(today.getDate() + offset);

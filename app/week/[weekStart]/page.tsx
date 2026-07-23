@@ -6,6 +6,7 @@ import {
   parseDate,
   toDateStr,
 } from "@/lib/utils/dates";
+import { todayKey } from "@/lib/utils/timezone";
 import { bumpOverdueLessons } from "@/lib/actions/lessons";
 import { getWeeklyNotes } from "@/lib/actions/weekly-notes";
 import WeekGrid from "@/components/week/WeekGrid";
@@ -33,7 +34,7 @@ export default async function WeeklyBoardPage({
   }
 
   // Auto-bump overdue lessons (for each child when viewing all)
-  const today = toDateStr(new Date());
+  const today = todayKey();
   let bumpedCount = 0;
   if (isAllKids) {
     const results = await Promise.all(children.map((c) => bumpOverdueLessons(c.id, today)));

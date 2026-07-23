@@ -23,6 +23,7 @@ services:
     environment:
       DATABASE_URL: postgresql://harmony:${POSTGRES_PASSWORD}@db:5432/harmony
       NEXTAUTH_SECRET: "${NEXTAUTH_SECRET:?Set NEXTAUTH_SECRET - generate with openssl rand -base64 32}"
+      APP_TIMEZONE: ${APP_TIMEZONE:-America/New_York}
       NEXTAUTH_URL: ${NEXTAUTH_URL}
       # Off by default: the publicly-known parent@harmony.local / harmony123
       # account is NOT created. On a fresh install, create the first account

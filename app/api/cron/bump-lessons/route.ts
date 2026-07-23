@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { bumpOverdueLessonsForAllCore } from "@/lib/server/lesson-bump";
-function todayDateKey() {
-  const now = new Date();
-  const year = now.getUTCFullYear();
-  const month = String(now.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(now.getUTCDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
+import { todayKey } from "@/lib/utils/timezone";
 function safeSecretEqual(provided: string, expected: string) {
   const providedBuffer = Buffer.from(provided);
   const expectedBuffer = Buffer.from(expected);
@@ -32,7 +26,7 @@ export async function POST(request: NextRequest) {
   // Authorized by CRON_SECRET above; call the core directly since there is
   // no user session on a scheduled run.
   try {
-    const bumped = await bumpOverdueLessonsForAllCore(todayDateKey(), true);
+    const bumped = await bumpOverdueLessonsForAllCore(todayKey(), true);
     return NextResponse.json({ success: true, bumped });
   } catch (err) {
     console.error("[cron/bump-lessons] failed", err);
