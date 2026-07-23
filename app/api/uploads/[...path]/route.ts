@@ -8,16 +8,16 @@ function uploadsBaseDir(): string {
     : path.join(process.cwd(), "public", "uploads");
 }
 
-const MIME_TYPES: Record<string, string> = {
+// Extensions safe to render inline. SVG is deliberately excluded: an inline
+// SVG can carry <script>, so a stored SVG would be a persistent XSS vector.
+const INLINE_MIME_TYPES: Record<string, string> = {
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".png": "image/png",
   ".gif": "image/gif",
   ".webp": "image/webp",
   ".avif": "image/avif",
-  ".svg": "image/svg+xml",
   ".pdf": "application/pdf",
-  ".bin": "application/octet-stream",
 };
 
 export async function GET(
@@ -35,14 +35,26 @@ export async function GET(
   try {
     const buffer = await readFile(filePath);
     const ext = path.extname(filePath).toLowerCase();
-    const contentType = MIME_TYPES[ext] || "application/octet-stream";
+    const inlineType = INLINE_MIME_TYPES[ext];
 
-    return new NextResponse(buffer, {
-      headers: {
-        "Content-Type": contentType,
-        "Cache-Control": "public, max-age=31536000, immutable",
-      },
-    });
+    const headers: Record<string, string> = {
+      "Cache-Control": "public, max-age=31536000, immutable",
+      // Never let the browser sniff a different, executable content type.
+      "X-Content-Type-Options": "nosniff",
+    };
+
+    if (inlineType) {
+      headers["Content-Type"] = inlineType;
+    } else {
+      // Anything not on the inline allowlist (SVG, HTML, unknown) is forced to
+      // download and sandboxed so it cannot execute in the app's origin.
+      const filename = path.basename(filePath);
+      headers["Content-Type"] = "application/octet-stream";
+      headers["Content-Disposition"] = `attachment; filename="${filename}"`;
+      headers["Content-Security-Policy"] = "sandbox";
+    }
+
+    return new NextResponse(buffer, { headers });
   } catch {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
