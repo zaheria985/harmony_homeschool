@@ -14,6 +14,14 @@ function formatIcalDate(dateStr: string): string {
   return dateStr.replace(/-/g, "");
 }
 
+/** Add N days to a YYYY-MM-DD key without tripping over local timezones. */
+function addDaysToDateKey(dateKey: string, days: number): string {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 function formatIcalDateTime(date: Date): string {
   return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
 }
@@ -42,12 +50,20 @@ export async function GET(request: NextRequest) {
   const token = searchParams.get("token");
   const childId = searchParams.get("child");
 
-  // Verify token matches ICAL_TOKEN env var
-  const expectedToken = process.env.ICAL_TOKEN;
-  if (expectedToken) {
-    if (!token || Buffer.byteLength(token) !== Buffer.byteLength(expectedToken) || !timingSafeEqual(Buffer.from(token), Buffer.from(expectedToken))) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
+  // Fail closed: the feed exposes every child's schedule, so it is served
+  // only when a token is configured AND the request matches it. (Legacy
+  // ICAL_TOKEN is still honored so existing subscriptions keep working.)
+  const expectedToken =
+    process.env.CALENDAR_ICAL_TOKEN || process.env.ICAL_TOKEN;
+  if (!expectedToken) {
+    return new NextResponse("Calendar feed is not configured", { status: 403 });
+  }
+  if (
+    !token ||
+    Buffer.byteLength(token) !== Buffer.byteLength(expectedToken) ||
+    !timingSafeEqual(Buffer.from(token), Buffer.from(expectedToken))
+  ) {
+    return new NextResponse("Unauthorized", { status: 401 });
   }
 
   // --- Fetch lessons ---
@@ -56,7 +72,7 @@ export async function GET(request: NextRequest) {
   if (childId) {
     // Per-child calendar: lessons assigned to this child
     lessonsResult = await pool.query(
-      `SELECT l.id, l.title, l.description, l.planned_date, l.status,
+      `SELECT l.id, l.title, l.description, l.planned_date::text AS planned_date, l.status,
               s.name AS subject_name, cu.name AS curriculum_name,
               c.name AS child_name
        FROM lessons l
@@ -71,7 +87,7 @@ export async function GET(request: NextRequest) {
   } else {
     // All-children calendar: group children per lesson
     lessonsResult = await pool.query(
-      `SELECT l.id, l.title, l.description, l.planned_date, l.status,
+      `SELECT l.id, l.title, l.description, l.planned_date::text AS planned_date, l.status,
               s.name AS subject_name, cu.name AS curriculum_name,
               string_agg(DISTINCT c.name, ', ' ORDER BY c.name) AS child_names
        FROM lessons l
@@ -94,7 +110,7 @@ export async function GET(request: NextRequest) {
     eventsResult = await pool.query(
       `SELECT ee.id, ee.title, ee.description, ee.start_time, ee.end_time,
               ee.location, ee.category, ee.recurrence_type,
-              ee.day_of_week, ee.start_date, ee.end_date, ee.all_day, ee.color
+              ee.day_of_week, ee.start_date::text AS start_date, ee.end_date::text AS end_date, ee.all_day, ee.color
        FROM external_events ee
        WHERE ee.end_date >= CURRENT_DATE - interval '30 days'
          AND (
@@ -108,7 +124,7 @@ export async function GET(request: NextRequest) {
     eventsResult = await pool.query(
       `SELECT ee.id, ee.title, ee.description, ee.start_time, ee.end_time,
               ee.location, ee.category, ee.recurrence_type,
-              ee.day_of_week, ee.start_date, ee.end_date, ee.all_day, ee.color
+              ee.day_of_week, ee.start_date::text AS start_date, ee.end_date::text AS end_date, ee.all_day, ee.color
        FROM external_events ee
        WHERE ee.end_date >= CURRENT_DATE - interval '30 days'
        ORDER BY ee.start_date`
@@ -154,12 +170,8 @@ export async function GET(request: NextRequest) {
   for (const row of lessonsResult.rows) {
     const dateStr = String(row.planned_date);
     const dtStart = formatIcalDate(dateStr);
-    // All-day event: DTEND is next day
-    const endDate = new Date(dateStr);
-    endDate.setDate(endDate.getDate() + 1);
-    const dtEnd = formatIcalDate(
-      `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, "0")}-${String(endDate.getDate()).padStart(2, "0")}`
-    );
+    // All-day event: DTEND is exclusive, so it points at the next day.
+    const dtEnd = formatIcalDate(addDaysToDateKey(dateStr, 1));
 
     const childLabel = row.child_name || row.child_names || "";
     const summary = escapeIcal(
@@ -203,9 +215,7 @@ export async function GET(request: NextRequest) {
       lines.push(`DTSTART;VALUE=DATE:${startDate}`);
       if (event.end_date && event.end_date !== event.start_date) {
         // All-day events: DTEND is exclusive, add 1 day
-        const ed = new Date(String(event.end_date));
-        ed.setDate(ed.getDate() + 1);
-        const edStr = `${ed.getFullYear()}-${String(ed.getMonth() + 1).padStart(2, "0")}-${String(ed.getDate()).padStart(2, "0")}`;
+        const edStr = addDaysToDateKey(String(event.end_date), 1);
         lines.push(`DTEND;VALUE=DATE:${formatIcalDate(edStr)}`);
       }
     } else {
