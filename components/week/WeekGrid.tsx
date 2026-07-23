@@ -290,6 +290,17 @@ export default function WeekGrid({
       router.refresh();
     });
   }
+  // React attaches touchmove as a *passive* root listener, so preventDefault()
+  // inside onTouchMove is silently ignored and the page scrolls out from under
+  // a drag on phones and tablets. While a drag is active, attach our own
+  // non-passive listener so the scroll can actually be suppressed.
+  useEffect(() => {
+    if (!touchDragging) return;
+    const blockScroll = (event: globalThis.TouchEvent) => event.preventDefault();
+    document.addEventListener("touchmove", blockScroll, { passive: false });
+    return () => document.removeEventListener("touchmove", blockScroll);
+  }, [touchDragging]);
+
   function clearLongPressTimer() {
     if (longPressTimerRef.current !== null) {
       window.clearTimeout(longPressTimerRef.current);
@@ -312,7 +323,9 @@ export default function WeekGrid({
     if (!touchDragging || !draggingLesson) return;
     const touch = event.touches[0];
     if (!touch) return;
-    event.preventDefault();
+    // NOTE: calling event.preventDefault() here does nothing — React registers
+    // touchmove as a passive root listener. Page scrolling is suppressed by the
+    // non-passive document listener in the effect above.
     const target = document.elementFromPoint(touch.clientX, touch.clientY);
     const dayElement =
       target instanceof HTMLElement ? target.closest("[data-day-date]") : null;
@@ -604,6 +617,7 @@ export default function WeekGrid({
                                           onTouchMove={handleTouchMove}
                                           onTouchEnd={handleTouchEnd}
                                           onTouchCancel={handleTouchCancel}
+                                          style={touchDragging ? { touchAction: "none" } : undefined}
                                           className={`block text-left text-sm leading-tight transition-colors hover:text-interactive md:text-xs ${(lesson.effective_status || lesson.status) === "completed" ? "text-muted line-through" : "text-tertiary"}`}
                                         >
                                           <span className="line-clamp-2">{lesson.title}</span>
@@ -619,7 +633,9 @@ export default function WeekGrid({
                                           })()}
                                         </button>
                                         {allChildren.length > 1 && (
-                                          <div className="absolute -right-0.5 top-0 hidden group-hover/lesson:block">
+                                          // Visible by default on touch-sized screens;
+                                          // hover/focus-revealed where hover exists.
+                                          <div className="absolute -right-0.5 top-0 block md:hidden md:group-focus-within/lesson:block md:group-hover/lesson:block">
                                             <button
                                               type="button"
                                               onClick={(e) => {
