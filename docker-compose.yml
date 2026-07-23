@@ -22,7 +22,7 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://harmony:${POSTGRES_PASSWORD}@db:5432/harmony
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?Set NEXTAUTH_SECRET (generate with: openssl rand -base64 32)}
+      NEXTAUTH_SECRET: "${NEXTAUTH_SECRET:?Set NEXTAUTH_SECRET - generate with openssl rand -base64 32}"
       NEXTAUTH_URL: ${NEXTAUTH_URL}
       # Off by default: the publicly-known parent@harmony.local / harmony123
       # account is NOT created. On a fresh install, create the first account
@@ -34,11 +34,51 @@ services:
       VIKUNJA_API_TOKEN: ${VIKUNJA_API_TOKEN:-}
       VIKUNJA_PROJECT_ID: ${VIKUNJA_PROJECT_ID:-}
       VIKUNJA_WEBHOOK_SECRET: ${VIKUNJA_WEBHOOK_SECRET:-}
+      # iCal feed: the endpoint returns 403 unless one of these is set.
+      CALENDAR_ICAL_TOKEN: ${CALENDAR_ICAL_TOKEN:-}
       ICAL_TOKEN: ${ICAL_TOKEN:-}
+      # Required for the nightly lesson-bump cron below to authenticate.
+      CRON_SECRET: ${CRON_SECRET:-}
     ports:
       - "3000:3000"
     volumes:
       - uploads:/app/public/uploads
+
+  # Nightly "bump overdue lessons forward" run. Without this the bump only
+  # happens lazily on page load, which is slow and racy.
+  # Requires CRON_SECRET to be set in .env; skips itself if it is empty.
+  cron:
+    image: curlimages/curl:latest
+    restart: unless-stopped
+    depends_on:
+      - app
+    environment:
+      CRON_SECRET: ${CRON_SECRET:-}
+      BUMP_HOUR: ${BUMP_HOUR:-5}
+    entrypoint:
+      - sh
+      - -c
+      - |
+        if [ -z "$$CRON_SECRET" ]; then
+          echo "[cron] CRON_SECRET is not set — scheduled lesson bumping is DISABLED."
+          echo "[cron] Set CRON_SECRET in .env to enable it."
+          while true; do sleep 3600; done
+        fi
+        echo "[cron] started; will bump lessons daily at $${BUMP_HOUR}:00 UTC"
+        while true; do
+          now=$$(date -u +%H)
+          now=$${now#0}
+          target=$${BUMP_HOUR#0}
+          delta=$$(( target - now ))
+          [ $$delta -le 0 ] && delta=$$(( delta + 24 ))
+          sleep $$(( delta * 3600 ))
+          echo "[cron] $$(date -u) running bump-lessons"
+          curl -fsS -X POST \
+            -H "Authorization: Bearer $$CRON_SECRET" \
+            http://app:3000/api/cron/bump-lessons \
+            && echo "" || echo "[cron] bump failed"
+          sleep 3600
+        done
 
   # Nightly pg_dump into ./backups on the host. Keeps the last 14 days.
   # Restore:  docker compose exec -T db pg_restore -U harmony -d harmony --clean --if-exists < backups/harmony-YYYYMMDD-HHMMSS.dump
