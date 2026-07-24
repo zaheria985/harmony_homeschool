@@ -120,7 +120,7 @@ export async function getUpcomingDueLessons(daysAhead = 3, childId?: string, par
          AND l.planned_date < $2::date + (($1::text || ' days')::interval)
          ${childFilter}
          ${parentFilter}
-        ORDER BY l.planned_date ASC, c.name, s.name, l.title`,
+        ORDER BY planned_date ASC, c.name, s.name, l.title`,
     params
   );
   return res.rows;
