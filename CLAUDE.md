@@ -167,6 +167,11 @@ docker compose build app    # MUST pass before pushing
 - `TagInput` — tag autocomplete/create input
 - `ResourcePreviewModal` — inline preview for video/PDF resources
 - `MarkdownContent` — renders markdown safely
+- `PageHeader` — takes an optional `subtitle` (one-line, data-bearing, rendered italic)
+- `EmptyState` — ornament + message + optional `hint` and CTA `children`
+- `BotanicalOrnament` — `sprig` / `divider` / `seedling` inline SVG marks
+- `ProgressRing` — SVG donut (kid mode, student hubs)
+- `ParentShell` / `KidShell` / `BottomTabs` — app chrome, chosen by role in `app/layout.tsx`
 
 **Domain components** live in `components/<domain>/` (curricula, lessons, week, resources, booklists, dashboard, subjects, grades, prep, tags, reading, approvals, students). Check existing ones before creating new components.
 
@@ -197,7 +202,8 @@ All PKs are UUID. All FKs indexed. See spec for full per-feature data models.
 - **SQL:** Parameterized (`$1`, `$2`), never interpolate
 - **Actions:** Zod validate → query → revalidate → return `{success}` or `{error}`
 - **Pages:** `force-dynamic` on all DB-querying pages
-- **Theme tokens:** `bg-surface`, `text-primary`, `border-light`, `bg-interactive`, `ring-focus` — no hardcoded colors or manual `dark:` variants. Hover/focus states use same tokens (`hover:bg-interactive`, `focus-visible:ring-focus`).
+- **Theme tokens:** `bg-surface`, `text-primary`, `border-light`, `bg-interactive`, `ring-focus` — no hardcoded colors or manual `dark:` variants. Hover/focus states use same tokens (`hover:bg-interactive`, `focus-visible:ring-focus`). Terracotta accents use `--accent-solid` / `--accent-text` / `--accent-bg` / `--accent-border`.
+- **Per-child color:** `lib/utils/kid-colors.ts` — `kidColorMap(roster)` / `kidColorFor(index)`, keyed off `getChildRoster()` ordering (`ORDER BY c.name`). Never assign a child a color any other way, or the same kid changes color between screens.
 
 ## Active Constraints
 
@@ -223,8 +229,9 @@ All PKs are UUID. All FKs indexed. See spec for full per-feature data models.
 
 ```
 app/              # Pages: admin, approvals, booklists, calendar, completed, curricula,
-                  #   dashboard, grades, lessons, prep, reading, reports, resources,
-                  #   settings, students, subjects, tags, week
+                  #   lessons, reading, reports, resources, settings, students,
+                  #   subjects, tags, today, week
+                  # Redirect-only: dashboard → today, prep → week, grades → students
 app/api/          # Routes: auth (NextAuth), calendar, cron, export, reports, uploads
 components/       # By domain: ui/, curricula/, lessons/, dashboard/, resources/, week/, etc.
 lib/actions/      # Server actions by domain (incl. reading.ts, weekly-notes.ts, external-events.ts)

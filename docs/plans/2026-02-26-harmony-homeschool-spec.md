@@ -20,6 +20,7 @@
 11. [Feature 10: Authentication & Users](#feature-10-authentication--users)
 12. [Feature 11: Admin](#feature-11-admin)
 13. [Feature 12: Integrations](#feature-12-integrations)
+14. [Feature 13: Today](#feature-13-today)
 
 ---
 
@@ -144,19 +145,21 @@ Composite primary key on (parent_id, child_id). Cascading deletes on both foreig
 | `updateChild(FormData)` | id, name, emoji, banner_file, clear_banner | Updates profile; supports replacing or clearing banner |
 | `deleteChild(childId)` | UUID string | Hard deletes child and cascades to assignments, completions, booklists |
 
-All actions validate with Zod, use parameterized SQL, and revalidate `/students` and `/dashboard`.
+All actions validate with Zod, use parameterized SQL, and revalidate `/students` and `/today`.
 
 ### Pages
 
-**`/students`** — Grid of child cards showing emoji, name, subject count, and completion progress bar. Links to detail page.
+**`/students`** — Grid of child cards showing emoji, name, subject count, and completion progress bar, each in that child's accent color. Links to the child's hub.
 
-**`/students/[id]`** — Detail page showing:
-- Banner image (if set)
-- 4-stat summary: total lessons, completed, in progress, average grade
-- Per-subject breakdown with progress bars
-- Next 5 upcoming lessons
-- Current courses for the active school year with completion status
-- Overall progress bar
+**`/students/[id]`** — Profile hub with four tabs, selected by a `?tab=` search param so each panel fetches only its own data:
+- **Overview** (default) — per-subject cards (color dot, course count, average, progress bar, per-course percentages), stat tiles for reading/completed/streak, quick actions for report card, transcript, and attendance report, plus the year-over-year chart when data spans more than one year
+- **Grades** — per-subject averages with letter grades, and the full grade table for that child
+- **Reading** — books/pages/minutes tiles and the child's recent reading log
+- **Attendance** — days attended, hours, minutes-per-day, and a day list for the selected year
+
+Header carries the child's accent-ringed avatar, name, an italic summary line, and the school-year selector. Banner image renders above when set.
+
+The former cross-student `/grades` page is retired and redirects here; grading-scale configuration moved to Admin → Grading scales (`/settings`).
 
 ### Key Behaviors
 
@@ -612,10 +615,16 @@ The Week Planner is the primary daily-use view for managing homeschool schedulin
 
 **Level 1 — Main Board** (`/week/[weekStart]`)
 
-The core view. Displays 6 consecutive weeks as labeled sections, each with a 7-column day grid (2-col on mobile). Each day cell shows:
+The core view. Displays 6 consecutive weeks as labeled sections, each with a row of day cells (stacked on mobile, 2-col at `sm`). Each day cell shows:
 - External events as dashed-border badges (school emoji, color dot, title, time range)
 - Lessons grouped by subject -> course, with completion checkboxes, status dots, and links
 - Today's cell is highlighted with a colored border
+
+**Collapsed empty days** — a day with no lessons and no external events renders as a slim vertical strip (`md:w-9`) with a rotated weekday label, so the days holding work take the remaining width. A strip is still a drop target: dragging a lesson over it sets it as the drop target and it expands; clicking it expands the day so work can be added. Days that hold work share the row via `flex-1 basis-0`.
+
+**Materials panel** — a collapsible "Materials this week" panel sits above the board, listing books and supplies needed in the next 7 days (from `getUpcomingPrepMaterials`), grouped by material with the weekdays each is needed. This replaced the standalone `/prep` page, which now redirects here.
+
+**Kid variant** — a kid session renders `KidWeekList` instead: a read-only vertical day list with lesson titles and check states, prev/next week arrows, and no drag-and-drop or filters. The child is always resolved from the session, never the `?child=` param.
 
 On page load, `bumpOverdueLessons` is called to shift any overdue lessons forward.
 
@@ -678,9 +687,9 @@ Grades, Reports, and Completed Lessons are three related read-heavy views that a
 
 ### Pages
 
-**`/grades`** — Gradebook
+**`/students/[id]?tab=grades`** — Gradebook, per child. (`/grades` is retired and redirects to `/students`; the pieces below now render inside a single child's hub, scoped to that child and the selected school year.)
 
-- Summary cards per child showing per-subject average grades with color dots and **letter grade badges** from the default grading scale
+- Per-subject average grades with color dots and **letter grade badges** from the default grading scale
 - **Grade trends chart** via `GradeTrendsChart` — per-subject sparkline charts showing grade trajectory over time
   - Inline SVG with polyline trend lines and circle data points, colored by subject
   - Hover tooltips showing lesson title, grade, and date
@@ -1226,8 +1235,7 @@ All actions are parent-only (kid role blocked).
 
 | View | How Events Appear |
 |---|---|
-| **Week Planner** | Dashed-border badges at top of each day cell with color dot, school emoji, title, time range |
-| **Dashboard** | Per-child per-day alongside upcoming lessons in the due-soon grid |
+| **Week Planner** | Dashed-border badges at top of each day cell with color dot, school emoji, title, time range. An event keeps a day from collapsing to a strip. |
 | **Calendar** | Included in the API response and rendered on calendar day cells |
 
 Events are always scoped by child (or all children for parent view) and filtered to the displayed date range.
@@ -1322,13 +1330,13 @@ No database sessions — JWT only. Token carries all role/permission data to avo
 All routes require a valid JWT except: `/login`, `/signup`, `/api/auth/*`, static assets, and `/uploads`.
 
 **Kid route restrictions** — Kid users can only access:
-- `/dashboard`, `/calendar`, `/booklists`, `/login`
-- `/lessons/*`, `/api/calendar`, `/api/lessons`, `/api/auth`
-- All other paths redirect to `/dashboard`
+- `/today`, `/dashboard`, `/week`, `/calendar`, `/booklists`, `/reading`, `/login`
+- `/lessons/*`, `/week/*`, `/api/calendar`, `/api/lessons`, `/api/auth`
+- All other paths redirect to `/today`
 
 ### Pages
 
-**`/login`** — Email + password form. Generic error message ("Invalid email or password"). Redirects to `/dashboard` on success.
+**`/login`** — Email + password form. Generic error message ("Invalid email or password"). Redirects to `/today` on success.
 
 **`/signup`** — Name + email + password + confirm. Creates parent account and auto-logs in.
 
@@ -1344,7 +1352,10 @@ All routes require a valid JWT except: `/login`, `/signup`, `/api/auth/*`, stati
 - **Permission level UI** — Kid account creation and editing forms include a permission level selector (`full`, `mark_complete`, `view_only`).
 - **Password reset for kid accounts** — Parents can reset kid account passwords from the user management UI.
 - **Parent ownership enforcement on delete** — Deleting a kid account verifies parent ownership via `parent_children` before proceeding.
-- **Dedicated approvals page** — `/approvals` provides a dedicated page for reviewing and approving pending completions submitted by kid accounts, beyond the dashboard widget.
+- **Dedicated approvals page** — `/approvals` provides a dedicated page for reviewing and approving pending completions submitted by kid accounts, beyond the Today alert strip.
+- **Separate shells per role** — `app/layout.tsx` resolves the session server-side and renders `ParentShell` (grouped sidebar, drawer, phone bottom tabs) or `KidShell` (greeting header, four bottom tabs, sign-out behind the avatar). Kids never receive the admin navigation, and `middleware.ts` still gates the paths independently — the shell is presentation, not authorization.
+- **Kid-visible routes** — `/today`, `/week`, `/reading`, `/booklists`, `/calendar` (plus `/lessons/*` and the matching APIs). The kid tab bar may only link to allowlisted paths; `tests/route-redirects.test.ts` fails if a tab points somewhere middleware would bounce, which would loop a kid back to `/today` forever.
+- **Kid completion feedback** — a kid's tap queues a `pending_completions` row and the card switches to a goldenrod "waiting to be checked" state, visually distinct from an approved green one, instead of silently reverting on the next render.
 
 ---
 
@@ -1550,3 +1561,54 @@ A daily cron endpoint that finds lessons with past planned dates and reschedules
 #### Behavior
 
 For each child, finds all planned/in-progress lessons with `planned_date` in the past and reassigns them to the next available school days in order, using the same scheduling logic as `autoScheduleLessons` (respects custom weekdays, school days, and date overrides).
+
+---
+
+## Feature 13: Today
+
+### Summary
+
+`/today` is the app's landing page and replaces the old Dashboard (`/dashboard` redirects here). It answers the first question of a homeschool morning — what are we doing today, and let me check it off — and renders a different view per role from the same route.
+
+### Goals
+
+- Put the day's work and one-tap completion above the fold, for both parent and kid
+- Surface only what needs a decision (approvals, overdue, out-of-year) as one-line strips
+- Keep long-horizon numbers (year rate, streaks, reading) present but subordinate
+
+### Out of Scope
+
+- Editing lessons (that stays in the planner and lesson pages)
+- Time-of-day scheduling
+
+### Future Scope
+
+- A celebration animation when a kid finishes the last lesson of the day (deliberately deferred)
+
+### Queries
+
+`lib/queries/today.ts` — all per-child completion is read from `lesson_completions`, dates are cast `::text`, and "today" comes from `todayKey()`:
+
+| Function | Returns |
+|---|---|
+| `getTodayLessons(childId?, parentId?)` | Today's lessons per child with `completed` and `pending` resolved |
+| `groupLessonsByChild(roster, lessons)` | One entry per child, in roster order, with done/total |
+| `groupLessonsBySubject(lessons)` | The same lessons regrouped by subject |
+| `getWeekProgress(childId?, parentId?)` | Per-child done/total for the current Monday-anchored week |
+| `getRecentReadingMinutes(childId?, parentId?)` | Minutes read per child over the last 7 days |
+| `getOverdueCount(childId?, parentId?)` | Lessons past their planned date that nobody finished |
+
+### Pages
+
+**`/today` (parent)** — serif long date and an italic summary line; conditional alert strips for pending approvals, overdue lessons, and the out-of-year notice; the board; a week-progress strip; and a row of stat chips (year rate, per-child streaks, reading minutes).
+
+**Board views** — `TodayBoard` renders either a column per child (default) or one list grouped by subject, chosen by a toggle persisted in `localStorage` under `today-view`. The by-subject view suits families teaching a subject to every child at once. Rows are `LessonCheckRow`: tap-circle, subject color dot, title, course name.
+
+**`/today` (kid)** — `KidDayBoard`: progress ring in the child's accent color, an encouragement line, streak flame, then full-width cards at least 64px tall. Card states are open / waiting (goldenrod, from `pending_completions`) / done (green). Shortcuts to the reading log and the week. When every lesson is checked, a botanical "That's school for today!" panel appears above the list.
+
+### Key Behaviors
+
+- **Role branching, one route** — the page resolves the session and returns the kid board early; kid queries are scoped to `user.childId`, never a query param.
+- **Completion path is unchanged** — both boards call the existing `markLessonComplete`, so a parent completes directly and a kid queues for approval. The component holds the returned `pending` flag locally so the tick does not revert before the router refresh lands.
+- **Overdue bumping** — `lazyBumpIfNoScheduler(todayKey())` runs here as the no-op fallback for installs without `CRON_SECRET`, the same as the old dashboard.
+- **Empty day** — a botanical empty state rather than a blank grid.
