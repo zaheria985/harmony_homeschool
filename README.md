@@ -8,11 +8,16 @@ A self-hosted web app for planning homeschool lessons, tracking completion, and 
 
 - **Student Management** — Track multiple children with individual profiles and progress
 - **Lesson Planning** — Organize lessons by subject and curriculum with a kanban-style board
-- **Weekly Planner** — Drag-and-drop calendar view with per-child and all-kids views
-- **Grade Tracking** — Record and review grades with detailed breakdowns by subject
-- **Progress Reports** — Generate reports across subjects, children, and time periods
-- **Curriculum Management** — Define curricula, assign to children, and track completion
-- **Resource Library** — Attach and manage learning resources across lessons
+- **Weekly Planner** — Drag-and-drop week board with per-child and all-kids views
+- **Calendar** — Month and semester views; drag a lesson to another day to reschedule it, and the rest of the course follows onto valid school days
+- **School Calendar** — School years, school days, holidays and make-up days drive every scheduling decision, including the nightly bump of overdue work
+- **Grade Tracking** — Record and review grades with weighted averages and configurable letter-grade scales
+- **Progress Reports** — Reports across subjects, children, and time periods, plus attendance/instructional hours and credit-weighted transcripts (CSV and PDF export)
+- **Curriculum Management** — Define curricula, assign to children, and track completion per child — two children can share a course and progress through it independently
+- **Resource Library** — Attach and manage learning resources across lessons, with tags and booklists
+- **Reading Log** — Kids log their own reading; streaks and weekly totals show on the dashboard
+- **Approvals** — Kids mark work complete and it queues for a parent to approve; approvals and account changes are recorded in an audit log
+- **Calendar Subscriptions** — Token-protected iCal feed per child, plus an optional daily "what's due" digest webhook
 - **AI-Assisted Import** — Bulk import lessons with LLM support (OpenAI, Claude, or compatible)
 - **Self-Hosted** — Full Docker support with PostgreSQL, zero external dependencies
 - **Multi-User** — Parent and kid accounts with role-based access
@@ -45,6 +50,16 @@ cp .env.example .env
 - `POSTGRES_PASSWORD`
 - `NEXTAUTH_SECRET`
 - `NEXTAUTH_URL` (for local Docker use `http://localhost:3000`)
+- `APP_TIMEZONE` — your family's IANA timezone (default `America/Chicago`). Every
+  server-side "what day is it" decision uses it.
+
+Two more are worth setting now, because the features they gate fail closed
+rather than running insecurely:
+- `CRON_SECRET` — without it the nightly lesson bump and daily digest do not run
+  (the dashboard falls back to bumping at most once a day on page load).
+- `CALENDAR_ICAL_TOKEN` — without it `/api/calendar/ical` returns 403. The feed
+  exposes every child's schedule to anyone with the URL, so the token *is* the
+  access control.
 
 4. Start the default stack (app + PostgreSQL):
 
@@ -66,6 +81,10 @@ To reopen it later (e.g. to add another parent), set `SIGNUP_ENABLED=true` in
 ## Docker Compose Options
 
 ### Option A: App + Database in one stack (default `docker-compose.yml`)
+
+Abridged below — the file in the repo also runs two sidecars: `cron` (nightly
+lesson bump and daily digest, needs `CRON_SECRET`) and `backup` (nightly
+`pg_dump`, see [Backups](#backups)).
 
 ```yaml
 services:
@@ -123,7 +142,6 @@ services:
       LLM_PROVIDER: ${LLM_PROVIDER:-openai}
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
-      FILERUN_BASE_URL: ${FILERUN_BASE_URL:-}
       UPLOADS_DIR: /app/public/uploads
     volumes:
       - uploads:/app/public/uploads
