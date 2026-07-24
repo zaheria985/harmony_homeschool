@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import pool from "@/lib/db";
+import { todayKey } from "@/lib/utils/timezone";
 
 function escapeIcal(text: string): string {
   return text
@@ -112,13 +113,13 @@ export async function GET(request: NextRequest) {
               ee.location, ee.category, ee.recurrence_type,
               ee.day_of_week, ee.start_date::text AS start_date, ee.end_date::text AS end_date, ee.all_day, ee.color
        FROM external_events ee
-       WHERE ee.end_date >= CURRENT_DATE - interval '30 days'
+       WHERE ee.end_date >= $2::date - interval '30 days'
          AND (
            EXISTS (SELECT 1 FROM external_event_children eec WHERE eec.external_event_id = ee.id AND eec.child_id = $1)
            OR NOT EXISTS (SELECT 1 FROM external_event_children eec WHERE eec.external_event_id = ee.id)
          )
        ORDER BY ee.start_date`,
-      [childId]
+      [childId, todayKey()]
     );
   } else {
     eventsResult = await pool.query(
@@ -126,8 +127,9 @@ export async function GET(request: NextRequest) {
               ee.location, ee.category, ee.recurrence_type,
               ee.day_of_week, ee.start_date::text AS start_date, ee.end_date::text AS end_date, ee.all_day, ee.color
        FROM external_events ee
-       WHERE ee.end_date >= CURRENT_DATE - interval '30 days'
-       ORDER BY ee.start_date`
+       WHERE ee.end_date >= $1::date - interval '30 days'
+       ORDER BY ee.start_date`,
+      [todayKey()]
     );
   }
 

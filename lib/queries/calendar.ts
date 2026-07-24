@@ -49,12 +49,12 @@ export async function getLessonsForMonth(
        l.id,
        l.title,
        l.status,
-       l.planned_date,
+       l.planned_date::text AS planned_date,
        lc.completed_at,
        CASE
          WHEN l.status = 'completed' AND lc.completed_at IS NOT NULL THEN lc.completed_at::date
          ELSE l.planned_date
-       END AS display_date,
+       END::text AS display_date,
        s.name AS subject_name, s.color AS subject_color,
        cu.name AS curriculum_name,
        c.name AS child_name,
@@ -171,7 +171,8 @@ export async function getCurriculaForSubjectForChild(subjectId: string, childId:
 
 export async function getSchoolYears() {
   const res = await pool.query(
-    `SELECT id, label, start_date, end_date FROM school_years ORDER BY start_date DESC`
+    `SELECT id, label, start_date::text AS start_date, end_date::text AS end_date
+     FROM school_years ORDER BY start_date DESC`
   );
   return res.rows;
 }

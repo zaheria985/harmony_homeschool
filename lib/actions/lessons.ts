@@ -17,6 +17,7 @@ import {
   parseDateKey,
   isSchoolDate,
 } from "@/lib/utils/school-dates";
+import { todayKey } from "@/lib/utils/timezone";
 
 /** Revalidate all routes that display lesson/curriculum/subject data */
 function revalidateAll() {
@@ -99,6 +100,7 @@ export async function rescheduleLesson(lessonId: string, newDate: string) {
          AND order_index > $3
          AND planned_date IS NOT NULL
          AND status != 'completed'
+         AND archived = false
        ORDER BY order_index ASC, id ASC`,
       [lesson.curriculum_id, parsed.data.lessonId, lesson.order_index]
     );
@@ -240,7 +242,7 @@ export async function shiftLessonsAfterCompletion(lessonId: string, childId: str
   // If the lesson being completed is for today, don't shift subsequent lessons.
   // Shifting should only happen when completing a FUTURE lesson early (to fill
   // the gap). Completing today's work shouldn't pull tomorrow's lessons forward.
-  const today = formatDateKey(new Date());
+  const today = todayKey();
   if (planned_date <= today) return { success: true, shifted: 0 };
 
   // Get the curriculum assignment for this child to find weekday constraints
@@ -271,15 +273,20 @@ export async function shiftLessonsAfterCompletion(lessonId: string, childId: str
   const weekdays = assignment.weekdays || [];
   if (weekdays.length === 0) return { success: true, shifted: 0 };
 
-  // Get all remaining incomplete lessons in this curriculum, ordered by date
+  // Remaining incomplete lessons scheduled AFTER the completed one. Lessons
+  // planned earlier are work the family is behind on, not part of the gap being
+  // filled — pulling them forward to the completed lesson's date would push
+  // overdue work later instead of catching it up.
   const remainingRes = await pool.query(
     `SELECT l.id, l.planned_date::text AS planned_date, l.order_index
      FROM lessons l
      WHERE l.curriculum_id = $1
        AND l.status != 'completed'
+       AND l.archived = false
        AND l.planned_date IS NOT NULL
+       AND l.planned_date > $2::date
      ORDER BY l.planned_date ASC, l.order_index ASC, l.id ASC`,
-    [curriculum_id]
+    [curriculum_id, planned_date]
   );
 
   if (remainingRes.rows.length === 0) return { success: true, shifted: 0 };

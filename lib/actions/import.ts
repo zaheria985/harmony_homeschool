@@ -4,6 +4,7 @@ import { requireParent } from "@/lib/server/authz";
 import { z } from "zod";
 import pool from "@/lib/db";
 import { revalidatePath } from "next/cache";
+import { resolveActiveSchoolYear } from "@/lib/queries/school-year";
 
 const ImportSchema = z.object({
   type: z.enum(["lessons", "books"]),
@@ -110,15 +111,14 @@ export async function importFromPlatform(formData: FormData) {
     );
     const curriculumId = curRes.rows[0].id;
 
-    // Assign to child via active school year
-    const yearRes = await pool.query(
-      `SELECT id FROM school_years WHERE CURRENT_DATE BETWEEN start_date AND end_date ORDER BY start_date DESC LIMIT 1`
-    );
-    if (yearRes.rows[0]) {
+    // Assign to child via the resolved school year — an import run over the
+    // summer would otherwise create an unassigned course.
+    const activeYear = await resolveActiveSchoolYear();
+    if (activeYear) {
       await pool.query(
         `INSERT INTO curriculum_assignments (curriculum_id, child_id, school_year_id)
          VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
-        [curriculumId, childId, yearRes.rows[0].id]
+        [curriculumId, childId, activeYear.id]
       );
     }
 

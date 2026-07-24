@@ -12,7 +12,12 @@ export async function getProgressReport(childId: string, yearId?: string) {
        COUNT(DISTINCT CASE WHEN l.status = 'completed' THEN l.id END)::int AS completed,
        COUNT(DISTINCT CASE WHEN l.status = 'in_progress' THEN l.id END)::int AS in_progress,
        COUNT(DISTINCT CASE WHEN l.status = 'planned' THEN l.id END)::int AS planned,
-       COALESCE(AVG(lc.grade), 0)::numeric(5,2) AS avg_grade
+       -- Weighted like the gradebook so the progress report and /grades agree.
+       COALESCE(
+         SUM(lc.grade * COALESCE(l.grade_weight, 1)) FILTER (WHERE lc.grade IS NOT NULL)
+           / NULLIF(SUM(COALESCE(l.grade_weight, 1)) FILTER (WHERE lc.grade IS NOT NULL), 0),
+         0
+       )::numeric(5,2) AS avg_grade
      FROM curriculum_assignments ca
      JOIN curricula cu ON cu.id = ca.curriculum_id
      JOIN subjects s ON s.id = cu.subject_id
@@ -33,7 +38,11 @@ export async function getProgressReport(childId: string, yearId?: string) {
         COUNT(CASE WHEN l.status = 'completed' THEN 1 END)::int AS completed,
         COUNT(CASE WHEN l.status = 'in_progress' THEN 1 END)::int AS in_progress,
         COUNT(CASE WHEN l.status = 'planned' THEN 1 END)::int AS planned,
-        COALESCE(AVG(lc.grade), 0)::numeric(5,2) AS avg_grade,
+        COALESCE(
+          SUM(lc.grade * COALESCE(l.grade_weight, 1)) FILTER (WHERE lc.grade IS NOT NULL)
+            / NULLIF(SUM(COALESCE(l.grade_weight, 1)) FILTER (WHERE lc.grade IS NOT NULL), 0),
+          0
+        )::numeric(5,2) AS avg_grade,
         COUNT(lc.grade)::int AS graded_count,
         COUNT(CASE WHEN lc.pass_fail = 'pass' THEN 1 END)::int AS pass_count,
         COUNT(CASE WHEN lc.pass_fail = 'fail' THEN 1 END)::int AS fail_count

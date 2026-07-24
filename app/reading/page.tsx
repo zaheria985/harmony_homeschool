@@ -6,16 +6,26 @@ import {
   getReadingStats,
 } from "@/lib/queries/reading";
 import { getAllChildren } from "@/lib/queries/students";
+import { getCurrentUser } from "@/lib/session";
 import PageHeader from "@/components/ui/PageHeader";
 import ReadingLogClient from "@/components/reading/ReadingLogClient";
 
 export default async function ReadingPage() {
+  const user = await getCurrentUser();
+  // A kid sees and logs only their own reading; the action enforces the same
+  // scope server-side, this just keeps the page honest.
+  const childId = user.role === "kid" ? user.childId || undefined : undefined;
+
   const [entries, books, children, stats] = await Promise.all([
-    getReadingLog(),
+    getReadingLog(childId),
     getBookResources(),
-    getAllChildren(),
-    getReadingStats(),
+    getAllChildren(user.role === "parent" ? user.id : undefined),
+    getReadingStats(childId),
   ]);
+
+  const visibleChildren = childId
+    ? (children as Array<{ id: string }>).filter((c) => c.id === childId)
+    : children;
 
   return (
     <div>
@@ -23,7 +33,7 @@ export default async function ReadingPage() {
       <ReadingLogClient
         entries={entries}
         books={books}
-        children={children}
+        children={visibleChildren}
         stats={stats}
       />
     </div>

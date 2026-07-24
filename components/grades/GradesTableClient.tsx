@@ -45,10 +45,9 @@ export default function GradesTableClient({
     return { success: true };
   }
 
-  async function saveNotes(completionId: string, grade: number, value: string) {
+  async function saveNotes(completionId: string, value: string) {
     const formData = new FormData();
     formData.set("completionId", completionId);
-    formData.set("grade", String(grade));
     formData.set("notes", value);
     const result = await updateGrade(formData);
     if ("error" in result) return { error: result.error || "Failed to update notes" };
@@ -117,7 +116,7 @@ export default function GradesTableClient({
               <td className="py-3 text-muted">
                 <EditableCell
                   value={g.notes || ""}
-                  onSave={(value) => saveNotes(g.completion_id, g.grade, value)}
+                  onSave={(value) => saveNotes(g.completion_id, value)}
                 />
               </td>
               <td className="py-3 text-muted">

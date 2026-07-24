@@ -4,9 +4,12 @@ import PageHeader from "@/components/ui/PageHeader";
 import StatCard from "@/components/ui/StatCard";
 import Card from "@/components/ui/Card";
 import {
+  getDashboardActivity,
   getDashboardStats,
   getUpcomingDueLessons,
 } from "@/lib/queries/dashboard";
+import { getCompletionStreaks } from "@/lib/queries/streaks";
+import FamilyPulse from "@/components/dashboard/FamilyPulse";
 import { getExternalEventOccurrencesForRange } from "@/lib/queries/external-events";
 import { getAllChildren } from "@/lib/queries/students";
 import { getCurrentUser } from "@/lib/session";
@@ -49,12 +52,17 @@ export default async function DashboardPage({
   // no-op when CRON_SECRET is set, and runs at most once a day otherwise.
   await lazyBumpIfNoScheduler(todayStr);
 
-  const [stats, upcoming, children, pendingCompletions] = await Promise.all([
-    getDashboardStats(parentId),
-    getUpcomingDueLessons(daysAhead, scopedChildId, parentId),
-    getAllChildren(parentId),
-    isParent ? getPendingCompletions() : Promise.resolve([]),
-  ]);
+  const [stats, upcoming, children, pendingCompletions, activity, streaks] =
+    await Promise.all([
+      getDashboardStats(parentId),
+      getUpcomingDueLessons(daysAhead, scopedChildId, parentId),
+      getAllChildren(parentId),
+      isParent ? getPendingCompletions() : Promise.resolve([]),
+      user.role === "kid"
+        ? Promise.resolve(null)
+        : getDashboardActivity(parentId),
+      user.role === "kid" ? Promise.resolve([]) : getCompletionStreaks(parentId),
+    ]);
   // Anchor the upcoming-days list to today in the app timezone, so the list
   // does not start on the wrong day when the container runs a different zone.
   const today = parseDate(todayStr);
@@ -129,6 +137,19 @@ export default async function DashboardPage({
             100,
         )
       : 0;
+  // Families school year-round, so today is often outside every configured
+  // school year. Say which year the number covers instead of reporting 0%.
+  const schoolYear = stats.school_year as
+    | { id: string; label: string; isCurrent: boolean; isUpcoming: boolean }
+    | null;
+  const yearStatLabel = schoolYear
+    ? schoolYear.isCurrent
+      ? "Year Completion Rate"
+      : `${schoolYear.label} Completion Rate`
+    : "Year Completion Rate";
+  const yearStatSublabel = schoolYear
+    ? `${stats.active_year_completed_lessons} of ${stats.active_year_total_lessons}`
+    : "No school year set up yet";
   return (
     <div>
       {" "}
@@ -145,11 +166,38 @@ export default async function DashboardPage({
             color="primary"
           />{" "}
           <StatCard
-            label="Year Completion Rate"
+            label={yearStatLabel}
             value={`${yearCompletionRate}%`}
-            sublabel={`${stats.active_year_completed_lessons} of ${stats.active_year_total_lessons}`}
+            sublabel={yearStatSublabel}
             color="success"
           />{" "}
+        </div>
+      )}{" "}
+      {user.role !== "kid" && (!schoolYear || !schoolYear.isCurrent) && (
+        <div className="mb-6 rounded-xl border border-dashed border-light bg-surface-muted p-4 text-sm text-secondary">
+          {schoolYear
+            ? `Today falls outside ${schoolYear.label}${
+                schoolYear.isUpcoming ? ", which hasn't started yet" : ", which has ended"
+              }. Lessons scheduled now still work — they just won't count toward year totals until a school year covers them.`
+            : "No school year is set up yet, so year totals and school-day scheduling have nothing to go on."}{" "}
+          <Link
+            href="/admin/calendar"
+            className="font-medium text-interactive hover:underline"
+          >
+            {schoolYear ? "Set up the next school year →" : "Set up a school year →"}
+          </Link>
+        </div>
+      )}{" "}
+      {activity && (
+        <div className="mb-6">
+          <FamilyPulse
+            yearLabel={activity.schoolYear?.label ?? null}
+            progress={activity.progress}
+            recentCompletions={activity.recentCompletions}
+            reading={activity.reading}
+            streaks={streaks}
+            sinceDays={7}
+          />
         </div>
       )}{" "}
       {isParent && pendingCompletions.length > 0 && (

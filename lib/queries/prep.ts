@@ -1,9 +1,13 @@
 import pool from "@/lib/db";
+import { todayKey } from "@/lib/utils/timezone";
 
 export async function getUpcomingPrepMaterials(daysAhead = 7, childId?: string) {
-  const params: (number | string)[] = [daysAhead];
-  const childFilter = childId ? "AND ca.child_id = $2" : "";
-  if (childId) params.push(childId);
+  const params: (number | string)[] = [daysAhead, todayKey()];
+  let childFilter = "";
+  if (childId) {
+    params.push(childId);
+    childFilter = `AND ca.child_id = $${params.length}`;
+  }
 
   const lessonResources = await pool.query(
     `SELECT
@@ -27,8 +31,8 @@ export async function getUpcomingPrepMaterials(daysAhead = 7, childId?: string) 
      LEFT JOIN resources r ON r.id = lr.resource_id
      WHERE l.status != 'completed'
        AND l.archived = false
-       AND l.planned_date >= CURRENT_DATE
-       AND l.planned_date < CURRENT_DATE + (($1::text || ' days')::interval)
+       AND l.planned_date >= $2::date
+       AND l.planned_date < $2::date + (($1::text || ' days')::interval)
        AND COALESCE(r.type, lr.type) IN ('book', 'supply')
        ${childFilter}
      ORDER BY l.planned_date, c.name, s.name, material_title`,
@@ -57,8 +61,8 @@ export async function getUpcomingPrepMaterials(daysAhead = 7, childId?: string) 
      JOIN resources r ON r.id = cr.resource_id
      WHERE l.status != 'completed'
        AND l.archived = false
-       AND l.planned_date >= CURRENT_DATE
-       AND l.planned_date < CURRENT_DATE + (($1::text || ' days')::interval)
+       AND l.planned_date >= $2::date
+       AND l.planned_date < $2::date + (($1::text || ' days')::interval)
        AND r.type IN ('book', 'supply')
        ${childFilter}
      ORDER BY l.planned_date, c.name, s.name, r.title`,

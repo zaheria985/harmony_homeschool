@@ -1,4 +1,5 @@
 import pool from "@/lib/db";
+import { todayKey } from "@/lib/utils/timezone";
 
 export async function getLessonsByChild(
   childId: string,
@@ -19,7 +20,7 @@ export async function getLessonsByChild(
 
   const res = await pool.query(
     `SELECT
-       l.id, l.title, l.description, l.status, l.planned_date, l.order_index, l.checklist_state,
+       l.id, l.title, l.description, l.status, l.planned_date::text AS planned_date, l.order_index, l.checklist_state,
        cu.id AS curriculum_id, cu.name AS curriculum_name,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        lc.grade, lc.notes AS completion_notes, lc.completed_at
@@ -53,7 +54,7 @@ export async function getAllLessons(filters?: { status?: string; childId?: strin
 
   const res = await pool.query(
     `SELECT
-       l.id, l.title, l.description, l.status, l.planned_date, l.order_index, l.checklist_state,
+       l.id, l.title, l.description, l.status, l.planned_date::text AS planned_date, l.order_index, l.checklist_state,
        cu.id AS curriculum_id, cu.name AS curriculum_name,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        ca.child_id,
@@ -80,7 +81,7 @@ export async function getLessonDetails(id: string, childId?: string) {
 
   const res = await pool.query(
     `SELECT
-       l.id, l.title, l.description, l.status, l.planned_date, l.order_index, l.checklist_state,
+       l.id, l.title, l.description, l.status, l.planned_date::text AS planned_date, l.order_index, l.checklist_state,
        cu.name AS curriculum_name, cu.id AS curriculum_id, cu.grade_type,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        ca.child_id,
@@ -158,7 +159,7 @@ export async function getAllLessonsWithResources(filters?: {
 
   const res = await pool.query(
     `SELECT
-       l.id, l.title, l.description, l.status, l.planned_date, l.order_index, l.checklist_state,
+       l.id, l.title, l.description, l.status, l.planned_date::text AS planned_date, l.order_index, l.checklist_state,
        cu.id AS curriculum_id, cu.name AS curriculum_name,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color,
        ca.child_id,
@@ -185,16 +186,16 @@ export async function getAllLessonsWithResources(filters?: {
 export async function getUpcomingLessons(childId: string, limit = 5) {
   const res = await pool.query(
     `SELECT
-       l.id, l.title, l.planned_date, l.status,
+       l.id, l.title, l.planned_date::text AS planned_date, l.status,
        s.id AS subject_id, s.name AS subject_name, s.color AS subject_color
      FROM lessons l
      JOIN curricula cu ON cu.id = l.curriculum_id
      JOIN subjects s ON s.id = cu.subject_id
      JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id
-     WHERE ca.child_id = $1 AND l.status != 'completed' AND l.archived = false AND l.planned_date >= CURRENT_DATE
+     WHERE ca.child_id = $1 AND l.status != 'completed' AND l.archived = false AND l.planned_date >= $3::date
      ORDER BY l.planned_date ASC
      LIMIT $2`,
-    [childId, limit]
+    [childId, limit, todayKey()]
   );
   return res.rows;
 }

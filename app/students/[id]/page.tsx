@@ -213,7 +213,7 @@ export default async function StudentDetailPage({
                 ? schoolYears.find(
                     (y: Record<string, string>) => y.id === yearId
                   )?.label || "Selected Year"
-                : activeYear.label
+                : (activeYear?.label ?? "This Year")
             }`}
           >
             {" "}

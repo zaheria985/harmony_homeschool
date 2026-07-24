@@ -5,6 +5,7 @@ import {
   createSchoolYear,
   updateSchoolYear,
   deleteSchoolYear,
+  getSchoolYearDeleteImpact,
   setSchoolDays,
   addDateOverride,
   removeDateOverride,
@@ -62,9 +63,20 @@ export default function CalendarConfigClient({
     });
   }
   function handleDeleteYear(id: string) {
-    if (!confirm("Delete this school year? This cannot be undone.")) return;
+    setError(null);
     startTransition(async () => {
-      await deleteSchoolYear(id);
+      // Deleting a year also unlinks every course assigned in it, so say how
+      // much is at stake before asking.
+      const impact = await getSchoolYearDeleteImpact(id);
+      const detail =
+        "assignments" in impact && impact.assignments > 0
+          ? `\n\nThis also removes ${impact.assignments} course assignment${
+              impact.assignments === 1 ? "" : "s"
+            } across ${impact.children} student${impact.children === 1 ? "" : "s"}.`
+          : "";
+      if (!confirm(`Delete this school year? This cannot be undone.${detail}`)) return;
+      const result = await deleteSchoolYear(id);
+      if (result && "error" in result && result.error) setError(result.error);
     });
   }
   function handleUpdateYear(formData: FormData) {

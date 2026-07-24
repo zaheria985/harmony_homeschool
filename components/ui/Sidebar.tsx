@@ -89,7 +89,7 @@ export default function Sidebar() {
   const visibleItems =
     role === "kid"
       ? mainNavItems.filter((item) =>
-          ["/dashboard", "/calendar", "/booklists"].includes(item.href),
+          ["/dashboard", "/calendar", "/booklists", "/reading"].includes(item.href),
         )
       : mainNavItems;
   return (

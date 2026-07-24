@@ -71,7 +71,12 @@ export async function getTranscript(
        sy.label           AS year_label,
        COUNT(l.id)::int                                        AS lessons_total,
        COUNT(lc.id)::int                                       AS lessons_completed,
-       AVG(lc.grade) FILTER (WHERE lc.grade IS NOT NULL)        AS avg_grade,
+       -- Weighted to match the gradebook (lib/queries/grades.ts); a plain AVG
+       -- here made the official transcript disagree with what /grades shows.
+       SUM(lc.grade * COALESCE(l.grade_weight, 1))
+         FILTER (WHERE lc.grade IS NOT NULL)
+         / NULLIF(SUM(COALESCE(l.grade_weight, 1))
+             FILTER (WHERE lc.grade IS NOT NULL), 0)            AS avg_grade,
        COUNT(*) FILTER (WHERE lc.pass_fail = 'fail')::int       AS fail_count,
        COUNT(*) FILTER (WHERE lc.pass_fail IS NOT NULL)::int    AS pass_fail_count
      FROM curriculum_assignments ca
@@ -135,29 +140,24 @@ export async function getTranscript(
     };
   });
 
-  // GPA over graded courses that carry credit; unweighted when credits are unset.
+  // Credit-weighted GPA over every graded course. A course with no credits set
+  // counts as one credit rather than dropping out of the average — otherwise a
+  // single course with credits would silently become the entire GPA.
   let weightedPoints = 0;
   let creditSum = 0;
   let gradedCount = 0;
-  let plainPoints = 0;
 
   for (const course of courses) {
     if (course.numericGrade === null) continue;
     const points = gradePointsFromPercent(course.numericGrade);
+    const credits = course.credits && course.credits > 0 ? course.credits : 1;
     gradedCount += 1;
-    plainPoints += points;
-    if (course.credits && course.credits > 0) {
-      weightedPoints += points * course.credits;
-      creditSum += course.credits;
-    }
+    weightedPoints += points * credits;
+    creditSum += credits;
   }
 
   const gpa =
-    creditSum > 0
-      ? Math.round((weightedPoints / creditSum) * 100) / 100
-      : gradedCount > 0
-        ? Math.round((plainPoints / gradedCount) * 100) / 100
-        : null;
+    creditSum > 0 ? Math.round((weightedPoints / creditSum) * 100) / 100 : null;
 
   const totalCredits = courses.reduce(
     (sum, course) => sum + (course.credits ?? 0),

@@ -130,20 +130,24 @@ export default function ReadingLogClient({
       {/* Controls row */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <label className="text-sm font-medium text-muted">Filter:</label>
-          <select
-            value={filterChild}
-            onChange={(e) => setFilterChild(e.target.value)}
-            className="rounded-lg border border-light bg-surface px-3 py-2 text-sm text-primary"
-          >
-            <option value="">All Children</option>
-            {children.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.emoji ? `${c.emoji} ` : ""}
-                {c.name}
-              </option>
-            ))}
-          </select>
+          {children.length > 1 && (
+            <>
+              <label className="text-sm font-medium text-muted">Filter:</label>
+              <select
+                value={filterChild}
+                onChange={(e) => setFilterChild(e.target.value)}
+                className="rounded-lg border border-light bg-surface px-3 py-2 text-sm text-primary"
+              >
+                <option value="">All Children</option>
+                {children.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.emoji ? `${c.emoji} ` : ""}
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
@@ -180,9 +184,10 @@ export default function ReadingLogClient({
                 <select
                   name="childId"
                   required
+                  defaultValue={children.length === 1 ? children[0].id : ""}
                   className="w-full rounded-lg border border-light bg-surface px-3 py-2 text-sm text-primary"
                 >
-                  <option value="">Select child...</option>
+                  {children.length !== 1 && <option value="">Select child...</option>}
                   {children.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.emoji ? `${c.emoji} ` : ""}

@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import pool from "@/lib/db";
 import { completionValuePayload } from "@/lib/utils/completion-values";
+import { todayKey } from "@/lib/utils/timezone";
 import { shiftLessonsAfterCompletion } from "@/lib/actions/lessons";
 
 const parsedGradeSchema = z
@@ -83,16 +84,17 @@ export async function markLessonComplete(formData: FormData) {
 
     try {
       await pool.query(
-        `INSERT INTO pending_completions (lesson_id, child_id, submitted_by, notes, grade)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO pending_completions (lesson_id, child_id, submitted_by, notes, grade, pass_fail)
+         VALUES ($1, $2, $3, $4, $5, $6)
          ON CONFLICT (lesson_id, child_id) DO UPDATE
-           SET notes = $4, grade = $5, submitted_by = $3, created_at = now()`,
+           SET notes = $4, grade = $5, pass_fail = $6, submitted_by = $3, created_at = now()`,
         [
           lessonId,
           childId,
           currentUser.id || null,
           payload.notes ?? null,
           payload.grade ?? null,
+          payload.passFail ?? null,
         ]
       );
     } catch (err) {
@@ -139,9 +141,22 @@ export async function markLessonComplete(formData: FormData) {
       ]
     );
 
-    await client.query("UPDATE lessons SET status = 'completed' WHERE id = $1", [
-      lessonId,
-    ]);
+    // `lessons.status` is shared by every child assigned to the curriculum, so
+    // it may only flip to 'completed' once all of them have a completion row —
+    // otherwise finishing for one child hides the lesson from their sibling.
+    await client.query(
+      `UPDATE lessons l SET status = 'completed'
+       WHERE l.id = $1
+         AND NOT EXISTS (
+           SELECT 1 FROM curriculum_assignments ca
+           WHERE ca.curriculum_id = l.curriculum_id
+             AND NOT EXISTS (
+               SELECT 1 FROM lesson_completions lc
+               WHERE lc.lesson_id = l.id AND lc.child_id = ca.child_id
+             )
+         )`,
+      [lessonId]
+    );
 
     await client.query("COMMIT");
   } catch (err) {
@@ -163,18 +178,20 @@ export async function markLessonComplete(formData: FormData) {
     );
     if (currRes.rows[0]?.curriculum_id) {
       const cid = currRes.rows[0].curriculum_id;
+      const today = todayKey();
       // Set actual_start_date if not yet set
       await pool.query(
-        `UPDATE curricula SET actual_start_date = CURRENT_DATE
-         WHERE id = $1 AND actual_start_date IS NULL`, [cid]
+        `UPDATE curricula SET actual_start_date = $2::date
+         WHERE id = $1 AND actual_start_date IS NULL`, [cid, today]
       );
       // Set actual_end_date if all lessons are completed
       await pool.query(
-        `UPDATE curricula SET actual_end_date = CURRENT_DATE
+        `UPDATE curricula SET actual_end_date = $2::date
          WHERE id = $1
            AND NOT EXISTS (
-             SELECT 1 FROM lessons WHERE curriculum_id = $1 AND status != 'completed'
-           )`, [cid]
+             SELECT 1 FROM lessons
+             WHERE curriculum_id = $1 AND status != 'completed' AND archived = false
+           )`, [cid, today]
       );
     }
   } catch { /* non-critical */ }
@@ -213,9 +230,26 @@ export async function markLessonIncomplete(lessonId: string, childId: string) {
       "DELETE FROM lesson_completions WHERE lesson_id = $1 AND child_id = $2",
       [parsed.data.lessonId, parsed.data.childId]
     );
-    await client.query("UPDATE lessons SET status = 'planned' WHERE id = $1", [
-      parsed.data.lessonId,
-    ]);
+    // Only reopen the shared status once no child still has a completion.
+    await client.query(
+      `UPDATE lessons SET status = 'planned'
+       WHERE id = $1
+         AND NOT EXISTS (
+           SELECT 1 FROM lesson_completions lc WHERE lc.lesson_id = $1
+         )`,
+      [parsed.data.lessonId]
+    );
+    // The course is no longer finished, so drop the auto-set end date.
+    await client.query(
+      `UPDATE curricula cu SET actual_end_date = NULL
+       WHERE cu.id = (SELECT curriculum_id FROM lessons WHERE id = $1)
+         AND cu.actual_end_date IS NOT NULL
+         AND EXISTS (
+           SELECT 1 FROM lessons l
+           WHERE l.curriculum_id = cu.id AND l.status != 'completed' AND l.archived = false
+         )`,
+      [parsed.data.lessonId]
+    );
     await client.query("COMMIT");
   } catch (err) {
     await client.query("ROLLBACK");
@@ -241,9 +275,11 @@ export async function markLessonIncomplete(lessonId: string, childId: string) {
   return { success: true };
 }
 
+// Grade is optional so the notes column stays editable on pass/fail and
+// ungraded completions, which have no number to send back.
 const updateGradeSchema = z.object({
   completionId: z.string().uuid(),
-  grade: requiredGradeSchema,
+  grade: optionalGradeSchema,
   notes: z.string().optional(),
 });
 
@@ -261,8 +297,8 @@ export async function updateGrade(formData: FormData) {
   }
 
   await pool.query(
-    "UPDATE lesson_completions SET grade = $1, notes = $2 WHERE id = $3",
-    [data.data.grade, data.data.notes ?? null, data.data.completionId]
+    "UPDATE lesson_completions SET grade = COALESCE($1, grade), notes = $2 WHERE id = $3",
+    [data.data.grade ?? null, data.data.notes ?? null, data.data.completionId]
   );
 
   revalidatePath("/grades");
@@ -286,7 +322,7 @@ export async function getPendingCompletions() {
   if (!_authUser) return [];
 
   const res = await pool.query(`
-    SELECT pc.id, pc.lesson_id, pc.child_id, pc.notes, pc.grade, pc.created_at,
+    SELECT pc.id, pc.lesson_id, pc.child_id, pc.notes, pc.grade, pc.pass_fail, pc.created_at,
            l.title as lesson_title, l.section as lesson_section,
            c.name as child_name,
            u.name as submitted_by_name
@@ -335,16 +371,32 @@ export async function approvePendingCompletion(pendingId: string) {
 
     // Insert into lesson_completions
     await client.query(
-      `INSERT INTO lesson_completions (lesson_id, child_id, completed_by_user_id, grade, notes)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO lesson_completions (lesson_id, child_id, completed_by_user_id, grade, pass_fail, notes)
+       VALUES ($1, $2, $3, $4, $5, $6)
        ON CONFLICT (lesson_id, child_id) DO UPDATE
-         SET grade = $4, notes = $5, completed_at = now()`,
-      [pending.lesson_id, pending.child_id, userId, pending.grade, pending.notes]
+         SET grade = $4, pass_fail = $5, notes = $6, completed_at = now()`,
+      [
+        pending.lesson_id,
+        pending.child_id,
+        userId,
+        pending.grade,
+        pending.pass_fail ?? null,
+        pending.notes,
+      ]
     );
 
-    // Mark lesson as completed
+    // Shared status may only close once every assigned child is done.
     await client.query(
-      "UPDATE lessons SET status = 'completed' WHERE id = $1",
+      `UPDATE lessons l SET status = 'completed'
+       WHERE l.id = $1
+         AND NOT EXISTS (
+           SELECT 1 FROM curriculum_assignments ca
+           WHERE ca.curriculum_id = l.curriculum_id
+             AND NOT EXISTS (
+               SELECT 1 FROM lesson_completions lc
+               WHERE lc.lesson_id = l.id AND lc.child_id = ca.child_id
+             )
+         )`,
       [pending.lesson_id]
     );
 

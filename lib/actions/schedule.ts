@@ -11,6 +11,7 @@ import {
   nextValidSchoolDate,
   parseDateKey,
 } from "@/lib/utils/school-dates";
+import { todayKey } from "@/lib/utils/timezone";
 
 const setAssignmentDaysSchema = z.object({
   assignmentId: z.string().uuid(),
@@ -134,10 +135,10 @@ export async function autoScheduleLessons(curriculumId: string, childId: string)
      JOIN school_years sy ON sy.id = ca.school_year_id
      WHERE ca.curriculum_id = $1
        AND ca.child_id = $2
-       AND CURRENT_DATE BETWEEN sy.start_date AND sy.end_date
+       AND $3::date BETWEEN sy.start_date AND sy.end_date
      ORDER BY sy.start_date DESC
      LIMIT 1`,
-    [parsed.data.curriculumId, parsed.data.childId]
+    [parsed.data.curriculumId, parsed.data.childId, todayKey()]
   );
 
   // Prefer an assignment for the currently active school year, but fall back
@@ -219,8 +220,8 @@ export async function autoScheduleLessons(curriculumId: string, childId: string)
   }
 
   const weekdaySet = new Set<number>(weekdays);
-  const todayKey = formatDateKey(new Date());
-  const startKey = todayKey > assignmentRes.start_date ? todayKey : assignmentRes.start_date;
+  const today = todayKey();
+  const startKey = today > assignmentRes.start_date ? today : assignmentRes.start_date;
 
   let cursor = parseDateKey(startKey);
   const endDate = parseDateKey(assignmentRes.end_date);

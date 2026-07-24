@@ -55,6 +55,7 @@ async function hasOverdueLessons(
        JOIN curriculum_assignments ca ON ca.curriculum_id = l.curriculum_id
        WHERE ca.child_id = $1
          AND l.status != 'completed'
+         AND l.archived = false
          AND l.planned_date IS NOT NULL
          AND l.planned_date ${comparison} $2::date
      ) AS overdue`,
@@ -111,6 +112,7 @@ export async function bumpOverdueLessonsCore(
        FROM lessons l
        WHERE l.curriculum_id = $1
          AND l.status != 'completed'
+         AND l.archived = false
          AND l.planned_date IS NOT NULL
        ORDER BY l.planned_date ASC, l.order_index ASC, l.id ASC`,
       [assignment.curriculum_id]

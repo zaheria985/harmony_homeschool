@@ -1,14 +1,24 @@
 import pool from "@/lib/db";
+import { resolveActiveSchoolYear } from "@/lib/queries/school-year";
 
 export async function getActiveSchoolYear() {
-  const res = await pool.query(
-    `SELECT id, label, start_date::text AS start_date, end_date::text AS end_date
-     FROM school_years
-     WHERE CURRENT_DATE BETWEEN start_date AND end_date
-     ORDER BY start_date DESC
-     LIMIT 1`
-  );
-  return res.rows[0] || null;
+  return resolveActiveSchoolYear();
+}
+
+/**
+ * SQL fragment scoping assignments to a year. Callers that were handed an
+ * explicit year use it; the rest fall back to the resolved year so the page
+ * still shows numbers during a summer or between-year gap.
+ */
+async function yearScope(params: string[], yearId?: string) {
+  if (yearId) {
+    params.push(yearId);
+    return `AND ca.school_year_id = $${params.length}`;
+  }
+  const resolved = await resolveActiveSchoolYear();
+  if (!resolved) return "";
+  params.push(resolved.id);
+  return `AND ca.school_year_id = $${params.length}`;
 }
 
 export async function getAllChildren(parentId?: string) {
@@ -47,11 +57,8 @@ export async function getChildById(id: string) {
 }
 
 export async function getChildProgress(childId: string, yearId?: string) {
-  const yearFilter = yearId
-    ? "AND ca.school_year_id = $2"
-    : "AND ca.school_year_id IN (SELECT id FROM school_years WHERE CURRENT_DATE BETWEEN start_date AND end_date)";
   const params: string[] = [childId];
-  if (yearId) params.push(yearId);
+  const yearFilter = await yearScope(params, yearId);
 
   const res = await pool.query(
     `SELECT
@@ -72,11 +79,8 @@ export async function getChildProgress(childId: string, yearId?: string) {
 }
 
 export async function getChildSubjects(childId: string, yearId?: string) {
-  const yearFilter = yearId
-    ? "AND ca.school_year_id = $2"
-    : "AND ca.school_year_id IN (SELECT id FROM school_years WHERE CURRENT_DATE BETWEEN start_date AND end_date)";
   const params: string[] = [childId];
-  if (yearId) params.push(yearId);
+  const yearFilter = await yearScope(params, yearId);
 
   const res = await pool.query(
     `SELECT
@@ -136,11 +140,8 @@ export async function getYearSummaryReport(childId: string, yearId: string) {
 }
 
 export async function getCompletedCurricula(childId: string, yearId?: string) {
-  const yearFilter = yearId
-    ? "AND ca.school_year_id = $2"
-    : "AND ca.school_year_id IN (SELECT id FROM school_years WHERE CURRENT_DATE BETWEEN start_date AND end_date)";
   const params: string[] = [childId];
-  if (yearId) params.push(yearId);
+  const yearFilter = await yearScope(params, yearId);
 
   const res = await pool.query(
     `SELECT

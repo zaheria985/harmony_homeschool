@@ -148,21 +148,59 @@ export async function createSchoolYear(formData: FormData) {
   const { label, start_date, end_date } = data.data;
   if (end_date <= start_date) return { error: "End date must be after start date" };
 
-  const res = await pool.query(
-    `INSERT INTO school_years (label, start_date, end_date) VALUES ($1, $2, $3) RETURNING id`,
-    [label, start_date, end_date]
-  );
-
-  // Default to Mon-Fri
-  for (const weekday of [1, 2, 3, 4, 5]) {
-    await pool.query(
-      `INSERT INTO school_days (school_year_id, weekday) VALUES ($1, $2)`,
-      [res.rows[0].id, weekday]
+  // The year and its default school days must land together: a year with no
+  // school_days rows is silently unschedulable — the bump and auto-schedule
+  // routines skip assignments whose weekday list is empty.
+  const client = await pool.connect();
+  let yearId: string;
+  try {
+    await client.query("BEGIN");
+    const res = await client.query(
+      `INSERT INTO school_years (label, start_date, end_date) VALUES ($1, $2, $3) RETURNING id`,
+      [label, start_date, end_date]
     );
+    yearId = res.rows[0].id;
+
+    // Default to Mon-Fri
+    await client.query(
+      `INSERT INTO school_days (school_year_id, weekday)
+       SELECT $1, unnest(ARRAY[1, 2, 3, 4, 5])`,
+      [yearId]
+    );
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Failed to create school year", {
+      label,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { error: "Failed to create school year" };
+  } finally {
+    client.release();
   }
 
   revalidateCalendar();
-  return { success: true, id: res.rows[0].id };
+  return { success: true, id: yearId };
+}
+
+/** How much a school-year delete would take with it. */
+export async function getSchoolYearDeleteImpact(id: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
+  const parsed = z.string().uuid().safeParse(id);
+  if (!parsed.success) return { error: "Invalid ID" };
+
+  const res = await pool.query(
+    `SELECT
+       (SELECT COUNT(*)::int FROM curriculum_assignments WHERE school_year_id = $1) AS assignments,
+       (SELECT COUNT(DISTINCT ca.child_id)::int FROM curriculum_assignments ca WHERE ca.school_year_id = $1) AS children`,
+    [parsed.data]
+  );
+  return {
+    success: true as const,
+    assignments: res.rows[0]?.assignments ?? 0,
+    children: res.rows[0]?.children ?? 0,
+  };
 }
 
 export async function deleteSchoolYear(id: string) {
@@ -171,9 +209,15 @@ export async function deleteSchoolYear(id: string) {
   const parsed = z.string().uuid().safeParse(id);
   if (!parsed.success) return { error: "Invalid ID" };
 
+  // Deleting a year cascades to its curriculum_assignments, unlinking every
+  // course from every child for that year. Report what went so the UI can say.
+  const impact = await pool.query(
+    `SELECT COUNT(*)::int AS assignments FROM curriculum_assignments WHERE school_year_id = $1`,
+    [parsed.data]
+  );
   await pool.query("DELETE FROM school_years WHERE id = $1", [parsed.data]);
   revalidateCalendar();
-  return { success: true };
+  return { success: true, removedAssignments: impact.rows[0]?.assignments ?? 0 };
 }
 
 export async function updateSchoolYear(formData: FormData) {

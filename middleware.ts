@@ -5,6 +5,9 @@ const kidAllowedExactPaths = new Set([
   "/dashboard",
   "/calendar",
   "/booklists",
+  // Kids keep their own reading log; the action scopes writes to their own
+  // student record (lib/actions/reading.ts).
+  "/reading",
   "/login",
 ]);
 

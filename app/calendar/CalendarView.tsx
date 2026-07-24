@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  type TouchEvent,
+} from "react";
 import Card from "@/components/ui/Card";
 import Modal from "@/components/ui/Modal";
 import Badge from "@/components/ui/Badge";
@@ -137,6 +144,10 @@ export default function CalendarView({
   const [draggedLesson, setDraggedLesson] = useState<{ id: string; date: string } | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [isRescheduling, startRescheduling] = useTransition();
+  // Touch drag: a long press starts the drag so a tap still opens the day.
+  const [touchDragging, setTouchDragging] = useState(false);
+  const longPressTimerRef = useRef<number | null>(null);
+  const suppressNextClick = useRef(false);
 
   const [fetchError, setFetchError] = useState("");
 
@@ -194,6 +205,81 @@ export default function CalendarView({
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dayModalOpen, selectedDate]);
+
+  // React registers touchmove as a passive root listener, so preventDefault()
+  // in onTouchMove is ignored and the page scrolls out from under a drag.
+  // Attach a non-passive listener for the duration of the drag instead.
+  useEffect(() => {
+    if (!touchDragging) return;
+    const blockScroll = (event: globalThis.TouchEvent) => event.preventDefault();
+    document.addEventListener("touchmove", blockScroll, { passive: false });
+    return () => document.removeEventListener("touchmove", blockScroll);
+  }, [touchDragging]);
+
+  const moveLesson = useCallback(
+    (lessonId: string, fromDate: string, toDate: string) => {
+      if (!lessonId || fromDate === toDate) return;
+      suppressNextClick.current = true;
+      startRescheduling(async () => {
+        const result = await rescheduleLesson(lessonId, toDate);
+        if (result && "error" in result && result.error) {
+          setFetchError(result.error);
+        }
+        fetchLessons();
+      });
+    },
+    [fetchLessons],
+  );
+
+  function clearLongPressTimer() {
+    if (longPressTimerRef.current !== null) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }
+
+  function handleChipTouchStart(
+    event: TouchEvent<HTMLElement>,
+    lesson: { id: string; date: string },
+  ) {
+    if (isRescheduling || event.touches.length !== 1) return;
+    clearLongPressTimer();
+    longPressTimerRef.current = window.setTimeout(() => {
+      suppressNextClick.current = true;
+      setDraggedLesson(lesson);
+      setTouchDragging(true);
+    }, 220);
+  }
+
+  function handleChipTouchMove(event: TouchEvent<HTMLElement>) {
+    if (!touchDragging || !draggedLesson) return;
+    const touch = event.touches[0];
+    if (!touch) return;
+    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+    const dayElement =
+      target instanceof HTMLElement ? target.closest("[data-day-date]") : null;
+    const dayDate =
+      dayElement instanceof HTMLElement ? dayElement.dataset.dayDate : undefined;
+    setDropTarget(dayDate && dayDate !== draggedLesson.date ? dayDate : null);
+  }
+
+  function handleChipTouchEnd() {
+    clearLongPressTimer();
+    if (!touchDragging) return;
+    setTouchDragging(false);
+    const lesson = draggedLesson;
+    const target = dropTarget;
+    setDraggedLesson(null);
+    setDropTarget(null);
+    if (lesson && target) moveLesson(lesson.id, lesson.date, target);
+  }
+
+  function handleChipTouchCancel() {
+    clearLongPressTimer();
+    setTouchDragging(false);
+    setDraggedLesson(null);
+    setDropTarget(null);
+  }
 
   const firstDay = new Date(year, month - 1, 1).getDay();
   const daysInMonth = new Date(year, month, 0).getDate();
@@ -409,7 +495,12 @@ export default function CalendarView({
             return (
               <div
                 key={day}
+                data-day-date={dateStr}
                 onClick={() => {
+                  if (suppressNextClick.current) {
+                    suppressNextClick.current = false;
+                    return;
+                  }
                   if (!draggedLesson) {
                     setSelectedDate(dateStr);
                     setDayModalOpen(true);
@@ -432,12 +523,7 @@ export default function CalendarView({
                   const fromDate = draggedLesson?.date;
                   setDropTarget(null);
                   setDraggedLesson(null);
-                  if (lessonId && fromDate && fromDate !== dateStr) {
-                    startRescheduling(async () => {
-                      await rescheduleLesson(lessonId, dateStr);
-                      fetchLessons();
-                    });
-                  }
+                  if (lessonId && fromDate) moveLesson(lessonId, fromDate, dateStr);
                 }}
                 className={`min-h-[90px] cursor-pointer border p-1.5 text-left transition-colors hover:bg-interactive-light ${
                   isToday
@@ -478,46 +564,56 @@ export default function CalendarView({
                   {dayEvents.length > 2 && (
                     <span className="text-[9px] text-muted">+{dayEvents.length - 2} more</span>
                   )}
-                  {(() => {
-                    // Group lessons by subject for compact display
-                    const subjectGroups = new Map<string, { color: string; count: number; completedCount: number }>();
-                    for (const l of dayLessons) {
-                      const key = l.subject_name || "Other";
-                      const existing = subjectGroups.get(key);
-                      if (existing) {
-                        existing.count++;
-                        if (l.status === "completed") existing.completedCount++;
-                      } else {
-                        subjectGroups.set(key, {
-                          color: l.subject_color || "#6366f1",
-                          count: 1,
-                          completedCount: l.status === "completed" ? 1 : 0,
-                        });
-                      }
-                    }
-                    const entries = Array.from(subjectGroups.entries());
+                  {/* One chip per lesson so a lesson can be dragged to
+                      another day; completed work stays put. */}
+                  {dayLessons.slice(0, 4).map((l) => {
+                    const done = l.status === "completed";
+                    const isDragging = draggedLesson?.id === l.id;
                     return (
-                      <>
-                        {entries.slice(0, 4).map(([name, g]) => {
-                          const allDone = g.completedCount === g.count;
-                          return (
-                            <div key={name} className="flex items-center gap-0.5">
-                              <span
-                                className={`h-1.5 w-1.5 shrink-0 rounded-full ${allDone ? "ring-1 ring-[var(--success-text)]" : ""}`}
-                                style={{ backgroundColor: g.color }}
-                              />
-                              <span className={`truncate text-[10px] leading-tight ${allDone ? "text-muted line-through" : "text-tertiary"}`}>
-                                {name}{g.count > 1 ? ` (${g.count})` : ""}
-                              </span>
-                            </div>
-                          );
-                        })}
-                        {entries.length > 4 && (
-                          <span className="text-[9px] text-muted">+{entries.length - 4} more</span>
-                        )}
-                      </>
+                      <div
+                        key={l.id}
+                        draggable={!done && !isRescheduling}
+                        onDragStart={(e) => {
+                          e.stopPropagation();
+                          e.dataTransfer.setData("text/plain", l.id);
+                          e.dataTransfer.effectAllowed = "move";
+                          setDraggedLesson({ id: l.id, date: dateStr });
+                        }}
+                        onDragEnd={() => {
+                          setDraggedLesson(null);
+                          setDropTarget(null);
+                        }}
+                        onTouchStart={(e) =>
+                          !done && handleChipTouchStart(e, { id: l.id, date: dateStr })
+                        }
+                        onTouchMove={handleChipTouchMove}
+                        onTouchEnd={handleChipTouchEnd}
+                        onTouchCancel={handleChipTouchCancel}
+                        style={touchDragging ? { touchAction: "none" } : undefined}
+                        title={`${l.subject_name || "Other"} — ${l.title}${
+                          done ? "" : " (drag to reschedule)"
+                        }`}
+                        className={`flex items-center gap-0.5 rounded ${
+                          done ? "" : "cursor-grab active:cursor-grabbing"
+                        } ${isDragging ? "opacity-40" : ""}`}
+                      >
+                        <span
+                          className={`h-1.5 w-1.5 shrink-0 rounded-full ${done ? "ring-1 ring-[var(--success-text)]" : ""}`}
+                          style={{ backgroundColor: l.subject_color || "#6366f1" }}
+                        />
+                        <span
+                          className={`truncate text-[10px] leading-tight ${done ? "text-muted line-through" : "text-tertiary"}`}
+                        >
+                          {l.title}
+                        </span>
+                      </div>
                     );
-                  })()}
+                  })}
+                  {dayLessons.length > 4 && (
+                    <span className="text-[9px] text-muted">
+                      +{dayLessons.length - 4} more
+                    </span>
+                  )}
                 </div>
               </div>
             );

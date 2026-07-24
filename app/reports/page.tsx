@@ -442,7 +442,7 @@ function StudentReport({
                   />{" "}
                   <span className="line-clamp-1 text-center text-[10px] text-muted">
                     {" "}
-                    {String(s.subject_name).split("")[0]}{" "}
+                    {String(s.subject_name).split(" ")[0]}{" "}
                   </span>{" "}
                 </div>
               );
