@@ -15,7 +15,7 @@ import {
 import { getDashboardStats } from "@/lib/queries/dashboard";
 import { getCompletionStreaks } from "@/lib/queries/streaks";
 import { getPendingCompletions } from "@/lib/actions/completions";
-import { getChildRoster } from "@/lib/queries/students";
+import { getChildRoster, getAllChildren } from "@/lib/queries/students";
 import { getCurrentUser } from "@/lib/session";
 import { kidColorMap, kidColorFor } from "@/lib/utils/kid-colors";
 import { todayKey } from "@/lib/utils/timezone";
@@ -60,21 +60,22 @@ export default async function TodayPage() {
     );
   }
 
-  const [stats, weekProgress, reading] = await Promise.all([
+  const [stats, weekProgress, reading, ownChildren] = await Promise.all([
     getDashboardStats(parentId),
     getWeekProgress(scopedChildId, parentId),
     getRecentReadingMinutes(scopedChildId, parentId),
+    // Which children to show is an ownership question, so it comes from the
+    // parent-scoped query. The unscoped roster is only for color assignment,
+    // which has to stay stable across the whole app.
+    getAllChildren(parentId),
   ]);
 
-  const visibleRoster = roster.filter(
-    (child) =>
-      !parentId ||
-      lessons.some((lesson) => lesson.child_id === child.id) ||
-      weekProgress.some((row) => row.child_id === child.id),
-  );
   const colors = kidColorMap(roster);
   const children = groupLessonsByChild(
-    visibleRoster.length > 0 ? visibleRoster : roster,
+    (ownChildren as Array<{ id: string; name: string }>).map((child) => ({
+      id: child.id,
+      name: child.name,
+    })),
     lessons,
   );
   const subjects = groupLessonsBySubject(lessons);
