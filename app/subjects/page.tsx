@@ -15,7 +15,10 @@ export default async function SubjectsPage() {
   return (
     <div>
       {" "}
-      <PageHeader title="Subjects">
+      <PageHeader
+        title="Subjects"
+        subtitle={`${subjects.length} ${subjects.length === 1 ? "subject" : "subjects"} shared across ${children.length} ${children.length === 1 ? "student" : "students"}`}
+      >
         <div className="flex items-center gap-2">
           <SubjectTemplateButton />
           <NewSubjectButton />

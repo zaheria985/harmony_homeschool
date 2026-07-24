@@ -35,7 +35,10 @@ export default async function CurriculaPage() {
   return (
     <div>
       {" "}
-      <PageHeader title="Courses">
+      <PageHeader
+        title="Courses"
+        subtitle={`${curricula.length} ${curricula.length === 1 ? "course" : "courses"} across ${subjects.length} ${subjects.length === 1 ? "subject" : "subjects"}`}
+      >
         {" "}
         <div className="flex items-center gap-2">
           <ImportCurriculumModal subjects={subjects} />

@@ -24,7 +24,10 @@ export default async function BooklistsPage() {
   return (
     <div>
       {" "}
-      <PageHeader title="Booklists">
+      <PageHeader
+        title="Booklists"
+        subtitle={`${booklists.length} ${booklists.length === 1 ? "list" : "lists"} · ${books.length} ${books.length === 1 ? "book" : "books"}`}
+      >
         <BooklistExportButton />
       </PageHeader>{" "}
       <BookRecommendations recommendations={recommendations} />

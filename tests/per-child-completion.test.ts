@@ -43,6 +43,9 @@ const CHILD_SCOPED: Array<{ file: string[]; fn: string }> = [
   { file: ["lib", "queries", "reports.ts"], fn: "getCompletedLessons" },
   { file: ["lib", "queries", "lessons.ts"], fn: "getUpcomingLessons" },
   { file: ["lib", "queries", "calendar.ts"], fn: "getLessonsForMonth" },
+  { file: ["lib", "queries", "today.ts"], fn: "getTodayLessons" },
+  { file: ["lib", "queries", "today.ts"], fn: "getWeekProgress" },
+  { file: ["lib", "queries", "today.ts"], fn: "getOverdueCount" },
 ];
 
 test("child-scoped queries do not decide completion from the shared lesson status", () => {

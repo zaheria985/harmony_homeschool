@@ -2,6 +2,7 @@
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import BotanicalOrnament from "@/components/ui/BotanicalOrnament";
 
 function normalizeCallbackUrl(rawCallbackUrl: string | null) {
   if (!rawCallbackUrl) return "/today";
@@ -55,14 +56,17 @@ function LoginForm() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface-muted">
+    <div className="flex min-h-screen items-center justify-center bg-[var(--app-bg)] p-4">
       <div className="w-full max-w-sm">
-        <div className="rounded-2xl border border-light bg-surface p-8 shadow-warm">
-          <h1 className="mb-1 font-display text-2xl text-primary">
-            Harmony Homeschool
+        <div className="rounded-card border border-light bg-surface p-8 shadow-warm-lg">
+          <div className="mb-1 flex justify-center text-interactive-border">
+            <BotanicalOrnament variant="sprig" size={44} />
+          </div>
+          <h1 className="text-center font-display text-2xl text-[var(--brand)]">
+            Harmony
           </h1>
-          <p className="mb-6 text-sm text-muted">
-            Sign in to your account
+          <p className="mb-6 text-center text-sm italic text-tertiary">
+            Homeschool, gathered in one place
           </p>
           {error && (
             <div className="mb-4 rounded-lg border border-[var(--error-border)] bg-[var(--error-bg)] p-3 text-sm text-red-700">
@@ -105,9 +109,9 @@ function LoginForm() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-lg bg-interactive py-2 text-sm font-medium text-white hover:bg-interactive-hover disabled:opacity-50"
+              className="min-h-[44px] w-full rounded-xl bg-interactive text-sm font-medium text-[var(--brand-contrast)] transition-colors hover:bg-interactive-hover disabled:opacity-50"
             >
-              {loading ? "Signing in..." : "Sign In"}
+              {loading ? "Signing in…" : "Sign in"}
             </button>
           </form>
           {signupAllowed && (

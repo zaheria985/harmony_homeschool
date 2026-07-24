@@ -13,7 +13,10 @@ export default async function TagsPage() {
   const role = (session?.user as { role?: string } | undefined)?.role || "parent";
   return (
     <div>
-      <PageHeader title="Tags" />
+      <PageHeader
+        title="Tags"
+        subtitle={`${tags.length} ${tags.length === 1 ? "tag" : "tags"} in use`}
+      />
       <TagsClient tags={tags} userRole={role} />
     </div>
   );

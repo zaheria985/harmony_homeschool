@@ -29,7 +29,10 @@ export default async function ReadingPage() {
 
   return (
     <div>
-      <PageHeader title="Reading Log" />
+      <PageHeader
+        title="Reading Log"
+        subtitle={`${stats.books_read} ${Number(stats.books_read) === 1 ? "book" : "books"} · ${stats.total_minutes} minutes logged`}
+      />
       <ReadingLogClient
         entries={entries}
         books={books}

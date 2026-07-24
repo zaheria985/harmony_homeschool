@@ -9,6 +9,7 @@ import {
 import Badge from "@/components/ui/Badge";
 import EmptyState from "@/components/ui/EmptyState";
 import { CheckCircle2, XCircle, CheckCheck } from "lucide-react";
+import type { KidColor } from "@/lib/utils/kid-colors";
 
 type PendingCompletion = {
   id: string;
@@ -44,8 +45,11 @@ function formatDate(dateStr: string): string {
 
 export default function ApprovalsClient({
   pending,
+  colors,
 }: {
   pending: PendingCompletion[];
+  /** Child id → accent color, so a row is recognisable at a glance. */
+  colors?: Record<string, KidColor>;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -151,9 +155,18 @@ export default function ApprovalsClient({
                   </div>
 
                   <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-secondary">
-                    <span>
-                      <span className="text-muted">Student:</span>{" "}
-                      <span className="font-medium text-interactive">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span
+                        aria-hidden="true"
+                        className="flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-medium"
+                        style={{
+                          backgroundColor: colors?.[item.child_id]?.bg,
+                          color: colors?.[item.child_id]?.text,
+                        }}
+                      >
+                        {item.child_name.charAt(0).toUpperCase()}
+                      </span>
+                      <span className="font-medium text-primary">
                         {item.child_name}
                       </span>
                     </span>

@@ -25,7 +25,10 @@ export default async function ResourcesPage({
   ]);
   return (
     <div>
-      <PageHeader title="Resources" />
+      <PageHeader
+        title="Resources"
+        subtitle={`${resources.length} ${resources.length === 1 ? "resource" : "resources"} in this view`}
+      />
       <ResourcesClient
         resources={resources}
         booklists={booklists}
