@@ -236,14 +236,15 @@ export default async function AdminPage() {
           </Card>
         </Link>
 
-        <Link href="/grades">
+        <Link href="/settings">
           <Card className="transition-shadow hover:shadow-md">
             <div className="flex items-center gap-3">
               <span className="text-2xl">📝</span>
               <div>
-                <h3 className="text-lg font-semibold">Grades</h3>
+                <h3 className="text-lg font-semibold">Grading scales</h3>
                 <p className="text-sm text-muted">
-                  View and manage gradebook records for completed lessons
+                  Set the letter-grade cut-offs; each student&apos;s grades live
+                  on their own page
                 </p>
               </div>
             </div>
