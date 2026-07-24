@@ -23,6 +23,7 @@ type Lesson = {
   id: string;
   title: string;
   status: string;
+  effective_status?: string;
   planned_date: string;
   subject_name: string;
   subject_color: string;
@@ -315,7 +316,9 @@ export default function CalendarView({
   const selectedEvents = selectedDate ? eventsByDate[selectedDate] || [] : [];
 
   // Summary stats
-  const completedCount = selectedLessons.filter((l) => l.status === "completed").length;
+  const completedCount = selectedLessons.filter(
+    (l) => (l.effective_status || l.status) === "completed",
+  ).length;
   const totalLessons = selectedLessons.length;
   const totalEvents = selectedEvents.length;
 
@@ -484,7 +487,9 @@ export default function CalendarView({
             const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
             const dayLessons = lessonsByDate[dateStr] || [];
             const dayEvents = eventsByDate[dateStr] || [];
-            const dayCompleted = dayLessons.filter((l) => l.status === "completed").length;
+            const dayCompleted = dayLessons.filter(
+              (l) => (l.effective_status || l.status) === "completed",
+            ).length;
             const dayTotal = dayLessons.length;
             const isToday =
               day === now.getDate() &&
@@ -567,7 +572,7 @@ export default function CalendarView({
                   {/* One chip per lesson so a lesson can be dragged to
                       another day; completed work stays put. */}
                   {dayLessons.slice(0, 4).map((l) => {
-                    const done = l.status === "completed";
+                    const done = (l.effective_status || l.status) === "completed";
                     const isDragging = draggedLesson?.id === l.id;
                     return (
                       <div
@@ -810,7 +815,7 @@ export default function CalendarView({
                                             )}
                                           </button>
                                         )}
-                                        {l.status === "completed" && (
+                                        {(l.effective_status || l.status) === "completed" && (
                                           <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-[var(--success-bg)] text-[var(--success-text)]">
                                             <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                                               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -822,7 +827,7 @@ export default function CalendarView({
                                           className="flex min-w-0 flex-1 items-center justify-between gap-2 text-left"
                                         >
                                           <span className={`truncate text-sm font-medium ${
-                                            l.status === "completed" ? "text-muted line-through" : "text-primary"
+                                            (l.effective_status || l.status) === "completed" ? "text-muted line-through" : "text-primary"
                                           }`}>
                                             {l.title}
                                           </span>
@@ -832,7 +837,7 @@ export default function CalendarView({
                                                 {gradeStr}
                                               </span>
                                             )}
-                                            {statusBadge(l.status)}
+                                            {statusBadge(l.effective_status || l.status)}
                                             <Badge variant="primary">{l.child_name}</Badge>
                                           </div>
                                         </button>

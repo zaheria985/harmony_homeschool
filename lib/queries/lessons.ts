@@ -192,7 +192,8 @@ export async function getUpcomingLessons(childId: string, limit = 5) {
      JOIN curricula cu ON cu.id = l.curriculum_id
      JOIN subjects s ON s.id = cu.subject_id
      JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id
-     WHERE ca.child_id = $1 AND l.status != 'completed' AND l.archived = false AND l.planned_date >= $3::date
+     LEFT JOIN lesson_completions lc ON lc.lesson_id = l.id AND lc.child_id = ca.child_id
+     WHERE ca.child_id = $1 AND lc.id IS NULL AND l.archived = false AND l.planned_date >= $3::date
      ORDER BY l.planned_date ASC
      LIMIT $2`,
     [childId, limit, todayKey()]

@@ -118,6 +118,12 @@ Only use `"use client"` for interactivity (useState, onClick). Default is server
 
 - **Unguarded server action** → callable by any kid session, or with no session
   at all. Start every action with `requireParent()`/`requireUser()` (Key Patterns §2)
+- **Selecting a DATE column without `::text`** → node-postgres returns a JS
+  `Date` and client tables call `.localeCompare`/`.split` on it, throwing during
+  render; cast in SQL (`tests/query-date-shape.test.ts` catches this)
+- **Deciding per-child completion from `lessons.status`** → curricula are shared,
+  so one child's completion hides the lesson from their sibling; join
+  `lesson_completions` on that child (`tests/per-child-completion.test.ts`)
 - **`new Date()` for "today" in server code** → wrong day on a container whose
   timezone differs from the family's; use `todayKey()` from `lib/utils/timezone.ts`
 - **Unquoted compose value containing `": "`** → breaks YAML parsing and takes
@@ -174,8 +180,8 @@ docker compose build app    # MUST pass before pushing
 - **Resources** are global (`resources` table), linked to lessons via `lesson_resources`
 - **Tags** are global (`tags` table), linked to resources via `resource_tags`, curricula via `curriculum_tags`, and lessons via `lesson_tags`
 - **Books** are standalone (`books` table) with status (wishlist/reading/completed)
-- **Reading log** tracks pages/minutes per book per child (`reading_log` table)
-- **Pending completions** queue for kid-submitted completions awaiting parent approval (`pending_completions` table)
+- **Reading log** tracks pages/minutes per book per child (`reading_log` table); kids write their own entries, scoped by `scopedChildId()`
+- **Pending completions** queue for kid-submitted completions awaiting parent approval (`pending_completions` table, carries `grade` **and** `pass_fail`)
 - **Attendance** is derived from completed lessons (by the lesson's `planned_date`); `attendance_days` stores only exceptions (absent/holiday/extra day, or a per-day minutes override). `app_settings` holds the default instructional minutes per day
 - **Audit log** (`audit_log`) records approvals and account admin; write via `recordAudit()` in `lib/server/audit.ts`, passing the transaction client when inside one
 - **Curricula** have a nullable `credits` used by the transcript export
@@ -204,6 +210,10 @@ All PKs are UUID. All FKs indexed. See spec for full per-feature data models.
 - **Server-side "today"** must come from `todayKey()` (`lib/utils/timezone.ts`),
   never `new Date()` — it honors `APP_TIMEZONE`. Client components may keep
   using browser-local time.
+- **Year-scoped stats** resolve their year with `resolveActiveSchoolYear()`
+  (`lib/queries/school-year.ts`) — current year, else most recently started,
+  else next upcoming. Never assume today falls inside a configured school year;
+  this family schools year-round.
 - **Docker builds without DB** — all DB pages need `force-dynamic`
 - **No UI libraries** — Tailwind only (no shadcn, etc.)
 - **Direct SQL only** — no ORM

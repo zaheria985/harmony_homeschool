@@ -274,7 +274,6 @@ Curricula and lessons form the core of Harmony Homeschool. A curriculum (course 
 
 ### Future Scope
 
-- **Completion-aware status** — Currently `lesson.status` is a single shared field even though completions are per-child; decouple so each child can have independent progress on shared curricula
 - **Recurring lessons (runtime expansion)** — Schema fields exist (`is_recurring`, `recurrence_rule`, `recurrence_end`) and the create/update actions store them, but runtime expansion of recurrence into occurrences is not yet implemented
 
 ### Data Model
@@ -546,11 +545,12 @@ All three grade types are implemented.
 ### Key Behaviors
 
 - **Scheduling algorithm** — `autoScheduleLessons` walks forward from today (or school year start), skipping non-school days, date overrides, and dates that already have a lesson scheduled for that curriculum, assigning one lesson per valid open day. Custom assignment days take priority over school year defaults.
-- **Completion cascading** — When a lesson is completed ahead of schedule, `shiftLessonsAfterCompletion` shifts remaining incomplete lessons forward to fill the gap.
+- **Completion cascading** — When a lesson is completed ahead of schedule, `shiftLessonsAfterCompletion` shifts the incomplete lessons planned *after* it back to fill the gap. Lessons planned earlier are work the family is behind on and are left alone; archived lessons are excluded.
 - **Bump overdue** — `bumpOverdueLessons` finds overdue lessons per-curriculum and shifts them to the next valid dates. Can be triggered per-child or for all children.
 - **Completion copying** — When a curriculum is shared between children and one has more completions, `CompletionCopyBanner` detects the mismatch and offers one-click copying.
 - **Permission-aware completions** — Kid users with `mark_complete` permission create pending completions that require parent approval. Full-permission users complete immediately.
-- **Lesson status is shared** — `lesson.status` is a single field, not per-child. Marking complete for one child sets it to `completed` for all. This is a known limitation (see Future Scope).
+- **Completion is per child** — `lesson_completions` holds one row per (lesson, child), and every child-scoped view derives completion from it: due lists, calendar day counts and badges, per-child progress, and the progress/completed reports. Marking a lesson complete for one child leaves it due for their sibling. `tests/per-child-completion.test.ts` guards the child-scoped queries.
+- **Shared `lesson.status` means "everyone is done"** — the column still carries planned / in_progress / skipped, and flips to `completed` only once every child assigned to the course has a completion row; un-completing reopens it only when no completions remain. Household-wide aggregates (subject cards, course progress) read it directly.
 - **Prepped toggle** — The curriculum edit modal includes a checkbox to toggle the `prepped` boolean. This is a purely organizational aid with no functional side effects; it indicates that all planning and prep for the course is complete.
 - **Drag-and-drop** — Uses `@dnd-kit` for board card reordering. On drop, all affected cards get updated `order_index` and `section` values via `reorderLessons`.
 - **Actual start/end dates** — `actual_start_date` is auto-set on the first lesson completion for a curriculum; `actual_end_date` is auto-set when all lessons are completed. Displayed on board, list, and edit views.
@@ -734,7 +734,7 @@ Grades, Reports, and Completed Lessons are three related read-heavy views that a
 - **School year filter on reports** — Year selector on the reports page allows reviewing progress for any school year, not just the active one.
 - **Exportable PDF report cards** — Per-child PDF report card generation via pdfkit (`/api/reports/export`). Includes subject breakdown, grade averages, and completion stats for record-keeping or submission to school districts.
 - **Custom grading scales** — Configurable letter grade thresholds via `/settings`. Tables: `grading_scales` (name, is_default) and `grade_thresholds` (scale_id, letter, min_score, color). Default scale's thresholds are used to display letter grade badges on the grades page. Server actions in `lib/actions/grades.ts` (CRUD, set default). Utility function `getLetterGrade()` in `lib/utils/grading.ts` maps numeric grades to letters.
-- **Weighted grades** — `grade_weight` column on lessons (default 1.0) allows assignment weighting within a curriculum. Grade calculations use `SUM(grade * grade_weight) / SUM(grade_weight)` for weighted averages. Set via lesson form modal.
+- **Weighted grades** — `grade_weight` column on lessons (default 1.0) allows assignment weighting within a curriculum. Grade calculations use `SUM(grade * grade_weight) / SUM(grade_weight)` for weighted averages, in the gradebook, the progress report and the transcript alike. Set via lesson form modal.
 
 ---
 
@@ -760,9 +760,17 @@ The Calendar provides a monthly view of scheduled lessons and external events, w
 
 ### Future Scope
 
-- **Drag-and-drop rescheduling on calendar** — Move lessons between days by dragging on the monthly grid
+_(none currently)_
 
 ### Architecture
+
+**Drag-and-drop rescheduling** — Each day cell renders one chip per lesson;
+dragging a chip onto another day calls `rescheduleLesson`, which also cascades
+the course's later lessons onto valid school days. Completed work is not
+draggable. Touch uses a 220 ms long press to start the drag (so a tap still
+opens the day) with a non-passive `touchmove` listener to stop the page
+scrolling — React registers `touchmove` passively, so `preventDefault()` inside
+`onTouchMove` alone does nothing. Same pattern as the week board.
 
 The calendar uses a server/client split:
 - **Server component** (`page.tsx`) — fetches children list, determines role-based access

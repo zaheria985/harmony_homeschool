@@ -34,13 +34,14 @@ export async function getAllChildren(parentId?: string) {
       c.id, c.name, c.emoji, c.banner_url, c.created_at,
       COUNT(DISTINCT s.id)::int AS subject_count,
       COUNT(DISTINCT l.id)::int AS total_lessons,
-      COUNT(DISTINCT CASE WHEN l.status = 'completed' THEN l.id END)::int AS completed_lessons
+      COUNT(DISTINCT lc.lesson_id)::int AS completed_lessons
     FROM children c
     ${ownershipJoin}
     LEFT JOIN curriculum_assignments ca ON ca.child_id = c.id
     LEFT JOIN curricula cu ON cu.id = ca.curriculum_id
     LEFT JOIN subjects s ON s.id = cu.subject_id
     LEFT JOIN lessons l ON l.curriculum_id = cu.id
+    LEFT JOIN lesson_completions lc ON lc.lesson_id = l.id AND lc.child_id = c.id
     ${ownershipWhere}
     GROUP BY c.id, c.name, c.emoji, c.banner_url, c.created_at
     ORDER BY c.name
@@ -63,9 +64,9 @@ export async function getChildProgress(childId: string, yearId?: string) {
   const res = await pool.query(
     `SELECT
        COUNT(DISTINCT l.id)::int AS total_lessons,
-       COUNT(DISTINCT CASE WHEN l.status = 'completed' THEN l.id END)::int AS completed,
-       COUNT(DISTINCT CASE WHEN l.status = 'in_progress' THEN l.id END)::int AS in_progress,
-       COUNT(DISTINCT CASE WHEN l.status = 'planned' THEN l.id END)::int AS planned,
+       COUNT(DISTINCT lc.lesson_id)::int AS completed,
+       COUNT(DISTINCT CASE WHEN lc.id IS NULL AND l.status = 'in_progress' THEN l.id END)::int AS in_progress,
+       COUNT(DISTINCT CASE WHEN lc.id IS NULL AND l.status != 'in_progress' THEN l.id END)::int AS planned,
        COALESCE(AVG(lc.grade), 0)::numeric(5,2) AS avg_grade
      FROM curriculum_assignments ca
      JOIN curricula cu ON cu.id = ca.curriculum_id
@@ -86,7 +87,7 @@ export async function getChildSubjects(childId: string, yearId?: string) {
     `SELECT
        s.id, s.name, s.color,
        COUNT(DISTINCT l.id)::int AS total_lessons,
-       COUNT(DISTINCT CASE WHEN l.status = 'completed' THEN l.id END)::int AS completed_lessons,
+       COUNT(DISTINCT lc.lesson_id)::int AS completed_lessons,
        COALESCE(AVG(lc.grade), 0)::numeric(5,2) AS avg_grade
      FROM curriculum_assignments ca
      JOIN curricula cu ON cu.id = ca.curriculum_id
@@ -151,10 +152,10 @@ export async function getCompletedCurricula(childId: string, yearId?: string) {
        s.name AS subject_name,
        s.color AS subject_color,
        sy.label AS school_year_name,
-       COUNT(l.id)::int AS total_lessons,
-       COUNT(CASE WHEN l.status = 'completed' THEN 1 END)::int AS completed_lessons,
+       COUNT(DISTINCT l.id)::int AS total_lessons,
+       COUNT(DISTINCT lc.lesson_id)::int AS completed_lessons,
        COALESCE(AVG(lc.grade), 0)::numeric(5,2) AS avg_grade,
-       CASE WHEN COUNT(l.id) = COUNT(CASE WHEN l.status = 'completed' THEN 1 END) THEN true ELSE false END AS is_complete
+       CASE WHEN COUNT(DISTINCT l.id) = COUNT(DISTINCT lc.lesson_id) THEN true ELSE false END AS is_complete
      FROM curriculum_assignments ca
      JOIN curricula cu ON cu.id = ca.curriculum_id
      JOIN subjects s ON s.id = cu.subject_id

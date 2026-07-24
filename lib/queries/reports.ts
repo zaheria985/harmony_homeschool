@@ -9,9 +9,11 @@ export async function getProgressReport(childId: string, yearId?: string) {
   const overall = await pool.query(
     `SELECT
        COUNT(DISTINCT l.id)::int AS total_lessons,
-       COUNT(DISTINCT CASE WHEN l.status = 'completed' THEN l.id END)::int AS completed,
-       COUNT(DISTINCT CASE WHEN l.status = 'in_progress' THEN l.id END)::int AS in_progress,
-       COUNT(DISTINCT CASE WHEN l.status = 'planned' THEN l.id END)::int AS planned,
+       -- Per child: lessons.status is shared by everyone assigned to the
+       -- course, so a sibling's completion must not count as this child's.
+       COUNT(DISTINCT lc.lesson_id)::int AS completed,
+       COUNT(DISTINCT CASE WHEN lc.id IS NULL AND l.status = 'in_progress' THEN l.id END)::int AS in_progress,
+       COUNT(DISTINCT CASE WHEN lc.id IS NULL AND l.status != 'in_progress' THEN l.id END)::int AS planned,
        -- Weighted like the gradebook so the progress report and /grades agree.
        COALESCE(
          SUM(lc.grade * COALESCE(l.grade_weight, 1)) FILTER (WHERE lc.grade IS NOT NULL)
@@ -34,10 +36,10 @@ export async function getProgressReport(childId: string, yearId?: string) {
         s.name AS subject_name,
         s.color AS subject_color,
         cu.grade_type,
-        COUNT(l.id)::int AS total_lessons,
-        COUNT(CASE WHEN l.status = 'completed' THEN 1 END)::int AS completed,
-        COUNT(CASE WHEN l.status = 'in_progress' THEN 1 END)::int AS in_progress,
-        COUNT(CASE WHEN l.status = 'planned' THEN 1 END)::int AS planned,
+        COUNT(DISTINCT l.id)::int AS total_lessons,
+        COUNT(DISTINCT lc.lesson_id)::int AS completed,
+        COUNT(DISTINCT CASE WHEN lc.id IS NULL AND l.status = 'in_progress' THEN l.id END)::int AS in_progress,
+        COUNT(DISTINCT CASE WHEN lc.id IS NULL AND l.status != 'in_progress' THEN l.id END)::int AS planned,
         COALESCE(
           SUM(lc.grade * COALESCE(l.grade_weight, 1)) FILTER (WHERE lc.grade IS NOT NULL)
             / NULLIF(SUM(COALESCE(l.grade_weight, 1)) FILTER (WHERE lc.grade IS NOT NULL), 0),
@@ -70,7 +72,7 @@ export async function getCompletedLessons(filters: {
   endDate?: string;
   yearId?: string;
 }) {
-  const conditions: string[] = ["l.status = 'completed'"];
+  const conditions: string[] = ["lc.id IS NOT NULL"];
   const params: (string | undefined)[] = [];
   let paramIdx = 0;
 

@@ -47,14 +47,25 @@ export async function getDashboardStats(parentId?: string) {
           ${parentWhere}
       ) AS active_year_total_lessons,
       (
+        -- Counted per child: a lesson on a course two children share is two
+        -- pieces of work, and one child finishing it does not complete the
+        -- other's. The total above counts distinct lessons, so this counts
+        -- distinct lessons too — completed means every assignee is done.
         SELECT COUNT(DISTINCT l.id)::int
         FROM curriculum_assignments ca
         ${parentFilter}
         JOIN curricula cu ON cu.id = ca.curriculum_id
         JOIN lessons l ON l.curriculum_id = cu.id
         WHERE ca.school_year_id = ${yearParam}
-          AND l.status = 'completed'
           AND l.archived = false
+          AND NOT EXISTS (
+            SELECT 1 FROM curriculum_assignments ca2
+            WHERE ca2.curriculum_id = cu.id
+              AND NOT EXISTS (
+                SELECT 1 FROM lesson_completions lc
+                WHERE lc.lesson_id = l.id AND lc.child_id = ca2.child_id
+              )
+          )
           ${parentWhere}
       ) AS active_year_completed_lessons
   `, params);
@@ -100,7 +111,10 @@ export async function getUpcomingDueLessons(daysAhead = 3, childId?: string, par
       JOIN subjects s ON s.id = cu.subject_id
       JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id
       JOIN children c ON c.id = ca.child_id
-       WHERE l.status != 'completed'
+       WHERE NOT EXISTS (
+           SELECT 1 FROM lesson_completions lc
+           WHERE lc.lesson_id = l.id AND lc.child_id = ca.child_id
+         )
          AND l.archived = false
          AND l.planned_date >= $2::date
          AND l.planned_date < $2::date + (($1::text || ' days')::interval)
@@ -185,11 +199,12 @@ export async function getDashboardActivity(parentId?: string, sinceDays = 7) {
          c.id AS child_id,
          c.name AS child_name,
          COUNT(DISTINCT l.id)::int AS total_lessons,
-         COUNT(DISTINCT CASE WHEN l.status = 'completed' THEN l.id END)::int AS completed_lessons
+         COUNT(DISTINCT lc.lesson_id)::int AS completed_lessons
        FROM children c
        JOIN curriculum_assignments ca ON ca.child_id = c.id
        JOIN curricula cu ON cu.id = ca.curriculum_id
        JOIN lessons l ON l.curriculum_id = cu.id AND l.archived = false
+       LEFT JOIN lesson_completions lc ON lc.lesson_id = l.id AND lc.child_id = c.id
        WHERE true ${progressYearFilter} ${progressOwnership}
        GROUP BY c.id, c.name
        ORDER BY c.name`,
@@ -265,11 +280,12 @@ export async function getTodayAssignmentsOverview() {
          c.id AS child_id,
          c.name AS child_name,
          COUNT(DISTINCT l.id)::int AS year_total_lessons,
-         COUNT(DISTINCT CASE WHEN l.status = 'completed' THEN l.id END)::int AS year_completed_lessons
+         COUNT(DISTINCT lc.lesson_id)::int AS year_completed_lessons
        FROM children c
        JOIN curriculum_assignments ca ON ca.child_id = c.id
        JOIN curricula cu ON cu.id = ca.curriculum_id
        JOIN lessons l ON l.curriculum_id = cu.id
+       LEFT JOIN lesson_completions lc ON lc.lesson_id = l.id AND lc.child_id = c.id
        WHERE ca.school_year_id = $1
          AND l.archived = false
        GROUP BY c.id, c.name
@@ -283,12 +299,13 @@ export async function getTodayAssignmentsOverview() {
          s.name AS subject_name,
          s.color AS subject_color,
          COUNT(DISTINCT l.id)::int AS year_total_lessons,
-         COUNT(DISTINCT CASE WHEN l.status = 'completed' THEN l.id END)::int AS year_completed_lessons
+         COUNT(DISTINCT lc.lesson_id)::int AS year_completed_lessons
        FROM children c
        JOIN curriculum_assignments ca ON ca.child_id = c.id
        JOIN curricula cu ON cu.id = ca.curriculum_id
        JOIN subjects s ON s.id = cu.subject_id
        JOIN lessons l ON l.curriculum_id = cu.id
+       LEFT JOIN lesson_completions lc ON lc.lesson_id = l.id AND lc.child_id = c.id
        WHERE ca.school_year_id = $1
          AND l.archived = false
        GROUP BY c.id, s.id, s.name, s.color`,
@@ -312,7 +329,10 @@ export async function getTodayAssignmentsOverview() {
        JOIN subjects s ON s.id = cu.subject_id
        JOIN curriculum_assignments ca ON ca.curriculum_id = cu.id
        JOIN children c ON c.id = ca.child_id
-       WHERE l.status != 'completed'
+       WHERE NOT EXISTS (
+           SELECT 1 FROM lesson_completions lc
+           WHERE lc.lesson_id = l.id AND lc.child_id = ca.child_id
+         )
          AND l.archived = false
          AND l.planned_date = $1::date
        ORDER BY c.name, s.name, l.title`,

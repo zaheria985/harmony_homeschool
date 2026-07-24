@@ -17,20 +17,21 @@ export async function getLessonsForMonth(
   const conditions: string[] = ["l.archived = false"];
 
   if (viewMode === "completed") {
-    conditions.push("l.status = 'completed'");
+    // "Completed" is per child: the shared lessons.status flips as soon as one
+    // sibling finishes, so key on this child's completion row instead.
     conditions.push("lc.completed_at IS NOT NULL");
     conditions.push("lc.completed_at::date >= $1::date");
     conditions.push("lc.completed_at::date < $2::date");
   } else if (viewMode === "planned") {
-    conditions.push("l.status != 'completed'");
+    conditions.push("lc.id IS NULL");
     conditions.push("l.planned_date IS NOT NULL");
     conditions.push("l.planned_date >= $1::date");
     conditions.push("l.planned_date < $2::date");
   } else {
     conditions.push(`(
-      (l.status = 'completed' AND lc.completed_at IS NOT NULL AND lc.completed_at::date >= $1::date AND lc.completed_at::date < $2::date)
+      (lc.completed_at IS NOT NULL AND lc.completed_at::date >= $1::date AND lc.completed_at::date < $2::date)
       OR
-      (l.status != 'completed' AND l.planned_date IS NOT NULL AND l.planned_date >= $1::date AND l.planned_date < $2::date)
+      (lc.id IS NULL AND l.planned_date IS NOT NULL AND l.planned_date >= $1::date AND l.planned_date < $2::date)
     )`);
   }
 
@@ -49,10 +50,15 @@ export async function getLessonsForMonth(
        l.id,
        l.title,
        l.status,
+       CASE
+         WHEN lc.id IS NOT NULL THEN 'completed'
+         WHEN l.status = 'in_progress' THEN 'in_progress'
+         ELSE 'planned'
+       END AS effective_status,
        l.planned_date::text AS planned_date,
        lc.completed_at,
        CASE
-         WHEN l.status = 'completed' AND lc.completed_at IS NOT NULL THEN lc.completed_at::date
+         WHEN lc.completed_at IS NOT NULL THEN lc.completed_at::date
          ELSE l.planned_date
        END::text AS display_date,
        s.name AS subject_name, s.color AS subject_color,
