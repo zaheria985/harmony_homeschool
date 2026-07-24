@@ -454,7 +454,7 @@ export async function shiftLessons(
   revalidatePath("/week");
   revalidatePath("/calendar");
   revalidatePath("/lessons");
-  revalidatePath("/dashboard");
+  revalidatePath("/today");
   revalidatePath("/curricula");
 
   return { success: true, shifted: updates.length };

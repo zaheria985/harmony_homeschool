@@ -47,7 +47,7 @@ export async function createChild(formData: FormData) {
   }
 
   revalidatePath("/students");
-  revalidatePath("/dashboard");
+  revalidatePath("/today");
   return { success: true };
 }
 
@@ -86,7 +86,7 @@ export async function updateChild(formData: FormData) {
   }
 
   revalidatePath("/students");
-  revalidatePath("/dashboard");
+  revalidatePath("/today");
   revalidatePath("/week");
   return { success: true };
 }
@@ -111,7 +111,7 @@ export async function deleteChild(childId: string) {
   }
 
   revalidatePath("/students");
-  revalidatePath("/dashboard");
+  revalidatePath("/today");
   revalidatePath("/admin/children");
   return { success: true };
 }

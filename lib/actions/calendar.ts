@@ -12,7 +12,7 @@ function revalidateCalendar() {
   revalidatePath("/admin");
   revalidatePath("/week");
   revalidatePath("/calendar");
-  revalidatePath("/dashboard");
+  revalidatePath("/today");
 }
 
 function parseDateKey(dateKey: string): Date {

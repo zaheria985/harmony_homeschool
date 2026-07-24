@@ -15,7 +15,7 @@ export default async function UsersPage() {
   const user = session?.user as { id?: string; role?: string } | undefined;
 
   if (!user || user.role === "kid") {
-    redirect("/dashboard");
+    redirect("/today");
   }
 
   const kidAccountsRes = await pool.query(

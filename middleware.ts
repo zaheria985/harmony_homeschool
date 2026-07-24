@@ -2,7 +2,11 @@ import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 
 const kidAllowedExactPaths = new Set([
+  "/today",
   "/dashboard",
+  // The kid week view is read-mostly; every write it can reach still routes
+  // through the approval queue (lib/actions/completions.ts).
+  "/week",
   "/calendar",
   "/booklists",
   // Kids keep their own reading log; the action scopes writes to their own
@@ -11,7 +15,13 @@ const kidAllowedExactPaths = new Set([
   "/login",
 ]);
 
-const kidAllowedPrefixes = ["/lessons/", "/api/calendar", "/api/lessons", "/api/auth"];
+const kidAllowedPrefixes = [
+  "/lessons/",
+  "/week/",
+  "/api/calendar",
+  "/api/lessons",
+  "/api/auth",
+];
 
 function isKidAllowedPath(pathname: string) {
   if (kidAllowedExactPaths.has(pathname)) return true;
@@ -24,7 +34,7 @@ export default withAuth(
     const pathname = req.nextUrl.pathname;
 
     if (token?.role === "kid" && !isKidAllowedPath(pathname)) {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
+      return NextResponse.redirect(new URL("/today", req.url));
     }
 
     return NextResponse.next();

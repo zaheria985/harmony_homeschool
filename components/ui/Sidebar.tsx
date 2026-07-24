@@ -4,14 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { signOut } from "next-auth/react";
-import { useSession } from "next-auth/react";
 import {
-  LayoutDashboard,
+  Sun as SunIcon,
   Palette,
   BookOpen,
   BookOpenCheck,
   ListChecks,
-  CalendarDays,
   ClipboardList,
   Package,
   Library,
@@ -21,39 +19,114 @@ import {
   Settings,
   Users,
   UserCog,
+  GraduationCap,
   Sun,
   Moon,
   PanelLeftOpen,
   PanelLeftClose,
   LogOut,
-  Menu,
   X,
   ClipboardCheck,
+  type LucideIcon,
 } from "lucide-react";
 
-const mainNavItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/subjects", label: "Subjects", icon: Palette },
-  { href: "/curricula", label: "Courses", icon: BookOpen },
-  { href: "/lessons/table", label: "Lessons", icon: ListChecks },
-  { href: "/week", label: "Planner", icon: ClipboardList },
-  { href: "/prep", label: "Weekly Prep", icon: CalendarDays },
-  { href: "/resources", label: "Resources", icon: Package },
-  { href: "/booklists", label: "Booklists", icon: Library },
-  { href: "/reading", label: "Reading Log", icon: BookOpenCheck },
-  { href: "/tags", label: "Tags", icon: Tags },
-  { href: "/calendar", label: "Calendar", icon: Calendar },
-  { href: "/reports", label: "Progress Reports", icon: TrendingUp },
-  { href: "/approvals", label: "Approvals", icon: ClipboardCheck },
-];
-const adminNavItem = { href: "/admin", label: "Admin", icon: Settings };
-const settingsNavItem = { href: "/settings/users", label: "Users", icon: Users };
-const accountNavItem = { href: "/settings/account", label: "Account", icon: UserCog };
+type NavItem = { href: string; label: string; icon: LucideIcon };
+type NavGroup = { label: string | null; items: NavItem[] };
 
-export default function Sidebar() {
+/**
+ * Parent navigation, grouped so sixteen destinations read as five ideas.
+ * "Today" sits alone at the top because it is where the day starts.
+ */
+const navGroups: NavGroup[] = [
+  {
+    label: null,
+    items: [{ href: "/today", label: "Today", icon: SunIcon }],
+  },
+  {
+    label: "Plan",
+    items: [
+      { href: "/week", label: "Planner", icon: ClipboardList },
+      { href: "/calendar", label: "Calendar", icon: Calendar },
+    ],
+  },
+  {
+    label: "School",
+    items: [
+      { href: "/students", label: "Students", icon: GraduationCap },
+      { href: "/subjects", label: "Subjects", icon: Palette },
+      { href: "/curricula", label: "Courses", icon: BookOpen },
+      { href: "/lessons/table", label: "Lessons", icon: ListChecks },
+    ],
+  },
+  {
+    label: "Library",
+    items: [
+      { href: "/resources", label: "Resources", icon: Package },
+      { href: "/booklists", label: "Booklists", icon: Library },
+      { href: "/reading", label: "Reading Log", icon: BookOpenCheck },
+      { href: "/tags", label: "Tags", icon: Tags },
+    ],
+  },
+  {
+    label: "Family",
+    items: [
+      { href: "/reports", label: "Progress Reports", icon: TrendingUp },
+      { href: "/approvals", label: "Approvals", icon: ClipboardCheck },
+      { href: "/admin", label: "Admin", icon: Settings },
+      { href: "/settings/users", label: "Users", icon: Users },
+    ],
+  },
+];
+
+const accountNavItem: NavItem = {
+  href: "/settings/account",
+  label: "Account",
+  icon: UserCog,
+};
+
+/** `/lessons/table` should stay lit while viewing `/lessons/table/anything`. */
+function isActivePath(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(href + "/");
+}
+
+function NavLink({
+  item,
+  active,
+  collapsed,
+  onNavigate,
+}: {
+  item: NavItem;
+  active: boolean;
+  collapsed: boolean;
+  onNavigate: () => void;
+}) {
+  const Icon = item.icon;
+  return (
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      aria-current={active ? "page" : undefined}
+      className={`flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${collapsed ? "justify-center" : "gap-3"} ${
+        active
+          ? "border-l-2 border-l-[var(--brand)] bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]"
+          : "text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--app-text)]"
+      }`}
+      title={collapsed ? item.label : undefined}
+    >
+      <Icon size={20} />
+      {!collapsed && item.label}
+    </Link>
+  );
+}
+
+export default function Sidebar({
+  mobileOpen,
+  onMobileOpenChange,
+}: {
+  mobileOpen: boolean;
+  onMobileOpenChange: (open: boolean) => void;
+}) {
   const pathname = usePathname();
-  const { data: session } = useSession();
-  const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   useEffect(() => {
@@ -84,29 +157,22 @@ export default function Sidebar() {
       return next;
     });
   }
-  const role =
-    (session?.user as { role?: string } | undefined)?.role || "parent";
-  const visibleItems =
-    role === "kid"
-      ? mainNavItems.filter((item) =>
-          ["/dashboard", "/calendar", "/booklists", "/reading"].includes(item.href),
-        )
-      : mainNavItems;
+  const closeMobile = () => onMobileOpenChange(false);
   return (
     <>
-      <button
-        onClick={() => setMobileOpen(!mobileOpen)}
-        aria-label={
-          mobileOpen ? "Close navigation menu" : "Open navigation menu"
-        }
-        className="fixed left-4 top-4 z-50 rounded-xl bg-[var(--brand)] p-2 text-[var(--brand-contrast)] shadow-warm-md md:hidden"
-      >
-        {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-      </button>
+      {mobileOpen && (
+        <button
+          onClick={closeMobile}
+          aria-label="Close navigation menu"
+          className="fixed left-4 top-4 z-50 rounded-xl bg-[var(--brand)] p-2 text-[var(--brand-contrast)] shadow-warm-md print:hidden md:hidden"
+        >
+          <X size={20} />
+        </button>
+      )}
       {mobileOpen && (
         <div
           className="fixed inset-0 z-30 bg-[var(--overlay)] md:hidden"
-          onClick={() => setMobileOpen(false)}
+          onClick={closeMobile}
         />
       )}
       <aside
@@ -115,91 +181,68 @@ export default function Sidebar() {
         <div
           className={`flex h-16 items-center border-b border-[var(--border)] ${desktopCollapsed ? "justify-center px-2" : "justify-between px-4"}`}
         >
-          {desktopCollapsed ? (
-            <span className="font-display text-2xl text-[var(--brand)]">H</span>
-          ) : (
-            <span className="font-display text-2xl text-[var(--brand)]">
-              Harmony
-            </span>
+          <span className="font-display text-2xl text-[var(--brand)]">
+            {desktopCollapsed ? "H" : "Harmony"}
+          </span>
+          {!desktopCollapsed && (
+            <button
+              onClick={toggleTheme}
+              className="rounded-xl border border-[var(--border)] p-1.5 text-sm transition-colors hover:bg-[var(--sidebar-hover)]"
+              title={
+                theme === "dark"
+                  ? "Switch to light mode"
+                  : "Switch to dark mode"
+              }
+              aria-label={
+                theme === "dark"
+                  ? "Switch to light mode"
+                  : "Switch to dark mode"
+              }
+            >
+              {theme === "dark" ? (
+                <Sun size={16} className="text-[var(--warning-solid)]" />
+              ) : (
+                <Moon size={16} className="text-[var(--text-tertiary)]" />
+              )}
+            </button>
           )}
-          <button
-            onClick={toggleTheme}
-            className="rounded-xl border border-[var(--border)] p-1.5 text-sm transition-colors hover:bg-[var(--sidebar-hover)]"
-            title={
-              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
-            }
-            aria-label={
-              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
-            }
-          >
-            {theme === "dark" ? (
-              <Sun size={16} className="text-[var(--warning-solid)]" />
-            ) : (
-              <Moon size={16} className="text-[var(--text-tertiary)]" />
-            )}
-          </button>
         </div>
-        <div className="px-3 pt-3">
-          <SearchCommand />
-        </div>
-        <nav className="flex-1 space-y-1 px-3 py-4">
-          {visibleItems.map((item) => {
-            const active =
-              pathname === item.href || pathname.startsWith(item.href + "/");
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMobileOpen(false)}
-                className={`flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${desktopCollapsed ? "justify-center" : "gap-3"} ${active ? "border-l-2 border-l-[var(--brand)] bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]" : "text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--app-text)]"}`}
-                title={desktopCollapsed ? item.label : undefined}
-              >
-                <Icon size={20} />
-                {!desktopCollapsed && item.label}
-              </Link>
-            );
-          })}
-          {role !== "kid" && (
-            <>
-              <div className="my-2 border-t border-[var(--border)]" />
-              {[adminNavItem, settingsNavItem].map((item) => {
-                const active =
-                  pathname === item.href || pathname.startsWith(item.href + "/");
-                const Icon = item.icon;
-                return (
-                  <Link
+        {!desktopCollapsed && (
+          <div className="px-3 pt-3">
+            <SearchCommand />
+          </div>
+        )}
+        <nav className="flex-1 overflow-y-auto px-3 py-4">
+          {navGroups.map((group, index) => (
+            <div key={group.label ?? "primary"} className={index > 0 ? "mt-4" : ""}>
+              {group.label && !desktopCollapsed && (
+                <p className="px-3 pb-1 text-[11px] font-medium uppercase tracking-wider text-[var(--muted-text)]">
+                  {group.label}
+                </p>
+              )}
+              {group.label && desktopCollapsed && (
+                <div className="mx-2 mb-2 border-t border-[var(--border)]" />
+              )}
+              <div className="space-y-1">
+                {group.items.map((item) => (
+                  <NavLink
                     key={item.href}
-                    href={item.href}
-                    onClick={() => setMobileOpen(false)}
-                    className={`flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${desktopCollapsed ? "justify-center" : "gap-3"} ${active ? "border-l-2 border-l-[var(--brand)] bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]" : "text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--app-text)]"}`}
-                    title={desktopCollapsed ? item.label : undefined}
-                  >
-                    <Icon size={20} />
-                    {!desktopCollapsed && item.label}
-                  </Link>
-                );
-              })}
-            </>
-          )}
-          <div className="my-2 border-t border-[var(--border)]" />
-          {(() => {
-            const active =
-              pathname === accountNavItem.href ||
-              pathname.startsWith(accountNavItem.href + "/");
-            const Icon = accountNavItem.icon;
-            return (
-              <Link
-                href={accountNavItem.href}
-                onClick={() => setMobileOpen(false)}
-                className={`flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${desktopCollapsed ? "justify-center" : "gap-3"} ${active ? "border-l-2 border-l-[var(--brand)] bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]" : "text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--app-text)]"}`}
-                title={desktopCollapsed ? accountNavItem.label : undefined}
-              >
-                <Icon size={20} />
-                {!desktopCollapsed && accountNavItem.label}
-              </Link>
-            );
-          })()}
+                    item={item}
+                    active={isActivePath(pathname, item.href)}
+                    collapsed={desktopCollapsed}
+                    onNavigate={closeMobile}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+          <div className="my-3 border-t border-[var(--border)]" />
+          <NavLink
+            item={accountNavItem}
+            active={isActivePath(pathname, accountNavItem.href)}
+            collapsed={desktopCollapsed}
+            onNavigate={closeMobile}
+          />
         </nav>
         <div className="border-t border-[var(--border)] p-4">
           <button

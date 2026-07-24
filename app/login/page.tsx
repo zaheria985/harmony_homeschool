@@ -4,15 +4,15 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 
 function normalizeCallbackUrl(rawCallbackUrl: string | null) {
-  if (!rawCallbackUrl) return "/dashboard";
+  if (!rawCallbackUrl) return "/today";
   try {
     const callbackUrl = decodeURIComponent(rawCallbackUrl).trim();
     const parsed = new URL(callbackUrl, "http://localhost");
-    if (parsed.pathname === "/login") return "/dashboard";
-    if (parsed.pathname.startsWith("//")) return "/dashboard";
+    if (parsed.pathname === "/login") return "/today";
+    if (parsed.pathname.startsWith("//")) return "/today";
     return parsed.pathname + parsed.search + parsed.hash;
   } catch {
-    return "/dashboard";
+    return "/today";
   }
 }
 

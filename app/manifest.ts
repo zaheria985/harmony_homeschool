@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Harmony Homeschool",
     short_name: "Harmony",
     description: "Track and manage your homeschool activities",
-    start_url: "/dashboard",
+    start_url: "/today",
     display: "standalone",
     background_color: "#f7f4ef",
     theme_color: "#5a7a5e",

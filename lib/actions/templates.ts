@@ -170,7 +170,7 @@ export async function applyLessonTemplate(formData: FormData) {
   revalidatePath("/curricula");
   revalidatePath("/lessons");
   revalidatePath("/week");
-  revalidatePath("/dashboard");
+  revalidatePath("/today");
   return { success: true };
 }
 

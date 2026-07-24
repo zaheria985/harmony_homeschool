@@ -110,7 +110,7 @@ export async function search(
       case "booklist":
         return `/booklists?list=${id}`;
       default:
-        return "/dashboard";
+        return "/today";
     }
   };
 

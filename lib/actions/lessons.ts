@@ -24,7 +24,7 @@ function revalidateAll() {
   revalidatePath("/lessons");
   revalidatePath("/week");
   revalidatePath("/calendar");
-  revalidatePath("/dashboard");
+  revalidatePath("/today");
   revalidatePath("/subjects");
   revalidatePath("/curricula");
   revalidatePath("/grades");
@@ -739,7 +739,7 @@ export async function toggleChecklistItem(
   revalidatePath("/curricula");
   revalidatePath("/lessons");
   revalidatePath("/week");
-  revalidatePath("/dashboard");
+  revalidatePath("/today");
   return { success: true };
 }
 

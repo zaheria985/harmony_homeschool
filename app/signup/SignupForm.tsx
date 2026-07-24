@@ -53,7 +53,7 @@ export default function SignupForm({
       return;
     }
 
-    router.push("/dashboard");
+    router.push("/today");
   }
 
   return (

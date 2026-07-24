@@ -49,6 +49,16 @@ export async function getAllChildren(parentId?: string) {
   return res.rows;
 }
 
+/**
+ * Just id and name, ordered the same way every list orders children. This is
+ * the ordering `kidColorMap` assigns accent colors from, so a child keeps the
+ * same color on every screen.
+ */
+export async function getChildRoster() {
+  const res = await pool.query(`SELECT id, name FROM children ORDER BY name`);
+  return res.rows as { id: string; name: string }[];
+}
+
 export async function getChildById(id: string) {
   const res = await pool.query(
     `SELECT id, name, emoji, banner_url, created_at FROM children WHERE id = $1`,

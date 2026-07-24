@@ -23,7 +23,7 @@ function revalidateAll() {
     "/lessons",
     "/week",
     "/calendar",
-    "/dashboard",
+    "/today",
     "/subjects",
     "/curricula",
     "/grades",

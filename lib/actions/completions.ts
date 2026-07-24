@@ -106,7 +106,7 @@ export async function markLessonComplete(formData: FormData) {
       return { error: "Failed to submit completion for approval" };
     }
 
-    revalidatePath("/dashboard");
+    revalidatePath("/today");
     return { success: true, pending: true };
   }
 
@@ -202,7 +202,7 @@ export async function markLessonComplete(formData: FormData) {
   revalidatePath("/lessons");
   revalidatePath("/week");
   revalidatePath("/grades");
-  revalidatePath("/dashboard");
+  revalidatePath("/today");
   revalidatePath("/subjects");
   revalidatePath("/curricula");
   revalidatePath("/calendar");
@@ -266,7 +266,7 @@ export async function markLessonIncomplete(lessonId: string, childId: string) {
   revalidatePath("/lessons");
   revalidatePath("/week");
   revalidatePath("/grades");
-  revalidatePath("/dashboard");
+  revalidatePath("/today");
   revalidatePath("/subjects");
   revalidatePath("/curricula");
   revalidatePath("/calendar");
@@ -303,7 +303,7 @@ export async function updateGrade(formData: FormData) {
 
   revalidatePath("/grades");
   revalidatePath("/week");
-  revalidatePath("/dashboard");
+  revalidatePath("/today");
   revalidatePath("/lessons");
   revalidatePath("/subjects");
   revalidatePath("/curricula");
@@ -439,7 +439,7 @@ export async function approvePendingCompletion(pendingId: string) {
   revalidatePath("/lessons");
   revalidatePath("/week");
   revalidatePath("/grades");
-  revalidatePath("/dashboard");
+  revalidatePath("/today");
   revalidatePath("/subjects");
   revalidatePath("/curricula");
   revalidatePath("/calendar");
@@ -488,7 +488,7 @@ export async function rejectPendingCompletion(pendingId: string) {
 
   revalidatePath("/lessons");
   revalidatePath("/week");
-  revalidatePath("/dashboard");
+  revalidatePath("/today");
   revalidatePath("/curricula");
   revalidatePath("/approvals");
   return { success: true };
@@ -538,7 +538,7 @@ export async function copyCompletionsToChild(
     revalidatePath("/curricula");
     revalidatePath("/lessons");
     revalidatePath("/grades");
-    revalidatePath("/dashboard");
+    revalidatePath("/today");
     revalidatePath("/students");
     revalidatePath("/reports");
     revalidatePath("/week");

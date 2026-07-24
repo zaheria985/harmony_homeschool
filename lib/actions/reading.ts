@@ -60,7 +60,7 @@ export async function addReadingEntry(formData: FormData) {
   );
 
   revalidatePath("/reading");
-  revalidatePath("/dashboard");
+  revalidatePath("/today");
   return { success: true };
 }
 
@@ -85,6 +85,6 @@ export async function deleteReadingEntry(entryId: string) {
   }
 
   revalidatePath("/reading");
-  revalidatePath("/dashboard");
+  revalidatePath("/today");
   return { success: true };
 }

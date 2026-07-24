@@ -1,7 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import Sidebar from "@/components/ui/Sidebar";
 import Providers from "@/components/Providers";
+import ParentShell from "@/components/ui/ParentShell";
+import KidShell from "@/components/ui/KidShell";
+import { getCurrentUser } from "@/lib/session";
+import { getChildRoster } from "@/lib/queries/students";
+import { kidColorFor } from "@/lib/utils/kid-colors";
 
 export const metadata: Metadata = {
   title: "Harmony - Homeschool Tracker",
@@ -14,11 +18,29 @@ export const viewport: Viewport = {
   themeColor: "#3d6641",
 };
 
-export default function RootLayout({
+/** Kid sessions get their own chrome; everyone else gets the parent shell. */
+async function resolveKidChrome() {
+  const user = await getCurrentUser();
+  if (user.role !== "kid" || !user.childId) return null;
+
+  try {
+    const roster = await getChildRoster();
+    const index = roster.findIndex((child) => child.id === user.childId);
+    if (index === -1) return null;
+    return { name: roster[index].name, color: kidColorFor(index) };
+  } catch {
+    // A database hiccup should not lock a kid out of the page entirely.
+    return { name: user.name || "friend", color: kidColorFor(0) };
+  }
+}
+
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const kid = await resolveKidChrome();
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -41,12 +63,13 @@ export default function RootLayout({
       </head>
       <body className="bg-grain min-h-screen bg-[var(--app-bg)] text-[var(--app-text)] antialiased transition-colors">
         <Providers>
-          <div className="flex min-h-screen">
-            <Sidebar />
-            <main className="flex-1 overflow-auto p-6 transition-colors md:p-10">
-              <div className="mx-auto">{children}</div>
-            </main>
-          </div>
+          {kid ? (
+            <KidShell name={kid.name} color={kid.color}>
+              {children}
+            </KidShell>
+          ) : (
+            <ParentShell>{children}</ParentShell>
+          )}
         </Providers>
       </body>
     </html>
