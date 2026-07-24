@@ -56,12 +56,14 @@ Harmony Homeschool is a self-hosted homeschool tracking application for managing
 | `DATABASE_URL` | — | PostgreSQL connection string |
 | `NEXTAUTH_SECRET` | — | NextAuth JWT signing secret |
 | `NEXTAUTH_URL` | — | Application base URL |
-| `SEED_DEFAULT_USER` | `1` | Create demo account on first boot |
-| `VIKUNJA_URL` | — | Vikunja instance URL (optional, deprecated) |
-| `VIKUNJA_API_TOKEN` | — | Vikunja API token (optional, deprecated) |
-| `VIKUNJA_PROJECT_ID` | — | Vikunja project ID (optional, deprecated) |
-| `VIKUNJA_WEBHOOK_SECRET` | — | Vikunja webhook HMAC secret (optional, deprecated) |
-| `ICAL_TOKEN` | — | Token for iCal export authentication (optional) |
+| `SEED_DEFAULT_USER` | `1` | Seed the default account when bootstrapping an empty database (rotate its password immediately) |
+| `SEED_DEMO` | — | `true` loads demo data via `db/seed.ts` |
+| `APP_TIMEZONE` | `America/Chicago` | IANA zone for server-side "today" |
+| `SIGNUP_ENABLED` | — | `true` opens public signup; otherwise only while `users` is empty |
+| `SIGNUP_INVITE_CODE` | — | When set, signup also requires this code |
+| `HA_WEBHOOK_URL` | — | Where the daily digest is POSTed |
+| `CRON_SECRET` | — | Shared secret for the `/api/cron/*` endpoints |
+| `CALENDAR_ICAL_TOKEN` | — | Required for the iCal export; the endpoint 403s without it (`ICAL_TOKEN` is a legacy alias) |
 | `LLM_PROVIDER` | `openai` | AI provider: `openai`, `openai_compatible`, or `claude` |
 | `LLM_API_KEY` | — | AI API key (optional, enables AI features) |
 | `LLM_BASE_URL` | `https://api.openai.com/v1` | Override for compatible providers |
@@ -786,7 +788,7 @@ Returns `{ lessons, externalEvents }` for the requested month. Auth-enforced: ki
 | Param | Type | Description |
 |---|---|---|
 | kid | string | Optional — filter by child name |
-| token | string | Required if `ICAL_TOKEN` env var is set |
+| token | string | Required — the feed 403s without a valid `CALENDAR_ICAL_TOKEN` |
 
 Returns RFC 5545 iCalendar file with future non-completed lessons as all-day events. Each event includes subject name, lesson title, child name, curriculum, and two reminders (1 day and 30 minutes before).
 
@@ -1330,7 +1332,6 @@ All routes require a valid JWT except: `/login`, `/signup`, `/api/auth/*`, stati
 
 - **Child scope enforcement** — Kid users are locked to their own `child_id` for all data queries. Parent users can access any child they own via `parent_children`.
 - **Pending completion workflow** — When a kid with `mark_complete` permission marks a lesson complete, it goes into `pending_completions` for parent approval rather than being recorded immediately.
-- **Auth bypass** — Currently the landing page redirects straight to `/dashboard`, so login is only triggered when the JWT expires or is absent.
 - **Bcrypt hashing** — All passwords hashed with bcrypt. No plain-text storage.
 - **Permission level UI** — Kid account creation and editing forms include a permission level selector (`full`, `mark_complete`, `view_only`).
 - **Password reset for kid accounts** — Parents can reset kid account passwords from the user management UI.
@@ -1457,62 +1458,27 @@ Covered in Feature 7. Full tag lifecycle: create, rename, merge, delete with res
 
 ## Feature 12: Integrations
 
-### Integration 1: Vikunja Sync (Deprecated — to be replaced by Radicale CalDAV)
+### Integration 1: Vikunja Sync (Removed 2026-07-23)
 
-#### Summary
+Vikunja sync pushed upcoming lessons into a self-hosted Vikunja project and
+listened for task completion over a webhook. It was removed rather than fixed:
+the mapping table, webhook handler, sync action and API client were a lot of
+surface for "see lessons in another app", and the sync was not idempotent — a
+failure between creating the remote task and writing the local mapping
+duplicated tasks on the next run.
 
-Two-way sync between Harmony and a self-hosted Vikunja project. Outbound: pushes upcoming lessons and resources as Vikunja tasks. Inbound: a webhook listens for task completion in Vikunja and marks the corresponding lesson complete in Harmony.
+Removed: `lib/actions/vikunja-sync.ts`, `lib/queries/vikunja-sync.ts`,
+`lib/vikunja.ts`, `app/api/webhooks/vikunja/`, the dashboard sync button, the
+`VIKUNJA_*` environment variables, and the `vikunja_task_map` table (migration
+055).
 
-**Deprecation Note:** Vikunja sync is planned for removal. The task mapping table, webhook handler, sync action, and API client add significant complexity for what amounts to "see lessons in another app." A CalDAV integration via self-hosted Radicale will replace it with a standards-based approach that works with any calendar app without custom integration code. The existing iCal export endpoint (`GET /api/calendar/ical`) will serve as the foundation.
-
-#### Configuration
-
-| Env Var | Description |
-|---|---|
-| `VIKUNJA_URL` | Base URL of Vikunja instance |
-| `VIKUNJA_API_TOKEN` | Bearer token for Vikunja REST API |
-| `VIKUNJA_PROJECT_ID` | Target Vikunja project ID |
-| `VIKUNJA_WEBHOOK_SECRET` | HMAC-SHA256 secret for webhook verification (recommended) |
-
-Feature is disabled entirely if `VIKUNJA_URL` is not set.
-
-#### Data Model
-
-**vikunja_task_map**
-
-| Field | Type | Description |
-|---|---|---|
-| id | UUID | Primary key |
-| vikunja_task_id | BIGINT | Vikunja's task ID, unique |
-| lesson_id | UUID (nullable) | Foreign key to lessons |
-| resource_id | UUID (nullable) | Foreign key to resources |
-| sync_type | TEXT | `lesson` or `resource` |
-| child_id | UUID (nullable) | Foreign key to children |
-| created_at | TIMESTAMPTZ | Auto-set |
-
-#### Outbound Sync
-
-Triggered manually via dashboard button. Processes three loops:
-
-1. **Create lesson tasks** — Upcoming 14 days, not completed. Title: `[Subject] Lesson Title (Child)`. Due date from `planned_date`.
-2. **Create resource tasks** — Resources linked to upcoming lessons. Title: `[Type] Resource Title`. Due 1 hour before parent lesson.
-3. **Clean up completed** — Marks Vikunja tasks as done for lessons completed in Harmony, then removes mapping.
-
-Returns: `{ created, deleted, skipped }`.
-
-#### Inbound Webhook
-
-`POST /api/webhooks/vikunja` — handles `task.updated` events only.
-
-- Task marked done -> creates `lesson_completions` record, sets lesson status to `completed`
-- Task unmarked -> deletes completion, resets status to `planned`
-- Signature verified via HMAC-SHA256 with `timingSafeEqual`
+Calendar subscriptions below are the supported way to see lessons elsewhere.
 
 ### Integration: iCal Calendar Subscriptions (Implemented)
 
 - **Static iCal export** — `GET /api/calendar/ical` provides RFC 5545 iCalendar with future lessons as all-day events, including subject, child, curriculum, and reminders
 - **Per-child filtering** — `?kid=ChildName` parameter filters the feed
-- **Token auth** — Optional `ICAL_TOKEN` env var for URL-based authentication
+- **Token auth** — `CALENDAR_ICAL_TOKEN` (legacy alias `ICAL_TOKEN`) is required; the feed fails closed without it
 - **Admin UI** — `CalendarSubscriptions` component on admin page shows subscription URLs for each child and all-children feed
 - **External events included** — External events are included in the iCal feed alongside lessons
 

@@ -113,6 +113,39 @@ export async function getUpcomingDueLessons(daysAhead = 3, childId?: string, par
 }
 
 /**
+ * Lesson/child pairs already sitting in the approval queue, as `lessonId:childId`
+ * keys. Without this a kid's tick silently reverts on the next render — the
+ * lesson is not complete yet, so the checkbox has nothing to hold on to.
+ */
+export async function getPendingCompletionKeys(
+  childId?: string,
+  parentId?: string,
+): Promise<string[]> {
+  const params: string[] = [];
+  const conditions: string[] = [];
+  if (childId) {
+    params.push(childId);
+    conditions.push(`pc.child_id = $${params.length}`);
+  }
+  if (parentId) {
+    params.push(parentId);
+    conditions.push(`EXISTS (
+      SELECT 1 FROM parent_children p
+      WHERE p.parent_id = $${params.length} AND p.child_id = pc.child_id
+    )`);
+  }
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+  const res = await pool.query(
+    `SELECT pc.lesson_id, pc.child_id FROM pending_completions pc ${where}`,
+    params,
+  );
+  return (res.rows as Array<{ lesson_id: string; child_id: string }>).map(
+    (row) => `${row.lesson_id}:${row.child_id}`,
+  );
+}
+
+/**
  * The "how are we doing" strip on the dashboard: per-child progress for the
  * resolved school year, what got finished lately, and this week's reading.
  * One round trip so the dashboard does not grow a query per card.

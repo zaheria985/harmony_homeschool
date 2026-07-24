@@ -184,10 +184,25 @@ function buildLessonCardDrafts(listCards: TrelloCard[]): { lcDrafts: LessonCardD
 // Helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * Card-to-card links are board bookkeeping, not learning material.
+ *
+ * Trello models a parent/child card relationship as an attachment pointing at
+ * the other card, named "Is child to <card>" / "Is parent to <card>". Importing
+ * those produced resources like "Is parent to Artist Biography" sitting in the
+ * resource library next to real books and videos.
+ */
+function isCardRelationshipAttachment(att: { url: string; name: string }): boolean {
+  if (/^https?:\/\/(www\.)?trello\.com\/c\//i.test(att.url)) return true;
+  return /^is (child|parent) to\b/i.test(att.name || "");
+}
+
 function extractResources(card: TrelloCard): ExtractedResource[] {
   const resources: ExtractedResource[] = [];
 
   for (const att of card.attachments) {
+    if (isCardRelationshipAttachment(att)) continue;
+
     // Uploaded files have a mimeType; link-only attachments don't
     const isFile = att.mimeType != null;
 
@@ -209,6 +224,7 @@ function extractResources(card: TrelloCard): ExtractedResource[] {
   const descUrls = (card.desc || "").match(urlRegex) || [];
   for (const url of descUrls) {
     if (resources.some((r) => r.url === url)) continue;
+    if (isCardRelationshipAttachment({ url, name: "" })) continue;
     if (/youtube\.com|youtu\.be/.test(url)) {
       resources.push({ type: "youtube", url, title: "YouTube Video" });
     } else if (url.endsWith(".pdf")) {

@@ -132,7 +132,7 @@ export default async function AdminPage() {
             <div>
               <h3 className="text-lg font-semibold">Calendar Subscriptions</h3>
               <p className="text-sm text-muted">
-                Subscribe to lesson schedules via iCal/CalDAV
+                Subscribe to lesson schedules via iCal
               </p>
             </div>
           </div>

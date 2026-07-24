@@ -6,6 +6,7 @@ import Card from "@/components/ui/Card";
 import {
   getDashboardActivity,
   getDashboardStats,
+  getPendingCompletionKeys,
   getUpcomingDueLessons,
 } from "@/lib/queries/dashboard";
 import { getCompletionStreaks } from "@/lib/queries/streaks";
@@ -14,7 +15,6 @@ import { getExternalEventOccurrencesForRange } from "@/lib/queries/external-even
 import { getAllChildren } from "@/lib/queries/students";
 import { getCurrentUser } from "@/lib/session";
 import LessonCompleteCheckbox from "@/components/lessons/LessonCompleteCheckbox";
-import VikunjaSyncButton from "@/components/dashboard/VikunjaSyncButton";
 import PendingApprovalsWidget from "@/components/dashboard/PendingApprovalsWidget";
 import { getPendingCompletions } from "@/lib/actions/completions";
 import { todayKey } from "@/lib/utils/timezone";
@@ -52,17 +52,24 @@ export default async function DashboardPage({
   // no-op when CRON_SECRET is set, and runs at most once a day otherwise.
   await lazyBumpIfNoScheduler(todayStr);
 
-  const [stats, upcoming, children, pendingCompletions, activity, streaks] =
-    await Promise.all([
-      getDashboardStats(parentId),
-      getUpcomingDueLessons(daysAhead, scopedChildId, parentId),
-      getAllChildren(parentId),
-      isParent ? getPendingCompletions() : Promise.resolve([]),
-      user.role === "kid"
-        ? Promise.resolve(null)
-        : getDashboardActivity(parentId),
-      user.role === "kid" ? Promise.resolve([]) : getCompletionStreaks(parentId),
-    ]);
+  const [
+    stats,
+    upcoming,
+    children,
+    pendingCompletions,
+    activity,
+    streaks,
+    pendingKeys,
+  ] = await Promise.all([
+    getDashboardStats(parentId),
+    getUpcomingDueLessons(daysAhead, scopedChildId, parentId),
+    getAllChildren(parentId),
+    isParent ? getPendingCompletions() : Promise.resolve([]),
+    user.role === "kid" ? Promise.resolve(null) : getDashboardActivity(parentId),
+    user.role === "kid" ? Promise.resolve([]) : getCompletionStreaks(parentId),
+    getPendingCompletionKeys(scopedChildId, parentId),
+  ]);
+  const pendingApproval = new Set(pendingKeys);
   // Anchor the upcoming-days list to today in the app timezone, so the list
   // does not start on the wrong day when the container runs a different zone.
   const today = parseDate(todayStr);
@@ -153,10 +160,7 @@ export default async function DashboardPage({
   return (
     <div>
       {" "}
-      <div className="flex items-center justify-between">
-        <PageHeader title="Dashboard" />
-        {process.env.VIKUNJA_URL && <VikunjaSyncButton />}
-      </div>{" "}
+      <PageHeader title="Dashboard" />{" "}
       {user.role !== "kid" && (
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-2">
           {" "}
@@ -360,6 +364,9 @@ export default async function DashboardPage({
                                                         )}
                                                         childId={String(
                                                           item.child_id,
+                                                        )}
+                                                        pending={pendingApproval.has(
+                                                          `${item.id}:${item.child_id}`,
                                                         )}
                                                       />{" "}
                                                       <Link
