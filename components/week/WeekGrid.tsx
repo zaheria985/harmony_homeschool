@@ -153,11 +153,17 @@ export default function WeekGrid({
   const [localWeeks, setLocalWeeks] = useState<WeekData[]>(weeks);
   const [draggingLesson, setDraggingLesson] = useState<DragLesson | null>(null);
   const [dropTargetDate, setDropTargetDate] = useState<string | null>(null);
+  // Empty days the parent clicked open, so they can add work to a day that
+  // otherwise renders as a slim strip.
+  const [expandedEmptyDays, setExpandedEmptyDays] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [touchDragging, setTouchDragging] = useState(false);
   const [isPending, startTransition] = useTransition();
   const suppressNextClick = useRef(false);
   const longPressTimerRef = useRef<number | null>(null);
-  const todayCellRef = useRef<HTMLDivElement | null>(null);
+  // Either a day column or, when today has no lessons, its collapsed strip.
+  const todayCellRef = useRef<HTMLElement | null>(null);
   const hasScrolledToToday = useRef(false);
   const [subjectFilter, setSubjectFilter] = useState("");
   const [courseFilter, setCourseFilter] = useState("");
@@ -248,6 +254,9 @@ export default function WeekGrid({
     if (totalLessons > 0) {
       setSelectedDay(day);
     }
+  }
+  function openEmptyDay(date: string) {
+    setExpandedEmptyDays((previous) => new Set(previous).add(date));
   }
   function formatTimeRange(
     startTime: string | null,
@@ -454,7 +463,7 @@ export default function WeekGrid({
                 {localNotes[week.weekStart]}
               </button>
             )}
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-7">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:flex-row md:items-stretch">
               {" "}
               {week.days.map((day) => {
                 const today = isToday(day.date);
@@ -467,10 +476,60 @@ export default function WeekGrid({
                 const isWeekend =
                   day.subjects.length === 0 &&
                   [0, 6].includes(new Date(day.date + "T00:00:00").getDay());
+                // An empty day shrinks to a slim strip so the days that hold
+                // work get the width. It stays a drop target: dragging over it
+                // or clicking it springs it back open.
+                const collapsed =
+                  totalLessons === 0 &&
+                  externalEvents.length === 0 &&
+                  dropTargetDate !== day.date &&
+                  !expandedEmptyDays.has(day.date);
+                if (collapsed) {
+                  return (
+                    <button
+                      key={day.date}
+                      type="button"
+                      ref={
+                        today
+                          ? (element) => {
+                              todayCellRef.current = element;
+                            }
+                          : undefined
+                      }
+                      data-day-date={day.date}
+                      onClick={() => openEmptyDay(day.date)}
+                      onDragOver={(event) => {
+                        if (!draggingLesson || isPending) return;
+                        event.preventDefault();
+                        setDropTargetDate(day.date);
+                      }}
+                      onDragLeave={() => {
+                        if (dropTargetDate === day.date) setDropTargetDate(null);
+                      }}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        handleDrop(day.date);
+                      }}
+                      aria-label={`${formatWeekdayShort(day.date)} ${formatShortDate(day.date)}, no lessons. Open this day.`}
+                      className={`flex min-h-[44px] items-center justify-center gap-2 rounded-2xl border px-2 py-2 transition-colors md:min-h-[140px] md:w-9 md:flex-none md:px-0 ${today ? "border-interactive-border bg-interactive-light/30" : "border-light bg-surface-muted hover:bg-surface-subtle"}`}
+                    >
+                      <span className="text-xs font-medium text-muted md:[writing-mode:vertical-rl]">
+                        {formatWeekdayShort(day.date)}{" "}
+                        {formatShortDate(day.date)}
+                      </span>
+                    </button>
+                  );
+                }
                 return (
                   <div
                     key={day.date}
-                    ref={today ? todayCellRef : undefined}
+                    ref={
+                      today
+                        ? (element) => {
+                            todayCellRef.current = element;
+                          }
+                        : undefined
+                    }
                     data-day-date={day.date}
                     role={totalLessons > 0 ? "button" : undefined}
                     tabIndex={totalLessons > 0 ? 0 : undefined}
@@ -504,7 +563,7 @@ export default function WeekGrid({
                       event.preventDefault();
                       handleDrop(day.date);
                     }}
-                    className={`flex min-h-[110px] flex-col rounded-2xl border transition-colors sm:min-h-[150px] md:min-h-[140px] ${today ? "border-interactive-border bg-interactive-light/30" : "border-light bg-surface-slate"} ${dropTargetDate === day.date ? "border-primary-400 ring-2 ring-primary-200" : ""} ${totalLessons > 0 ? "cursor-pointer hover:border-interactive-border hover:shadow-sm" : ""}`}
+                    className={`flex min-h-[110px] flex-col rounded-2xl border transition-colors sm:min-h-[150px] md:min-h-[140px] md:flex-1 md:basis-0 ${today ? "border-interactive-border bg-interactive-light/30" : "border-light bg-surface-slate"} ${dropTargetDate === day.date ? "border-primary-400 ring-2 ring-primary-200" : ""} ${totalLessons > 0 ? "cursor-pointer hover:border-interactive-border hover:shadow-sm" : ""}`}
                   >
                     {" "}
                     {/* Day header */}{" "}

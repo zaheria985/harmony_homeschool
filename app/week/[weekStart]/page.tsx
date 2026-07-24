@@ -10,8 +10,15 @@ import { todayKey } from "@/lib/utils/timezone";
 import { lazyBumpIfNoScheduler } from "@/lib/server/lesson-bump";
 import { getWeeklyNotes } from "@/lib/actions/weekly-notes";
 import WeekGrid from "@/components/week/WeekGrid";
+import MaterialsPanel, {
+  type PanelMaterial,
+} from "@/components/week/MaterialsPanel";
+import KidWeekList from "@/components/week/KidWeekList";
 import type { WeekLesson } from "@/lib/queries/week";
 import { getExternalEventOccurrencesForRange } from "@/lib/queries/external-events";
+import { getUpcomingPrepMaterials } from "@/lib/queries/prep";
+import { getChildRoster } from "@/lib/queries/students";
+import { kidColorFor } from "@/lib/utils/kid-colors";
 import { getCurrentUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -24,11 +31,15 @@ export default async function WeeklyBoardPage({
   searchParams: { child?: string };
 }) {
   const user = await getCurrentUser();
+  const isKid = user.role === "kid";
   const children = await getChildren(
     user.role === "parent" ? user.id : undefined,
   );
-  const childParam = searchParams.child || children[0]?.id;
-  const isAllKids = childParam === "all";
+  // A kid only ever sees their own week, whatever the query string says.
+  const childParam = isKid
+    ? user.childId || ""
+    : searchParams.child || children[0]?.id;
+  const isAllKids = !isKid && childParam === "all";
   if (!childParam) {
     return <p className="text-muted">No children found. Add a child first.</p>;
   }
@@ -143,5 +154,46 @@ export default async function WeeklyBoardPage({
     return { weekStart, label: formatWeekLabel(weekStart), days };
   });
 
-  return <WeekGrid weeks={weeks} weeklyNotes={weeklyNotes} allChildren={children} />;
+  if (isKid) {
+    const roster = await getChildRoster();
+    const index = roster.findIndex((child) => child.id === childParam);
+    const thisWeek = weeks[0];
+    const previous = parseDate(initialWeekStart);
+    previous.setDate(previous.getDate() - 7);
+    const next = parseDate(initialWeekStart);
+    next.setDate(next.getDate() + 7);
+    return (
+      <KidWeekList
+        label={thisWeek.label}
+        color={kidColorFor(index === -1 ? 0 : index)}
+        previousWeek={`/week/${toDateStr(previous)}`}
+        nextWeek={`/week/${toDateStr(next)}`}
+        days={thisWeek.days.map((day) => ({
+          date: day.date,
+          lessons: day.subjects.flatMap((subject) =>
+            subject.lessons.map((lesson: WeekLesson) => ({
+              id: lesson.id,
+              title: lesson.title,
+              subject_name: subject.subjectName,
+              subject_color: subject.subjectColor,
+              completed:
+                (lesson.effective_status || lesson.status) === "completed",
+            })),
+          ),
+        }))}
+      />
+    );
+  }
+
+  const materials = (await getUpcomingPrepMaterials(
+    7,
+    isAllKids ? undefined : childParam,
+  )) as PanelMaterial[];
+
+  return (
+    <>
+      <MaterialsPanel materials={materials} />
+      <WeekGrid weeks={weeks} weeklyNotes={weeklyNotes} allChildren={children} />
+    </>
+  );
 }
