@@ -89,13 +89,68 @@ function searchVariants(title: string, author: string): URLSearchParams[] {
 }
 
 /**
- * Best-effort cover URL for a book. Returns null when nothing matches, the
- * request fails, or the title is empty — never throws.
+ * Google Books, tried only when OpenLibrary has nothing.
+ *
+ * Needs `GOOGLE_BOOKS_API_KEY`: keyless requests all share one exhausted
+ * daily quota and come back 429, so without a key this step is skipped and
+ * the lookup behaves exactly as it did before.
+ *
+ * The query is deliberately `intitle:` rather than a bare search. A loose
+ * search is worse than no cover — OpenLibrary's general search answers
+ * "Animals of the Sahara" with the cover of "Le petit prince", and a wrong
+ * cover silently attached is harder to notice than a missing one.
  */
-export async function findBookCover(
+async function googleBooksCover(
+  title: string,
+  author: string,
+): Promise<string | null> {
+  const apiKey = process.env.GOOGLE_BOOKS_API_KEY;
+  if (!apiKey) return null;
+
+  const query = author
+    ? `intitle:${title} inauthor:${author}`
+    : `intitle:${title}`;
+  const params = new URLSearchParams({
+    q: query,
+    maxResults: "5",
+    printType: "books",
+    key: apiKey,
+  });
+
+  const response = await fetch(
+    `https://www.googleapis.com/books/v1/volumes?${params}`,
+    { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) },
+  );
+  if (!response.ok) {
+    console.warn("[book-covers] google books returned", response.status);
+    return null;
+  }
+
+  const data = (await response.json()) as {
+    items?: Array<{ volumeInfo?: { imageLinks?: { thumbnail?: string } } }>;
+  };
+  const thumbnail = (data.items || [])
+    .map((item) => item.volumeInfo?.imageLinks?.thumbnail)
+    .find(Boolean);
+  if (!thumbnail) return null;
+
+  // Google hands back http with a decorative page-curl; neither is wanted on
+  // a page served over https.
+  return thumbnail.replace(/^http:/, "https:").replace(/&edge=curl/, "");
+}
+
+export type CoverSource = "openlibrary" | "google";
+export type CoverResult = { url: string; source: CoverSource };
+
+/**
+ * Best-effort cover for a book, with the source that supplied it. Returns
+ * null when nothing matches, a request fails, or the title is empty — never
+ * throws.
+ */
+export async function findBookCoverDetailed(
   title: string,
   author?: string | null,
-): Promise<string | null> {
+): Promise<CoverResult | null> {
   const cleanTitle = (title || "").trim();
   if (!cleanTitle) return null;
   const cleanAuthor = (author || "").trim();
@@ -103,8 +158,11 @@ export async function findBookCover(
   try {
     for (const params of searchVariants(cleanTitle, cleanAuthor)) {
       const found = await searchForCover(params);
-      if (found) return found;
+      if (found) return { url: found, source: "openlibrary" };
     }
+
+    const fromGoogle = await googleBooksCover(cleanTitle, cleanAuthor);
+    if (fromGoogle) return { url: fromGoogle, source: "google" };
 
     console.log("[book-covers] no cover found", { title: cleanTitle, author: cleanAuthor });
     return null;
@@ -116,6 +174,15 @@ export async function findBookCover(
     });
     return null;
   }
+}
+
+/** Cover URL only — what every creation path needs. */
+export async function findBookCover(
+  title: string,
+  author?: string | null,
+): Promise<string | null> {
+  const result = await findBookCoverDetailed(title, author);
+  return result?.url ?? null;
 }
 
 /** Politeness delay between backfill requests — OpenLibrary asks for ~1/sec. */

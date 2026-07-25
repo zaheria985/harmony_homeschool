@@ -6,7 +6,11 @@ import { z } from "zod";
 import type { PoolClient } from "pg";
 import pool from "@/lib/db";
 import { saveUploadedImage } from "@/lib/server/uploads";
-import { findBookCover, COVER_LOOKUP_DELAY_MS } from "@/lib/server/book-covers";
+import {
+  findBookCover,
+  findBookCoverDetailed,
+  COVER_LOOKUP_DELAY_MS,
+} from "@/lib/server/book-covers";
 import { mergeTagNames, parseTagNames } from "@/lib/utils/resource-tags";
 
 async function syncResourceTags(
@@ -415,18 +419,18 @@ export async function refreshBookCover(resourceId: string) {
   if (!book) return { error: "Resource not found" };
   if (book.type !== "book") return { error: "Only books have covers to fetch" };
 
-  const cover = await findBookCover(book.title, book.author);
+  const cover = await findBookCoverDetailed(book.title, book.author);
   if (!cover) return { error: "No cover found for that title and author" };
 
   await pool.query(`UPDATE resources SET thumbnail_url = $1 WHERE id = $2`, [
-    cover,
+    cover.url,
     parsed.data,
   ]);
 
   revalidatePath("/resources");
   revalidatePath(`/resources/${parsed.data}`);
   revalidatePath("/booklists");
-  return { success: true, thumbnail_url: cover };
+  return { success: true, thumbnail_url: cover.url, source: cover.source };
 }
 
 /**

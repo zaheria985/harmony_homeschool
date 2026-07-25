@@ -2,7 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { findBookCover, simplifyTitle } from "../lib/server/book-covers";
+import {
+  findBookCover,
+  findBookCoverDetailed,
+  simplifyTitle,
+} from "../lib/server/book-covers";
 
 /**
  * Covers are fetched once, at creation, from OpenLibrary — so a path that
@@ -142,6 +146,121 @@ test("returns null for an empty title without calling out", async () => {
 
   assert.equal(cover, null);
   assert.equal(called, false, "an empty title should not reach the network");
+});
+
+/** Run with GOOGLE_BOOKS_API_KEY set to the given value, then restore it. */
+async function withGoogleKey<T>(
+  key: string | undefined,
+  run: () => Promise<T>,
+): Promise<T> {
+  const original = process.env.GOOGLE_BOOKS_API_KEY;
+  if (key === undefined) delete process.env.GOOGLE_BOOKS_API_KEY;
+  else process.env.GOOGLE_BOOKS_API_KEY = key;
+  try {
+    return await run();
+  } finally {
+    if (original === undefined) delete process.env.GOOGLE_BOOKS_API_KEY;
+    else process.env.GOOGLE_BOOKS_API_KEY = original;
+  }
+}
+
+test("Google Books is skipped entirely when no key is configured", async () => {
+  // Keyless requests draw on a shared quota that is always exhausted, so
+  // calling it without a key would only waste a request and log a 429.
+  const hosts: string[] = [];
+  const cover = await withGoogleKey(undefined, () =>
+    withFetch(
+      (async (input: string | URL | Request) => {
+        hosts.push(new URL(String(input)).host);
+        return jsonResponse({ docs: [] });
+      }) as FetchLike,
+      () => findBookCover("Animals of the Sahara"),
+    ),
+  );
+
+  assert.equal(cover, null);
+  assert.ok(
+    hosts.every((host) => !host.includes("googleapis")),
+    `should not have called Google, hit: ${hosts.join(", ")}`,
+  );
+});
+
+test("Google Books is tried only after OpenLibrary comes up empty", async () => {
+  const calls: string[] = [];
+  const result = await withGoogleKey("test-key", () =>
+    withFetch(
+      (async (input: string | URL | Request) => {
+        const url = new URL(String(input));
+        calls.push(url.host);
+        if (url.host.includes("googleapis")) {
+          return jsonResponse({
+            items: [
+              {
+                volumeInfo: {
+                  imageLinks: {
+                    thumbnail:
+                      "http://books.google.com/books/content?id=abc&img=1&edge=curl",
+                  },
+                },
+              },
+            ],
+          });
+        }
+        return jsonResponse({ docs: [] });
+      }) as FetchLike,
+      () => findBookCoverDetailed("All Aboard for the Bobo Road"),
+    ),
+  );
+
+  assert.equal(result?.source, "google");
+  assert.ok(
+    calls[0].includes("openlibrary"),
+    "OpenLibrary should be consulted first",
+  );
+  // Served over https, and without Google's decorative page-curl.
+  assert.ok(result!.url.startsWith("https://"), result!.url);
+  assert.ok(!result!.url.includes("edge=curl"), result!.url);
+});
+
+test("Google Books is queried by title, not as a loose search", async () => {
+  // A loose search is worse than no cover: OpenLibrary's general search
+  // answers "Animals of the Sahara" with the cover of "Le petit prince".
+  let googleQuery = "";
+  await withGoogleKey("test-key", () =>
+    withFetch(
+      (async (input: string | URL | Request) => {
+        const url = new URL(String(input));
+        if (url.host.includes("googleapis")) {
+          googleQuery = url.searchParams.get("q") || "";
+          return jsonResponse({ items: [] });
+        }
+        return jsonResponse({ docs: [] });
+      }) as FetchLike,
+      () => findBookCover("Animals of the Sahara", "Some Author"),
+    ),
+  );
+
+  assert.match(googleQuery, /intitle:/, googleQuery);
+  assert.match(googleQuery, /inauthor:/, googleQuery);
+});
+
+test("OpenLibrary wins when it has a cover, without calling Google", async () => {
+  const hosts: string[] = [];
+  const result = await withGoogleKey("test-key", () =>
+    withFetch(
+      (async (input: string | URL | Request) => {
+        hosts.push(new URL(String(input)).host);
+        return jsonResponse({ docs: [{ cover_i: 5 }] });
+      }) as FetchLike,
+      () => findBookCoverDetailed("The Cat in the Hat"),
+    ),
+  );
+
+  assert.equal(result?.source, "openlibrary");
+  assert.ok(
+    hosts.every((host) => !host.includes("googleapis")),
+    "Google should not be consulted once a cover is found",
+  );
 });
 
 test("every path that creates a book resource looks up a cover", () => {

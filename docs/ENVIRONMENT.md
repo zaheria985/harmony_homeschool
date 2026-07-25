@@ -96,6 +96,15 @@ a working default or disables a feature when unset.
 - `LLM_BASE_URL` — provider endpoint (OpenAI default: `https://api.openai.com/v1`)
 - `LLM_MODEL` — model identifier (e.g. `gpt-4o`, `claude-sonnet-4-5-20250929`)
 
+## Book covers (optional)
+
+- `GOOGLE_BOOKS_API_KEY` — enables Google Books as a fallback when OpenLibrary
+  has no cover for a title. OpenLibrary is always used and needs no key; Google
+  does, because keyless requests share one daily quota that is permanently
+  exhausted and answer `429`. Get a key from the Google Cloud console: create a
+  project, enable "Books API", create an API key. No billing required.
+  Unset simply means OpenLibrary alone — nothing else changes.
+
 ## Trello import (optional)
 
 - `TRELLO_API_KEY`, `TRELLO_TOKEN`

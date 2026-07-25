@@ -117,7 +117,11 @@ export default function ResourceDetailClient({
         setCoverMessage({ ok: false, text: result.error });
         return;
       }
-      setCoverMessage({ ok: true, text: "Found a cover." });
+      const source =
+        "source" in result && result.source === "google"
+          ? "Google Books"
+          : "OpenLibrary";
+      setCoverMessage({ ok: true, text: `Found a cover on ${source}.` });
       router.refresh();
     });
   }
