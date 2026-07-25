@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { PoolClient } from "pg";
 import pool from "@/lib/db";
+import { findBookCover } from "@/lib/server/book-covers";
 import { getCurrentUser } from "@/lib/session";
 
 const booklistSchema = z.object({
@@ -270,28 +271,7 @@ export async function addBookToPersonalWishlist(title: string, author: string) {
   const wishlistId = listRes.rows[0]?.id as string | undefined;
   if (!wishlistId) return { error: "No personal wishlist found" };
 
-  let thumbnailUrl: string | null = null;
-  const olUrl = `https://openlibrary.org/search.json?title=${encodeURIComponent(parsed.data.title)}&author=${encodeURIComponent(parsed.data.author)}&limit=1`;
-  console.log("[openlibrary] fetching cover", { title: parsed.data.title, author: parsed.data.author, url: olUrl });
-  try {
-    const lookup = await fetch(olUrl);
-    console.log("[openlibrary] response status:", lookup.status);
-    if (lookup.ok) {
-      const data = (await lookup.json()) as { docs?: Array<{ cover_i?: number }> };
-      const coverId = data.docs?.[0]?.cover_i;
-      console.log("[openlibrary] cover_i:", coverId ?? "not found", "docs:", data.docs?.length ?? 0);
-      if (coverId) {
-        thumbnailUrl = `https://covers.openlibrary.org/b/id/${coverId}-L.jpg`;
-      }
-    }
-  } catch (err) {
-    console.warn("[openlibrary] fetch failed", {
-      title: parsed.data.title,
-      author: parsed.data.author,
-      error: err instanceof Error ? err.message : String(err),
-    });
-    thumbnailUrl = null;
-  }
+  const thumbnailUrl = await findBookCover(parsed.data.title, parsed.data.author);
 
   const client = await pool.connect();
   try {
@@ -385,12 +365,14 @@ export async function bulkImportBooks(
       const author = book.author.trim();
       if (!title) continue;
 
-      // Create the book resource
+      // Create the book resource. This path had no cover lookup at all, which
+      // is why most bulk-imported books ended up blank.
+      const thumbnailUrl = await findBookCover(title, author);
       const created = await client.query(
-        `INSERT INTO resources (title, type, author)
-         VALUES ($1, 'book', $2)
+        `INSERT INTO resources (title, type, author, thumbnail_url)
+         VALUES ($1, 'book', $2, $3)
          RETURNING id`,
-        [title, author || null]
+        [title, author || null, thumbnailUrl]
       );
       const resourceId = created.rows[0].id as string;
 

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import pool from "@/lib/db";
 import { saveUploadedImage } from "@/lib/server/uploads";
+import { findBookCover } from "@/lib/server/book-covers";
 import {
   bumpOverdueLessonsCore,
   bumpOverdueLessonsForAllCore,
@@ -1674,16 +1675,24 @@ export async function importCurriculum(formData: FormData) {
       if (existingRes.rows.length > 0) {
         resourceId = existingRes.rows[0].id;
       } else {
+        const resourceType = resource.type || "link";
+        const resourceTitle = resource.title || resource.url;
+        // Imported books get a cover like every other creation path.
+        const thumbnailUrl =
+          resourceType === "book"
+            ? await findBookCover(resourceTitle, resource.author)
+            : null;
         const newRes = await client.query(
-          `INSERT INTO resources (title, type, url, author, description)
-           VALUES ($1, $2, $3, $4, $5)
+          `INSERT INTO resources (title, type, url, author, description, thumbnail_url)
+           VALUES ($1, $2, $3, $4, $5, $6)
            RETURNING id`,
           [
-            resource.title || resource.url,
-            resource.type || "link",
+            resourceTitle,
+            resourceType,
             resource.url,
             resource.author || null,
             resource.description || null,
+            thumbnailUrl,
           ]
         );
         resourceId = newRes.rows[0].id;

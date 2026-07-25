@@ -6,6 +6,7 @@ import { z } from "zod";
 import type { PoolClient } from "pg";
 import pool from "@/lib/db";
 import { saveUploadedImage } from "@/lib/server/uploads";
+import { findBookCover } from "@/lib/server/book-covers";
 import { mergeTagNames, parseTagNames } from "@/lib/utils/resource-tags";
 
 async function syncResourceTags(
@@ -275,27 +276,7 @@ export async function createGlobalResource(formData: FormData) {
 
   // Auto-fetch cover from OpenLibrary for books without a thumbnail
   if (!nextThumbnailUrl && type === "book" && title) {
-    const params = new URLSearchParams({ title, limit: "1" });
-    if (normalizedAuthor) params.set("author", normalizedAuthor);
-    const olUrl = `https://openlibrary.org/search.json?${params}`;
-    console.log("[openlibrary] fetching cover", { title, author: normalizedAuthor, url: olUrl });
-    try {
-      const lookup = await fetch(olUrl);
-      console.log("[openlibrary] response status:", lookup.status);
-      if (lookup.ok) {
-        const data = await lookup.json();
-        const coverId = data.docs?.[0]?.cover_i;
-        console.log("[openlibrary] cover_i:", coverId ?? "not found", "docs:", data.docs?.length ?? 0);
-        if (coverId) {
-          nextThumbnailUrl = `https://covers.openlibrary.org/b/id/${coverId}-L.jpg`;
-        }
-      }
-    } catch (err) {
-      console.warn("[openlibrary] fetch failed", {
-        title,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
+    nextThumbnailUrl = await findBookCover(title, normalizedAuthor);
   }
 
   const client = await pool.connect();
@@ -899,9 +880,12 @@ export async function bulkImportResources(formData: FormData) {
         continue;
       }
 
+      // Books get the same cover treatment as every other creation path.
+      const thumbnailUrl = type === "book" ? await findBookCover(title) : null;
+
       await client.query(
-        `INSERT INTO resources (title, type, url) VALUES ($1, $2, $3)`,
-        [title, type, url || null]
+        `INSERT INTO resources (title, type, url, thumbnail_url) VALUES ($1, $2, $3, $4)`,
+        [title, type, url || null, thumbnailUrl]
       );
       imported++;
     }
@@ -1015,28 +999,8 @@ export async function bulkFindOrCreateAndAttachBooks(
           resourceId = existing.rows[0].id;
         } else {
           // Create book resource — auto-fetch OpenLibrary cover
-          let thumbnailUrl: string | null = null;
           const normalizedAuthor = (item.author || "").trim();
-
-          try {
-            const params = new URLSearchParams({ title: item.title, limit: "1" });
-            if (normalizedAuthor) params.set("author", normalizedAuthor);
-            const olUrl = `https://openlibrary.org/search.json?${params}`;
-            console.log("[import-books] fetching cover", { title: item.title, author: normalizedAuthor });
-            const lookup = await fetch(olUrl);
-            if (lookup.ok) {
-              const data = await lookup.json();
-              const coverId = data.docs?.[0]?.cover_i;
-              if (coverId) {
-                thumbnailUrl = `https://covers.openlibrary.org/b/id/${coverId}-L.jpg`;
-              }
-            }
-          } catch (err) {
-            console.warn("[import-books] OpenLibrary fetch failed", {
-              title: item.title,
-              error: err instanceof Error ? err.message : String(err),
-            });
-          }
+          const thumbnailUrl = await findBookCover(item.title, normalizedAuthor);
 
           const res = await client.query(
             `INSERT INTO resources (title, type, author, thumbnail_url)
