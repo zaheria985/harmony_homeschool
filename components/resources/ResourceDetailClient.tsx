@@ -11,6 +11,7 @@ import {
   deleteGlobalResource,
   attachResourceToLessons,
   detachResourceFromLesson,
+  refreshBookCover,
 } from "@/lib/actions/resources";
 type Lesson = {
   id: string;
@@ -87,6 +88,11 @@ export default function ResourceDetailClient({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
   const [clearThumbnail, setClearThumbnail] = useState(false);
+  const [refreshingCover, setRefreshingCover] = useState(false);
+  const [coverMessage, setCoverMessage] = useState<{
+    ok: boolean;
+    text: string;
+  } | null>(null);
   const [editType, setEditType] = useState(resource.type);
   const [editTags, setEditTags] = useState(resource.tags.join(","));
   const [selectedBooklistIds, setSelectedBooklistIds] =
@@ -101,6 +107,20 @@ export default function ResourceDetailClient({
       l.child_name.toLowerCase().includes(lessonSearch.toLowerCase()) ||
       l.subject_name.toLowerCase().includes(lessonSearch.toLowerCase()),
   );
+  function handleRefreshCover() {
+    setCoverMessage(null);
+    setRefreshingCover(true);
+    startTransition(async () => {
+      const result = await refreshBookCover(resource.id);
+      setRefreshingCover(false);
+      if ("error" in result && result.error) {
+        setCoverMessage({ ok: false, text: result.error });
+        return;
+      }
+      setCoverMessage({ ok: true, text: "Found a cover." });
+      router.refresh();
+    });
+  }
   function handleEdit(formData: FormData) {
     setError("");
     formData.delete("booklist_ids");
@@ -569,6 +589,26 @@ export default function ResourceDetailClient({
               accept="image/*"
               className={darkFileClass}
             />{" "}
+            {resource.type === "book" && (
+              <div className="mt-2">
+                <button
+                  type="button"
+                  onClick={handleRefreshCover}
+                  disabled={refreshingCover}
+                  className="rounded-lg border border-border px-3 py-1.5 text-xs text-tertiary transition-colors hover:border-interactive-border hover:text-primary disabled:opacity-60"
+                >
+                  {refreshingCover ? "Looking…" : "Refresh cover from OpenLibrary"}
+                </button>
+                {coverMessage && (
+                  <p
+                    className={`mt-1 text-xs ${coverMessage.ok ? "text-[var(--success-text)]" : "text-[var(--error-text)]"}`}
+                    role={coverMessage.ok ? undefined : "alert"}
+                  >
+                    {coverMessage.text}
+                  </p>
+                )}
+              </div>
+            )}{" "}
             {resource.thumbnail_url && (
               <label className="mt-2 flex items-center gap-2 text-xs text-tertiary">
                 {" "}

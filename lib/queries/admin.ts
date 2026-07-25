@@ -231,6 +231,16 @@ export async function getAdminAnalytics() {
   };
 }
 
+/** How many books still have no cover art — drives the backfill card. */
+export async function getMissingCoverCount(): Promise<number> {
+  const res = await pool.query(
+    `SELECT COUNT(*)::int AS missing
+     FROM resources
+     WHERE type = 'book' AND (thumbnail_url IS NULL OR thumbnail_url = '')`,
+  );
+  return Number(res.rows[0]?.missing ?? 0);
+}
+
 export async function getArchiveStats() {
   const res = await pool.query(`
     SELECT

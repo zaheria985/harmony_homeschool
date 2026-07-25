@@ -2,9 +2,15 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
-import { getAdminStats, getArchiveStats, getAdminAnalytics } from "@/lib/queries/admin";
+import {
+  getAdminStats,
+  getArchiveStats,
+  getAdminAnalytics,
+  getMissingCoverCount,
+} from "@/lib/queries/admin";
 import { getAllChildren } from "@/lib/queries/students";
 import LessonArchiveCard from "@/components/admin/LessonArchiveCard";
+import BookCoverBackfillCard from "@/components/admin/BookCoverBackfillCard";
 import AdminAnalytics from "@/components/admin/AdminAnalytics";
 import CalendarSubscriptions from "@/components/admin/CalendarSubscriptions";
 import PlatformImportCard from "@/components/admin/PlatformImportCard";
@@ -22,13 +28,15 @@ const sections = [
 ];
 
 export default async function AdminPage() {
-  const [stats, archiveStats, analytics, children, subjectsRes] = await Promise.all([
-    getAdminStats(),
-    getArchiveStats(),
-    getAdminAnalytics(),
-    getAllChildren(),
-    pool.query(`SELECT id, name FROM subjects ORDER BY name`),
-  ]);
+  const [stats, archiveStats, analytics, children, subjectsRes, missingCovers] =
+    await Promise.all([
+      getAdminStats(),
+      getArchiveStats(),
+      getAdminAnalytics(),
+      getAllChildren(),
+      pool.query(`SELECT id, name FROM subjects ORDER BY name`),
+      getMissingCoverCount(),
+    ]);
   const subjects = subjectsRes.rows as { id: string; name: string }[];
 
   const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
@@ -250,6 +258,8 @@ export default async function AdminPage() {
             </div>
           </Card>
         </Link>
+
+        <BookCoverBackfillCard missingCount={missingCovers} />
 
         <LessonArchiveCard
           archivableCount={archiveStats.archivable_count}

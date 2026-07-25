@@ -6,7 +6,7 @@ import { z } from "zod";
 import type { PoolClient } from "pg";
 import pool from "@/lib/db";
 import { saveUploadedImage } from "@/lib/server/uploads";
-import { findBookCover } from "@/lib/server/book-covers";
+import { findBookCover, COVER_LOOKUP_DELAY_MS } from "@/lib/server/book-covers";
 import { mergeTagNames, parseTagNames } from "@/lib/utils/resource-tags";
 
 async function syncResourceTags(
@@ -389,6 +389,117 @@ export async function updateGlobalResource(formData: FormData) {
   revalidatePath("/lessons");
   revalidatePath("/curricula");
   return { success: true };
+}
+
+/**
+ * Look a cover up again for one book. Used by the "Refresh cover" button —
+ * the common case is a book whose author was mistyped when it was created, so
+ * the original lookup found nothing.
+ *
+ * Only overwrites on a hit: a failed retry must not wipe the cover that is
+ * already there.
+ */
+export async function refreshBookCover(resourceId: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
+  const parsed = z.string().uuid().safeParse(resourceId);
+  if (!parsed.success) return { error: "Invalid resource ID" };
+
+  const res = await pool.query(
+    `SELECT title, author, type FROM resources WHERE id = $1`,
+    [parsed.data],
+  );
+  const book = res.rows[0] as
+    | { title: string; author: string | null; type: string }
+    | undefined;
+  if (!book) return { error: "Resource not found" };
+  if (book.type !== "book") return { error: "Only books have covers to fetch" };
+
+  const cover = await findBookCover(book.title, book.author);
+  if (!cover) return { error: "No cover found for that title and author" };
+
+  await pool.query(`UPDATE resources SET thumbnail_url = $1 WHERE id = $2`, [
+    cover,
+    parsed.data,
+  ]);
+
+  revalidatePath("/resources");
+  revalidatePath(`/resources/${parsed.data}`);
+  revalidatePath("/booklists");
+  return { success: true, thumbnail_url: cover };
+}
+
+/**
+ * Fill in covers for every book that has none.
+ *
+ * Runs the lookups one at a time with a delay — OpenLibrary asks for about a
+ * request per second, and a homeschool library is a few hundred books, so
+ * this is a minute or two of patience rather than something to parallelize.
+ * A book that still has no match is left alone and counted, not retried.
+ */
+export async function backfillBookCovers() {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
+
+  const res = await pool.query(
+    `SELECT id, title, author FROM resources
+     WHERE type = 'book' AND (thumbnail_url IS NULL OR thumbnail_url = '')
+     ORDER BY title`,
+  );
+  const books = res.rows as Array<{
+    id: string;
+    title: string;
+    author: string | null;
+  }>;
+  if (books.length === 0) {
+    return {
+      success: true,
+      found: 0,
+      missed: 0,
+      total: 0,
+      missedSample: [] as string[],
+    };
+  }
+
+  let found = 0;
+  const missedTitles: string[] = [];
+
+  for (let index = 0; index < books.length; index++) {
+    const book = books[index];
+    if (index > 0) await sleep(COVER_LOOKUP_DELAY_MS);
+
+    const cover = await findBookCover(book.title, book.author);
+    if (!cover) {
+      missedTitles.push(book.title);
+      continue;
+    }
+    try {
+      await pool.query(`UPDATE resources SET thumbnail_url = $1 WHERE id = $2`, [
+        cover,
+        book.id,
+      ]);
+      found++;
+    } catch (err) {
+      // One bad row must not end the run.
+      console.warn("[book-covers] failed to store cover", {
+        resourceId: book.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      missedTitles.push(book.title);
+    }
+  }
+
+  revalidatePath("/resources");
+  revalidatePath("/booklists");
+  revalidatePath("/admin");
+  return {
+    success: true,
+    found,
+    missed: missedTitles.length,
+    total: books.length,
+    // Enough to spot a pattern (bad author, obscure title) without a wall of text.
+    missedSample: missedTitles.slice(0, 8),
+  };
 }
 
 export async function deleteGlobalResource(resourceId: string) {
