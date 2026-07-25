@@ -172,6 +172,7 @@ docker compose build app    # MUST pass before pushing
 - `BotanicalOrnament` — `sprig` / `divider` / `seedling` inline SVG marks
 - `ProgressRing` — SVG donut (kid mode, student hubs)
 - `ParentShell` / `KidShell` / `BottomTabs` — app chrome, chosen by role in `app/layout.tsx`
+- `AddToLessonPicker` (`components/lessons/`) — the one way to attach anything to a lesson (text, checklist, link, photo, book, supplies). Use it instead of building a new add form.
 
 **Domain components** live in `components/<domain>/` (curricula, lessons, week, resources, booklists, dashboard, subjects, grades, prep, tags, reading, approvals, students). Check existing ones before creating new components.
 
@@ -203,6 +204,9 @@ All PKs are UUID. All FKs indexed. See spec for full per-feature data models.
 - **Actions:** Zod validate → query → revalidate → return `{success}` or `{error}`
 - **Pages:** `force-dynamic` on all DB-querying pages
 - **Theme tokens:** `bg-surface`, `text-primary`, `border-light`, `bg-interactive`, `ring-focus` — no hardcoded colors or manual `dark:` variants. Hover/focus states use same tokens (`hover:bg-interactive`, `focus-visible:ring-focus`). Terracotta accents use `--accent-solid` / `--accent-text` / `--accent-bg` / `--accent-border`.
+- **Two attachment stores, on purpose:** `lesson_cards` = how you *run* a lesson (text, checklist, link, photo, book cover) and renders on the board; `lesson_resources` = physical things to *gather* (books, supplies) and feeds the planner's materials panel. A book writes to both. Do not unify them.
+- **Book covers:** every path creating a `type='book'` resource must call `findBookCover()` (`lib/server/book-covers.ts`) — `tests/book-covers.test.ts` fails otherwise. Lookups are best-effort and must never block a save.
+- **Checklist card state** lives in the card's markdown (`- [ ]` / `- [x]`), not a column. Kids flip boxes via `toggleLessonCardChecklistItem` (`requireUser`), never `updateLessonCard` (`requireParent`).
 - **Per-child color:** `lib/utils/kid-colors.ts` — `kidColorMap(roster)` / `kidColorFor(index)`, keyed off `getChildRoster()` ordering (`ORDER BY c.name`). Never assign a child a color any other way, or the same kid changes color between screens.
 
 ## Active Constraints
