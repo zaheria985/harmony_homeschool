@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import Modal from "@/components/ui/Modal";
 import { createLesson, updateLesson } from "@/lib/actions/lessons";
-import { addResource, deleteResource } from "@/lib/actions/resources";
+import { deleteLessonResource as deleteResource } from "@/lib/actions/resources";
+import AddToLessonPicker from "@/components/lessons/AddToLessonPicker";
 import { generateLessonDescription } from "@/lib/actions/ai";
 
 type Child = { id: string; name: string };
@@ -154,10 +155,6 @@ export default function LessonFormModal({
   // Resource state (edit mode only)
   const [resources, setResources] = useState<Resource[]>([]);
   const [showAddResource, setShowAddResource] = useState(false);
-  const [resourceType, setResourceType] = useState("url");
-  const [resourceUrl, setResourceUrl] = useState("");
-  const [resourceTitle, setResourceTitle] = useState("");
-  const [resourceError, setResourceError] = useState("");
 
   useEffect(() => {
     if (open && lesson?.resources) {
@@ -165,7 +162,6 @@ export default function LessonFormModal({
     } else if (!open) {
       setResources([]);
       setShowAddResource(false);
-      setResourceError("");
     }
   }, [open, lesson]);
 
@@ -228,37 +224,6 @@ export default function LessonFormModal({
 
     setSubmitting(false);
     onClose();
-  }
-
-  async function handleAddResource() {
-    if (!lesson) return;
-    setResourceError("");
-
-    const formData = new FormData();
-    formData.set("lesson_id", lesson.id);
-    formData.set("type", resourceType);
-    formData.set("url", resourceUrl);
-    formData.set("title", resourceTitle);
-
-    const result = await addResource(formData);
-    if (result.error) {
-      setResourceError(result.error);
-      return;
-    }
-
-    // Optimistically add to list (won't have real ID, but close enough)
-    setResources((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        type: resourceType,
-        url: resourceUrl,
-        title: resourceTitle || null,
-      },
-    ]);
-    setResourceUrl("");
-    setResourceTitle("");
-    setShowAddResource(false);
   }
 
   async function handleDeleteResource(resourceId: string) {
@@ -523,46 +488,12 @@ export default function LessonFormModal({
             <p className="mb-3 text-xs text-muted">No resources attached.</p>
           )}
 
-          {showAddResource && (
-            <div className="space-y-3 rounded-lg border bg-surface-muted p-3">
-              <div className="flex gap-2">
-                <select
-                  value={resourceType}
-                  onChange={(e) => setResourceType(e.target.value)}
-                  className="rounded-lg border bg-surface px-2 py-1.5 text-sm"
-                >
-                  <option value="url">URL</option>
-                  <option value="youtube">YouTube</option>
-                  <option value="pdf">PDF</option>
-                  <option value="filerun">FileRun</option>
-                </select>
-                <input
-                  type="url"
-                  value={resourceUrl}
-                  onChange={(e) => setResourceUrl(e.target.value)}
-                  className="flex-1 rounded-lg border px-3 py-1.5 text-sm"
-                  placeholder="https://..."
-                  required
-                />
-              </div>
-              <input
-                type="text"
-                value={resourceTitle}
-                onChange={(e) => setResourceTitle(e.target.value)}
-                className="w-full rounded-lg border px-3 py-1.5 text-sm"
-                placeholder="Title (optional)"
+          {showAddResource && lesson?.id && (
+            <div className="flex justify-start">
+              <AddToLessonPicker
+                lessonId={lesson.id}
+                onDone={() => setShowAddResource(false)}
               />
-              {resourceError && (
-                <p className="text-xs text-red-600">{resourceError}</p>
-              )}
-              <button
-                type="button"
-                onClick={handleAddResource}
-                disabled={!resourceUrl}
-                className="rounded-lg bg-interactive px-3 py-1.5 text-xs font-medium text-white hover:bg-interactive-hover disabled:opacity-50"
-              >
-                Add Resource
-              </button>
             </div>
           )}
         </div>

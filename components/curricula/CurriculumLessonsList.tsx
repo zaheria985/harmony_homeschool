@@ -7,6 +7,8 @@ import Badge from "@/components/ui/Badge";
 import RowActions from "@/components/ui/RowActions";
 import BulkSelectBar from "@/components/ui/BulkSelectBar";
 import LessonFormModal from "@/components/lessons/LessonFormModal";
+import AddToLessonPicker from "@/components/lessons/AddToLessonPicker";
+import { Plus } from "lucide-react";
 import { deleteLesson, bulkDeleteLessons } from "@/lib/actions/lessons";
 
 type LessonCardSummary = {
@@ -42,6 +44,7 @@ export default function CurriculumLessonsList({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
+  const [addingToLesson, setAddingToLesson] = useState<string | null>(null);
 
   // Clear selection when filter changes
   useEffect(() => {
@@ -135,8 +138,8 @@ export default function CurriculumLessonsList({
       ) : (
         <div className="space-y-3">
           {filtered.map((l) => (
+            <div key={l.id}>
             <div
-              key={l.id}
               className="flex items-center gap-3 rounded-lg border p-4 transition-colors hover:bg-surface-muted"
             >
               {/* Selection checkbox */}
@@ -196,12 +199,35 @@ export default function CurriculumLessonsList({
                 </div>
               </Link>
 
+              {/* Add to this lesson */}
+              <button
+                type="button"
+                onClick={() =>
+                  setAddingToLesson((current) => (current === l.id ? null : l.id))
+                }
+                aria-label={`Add to ${l.title}`}
+                aria-expanded={addingToLesson === l.id}
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border text-tertiary transition-colors hover:border-interactive-border hover:text-primary ${addingToLesson === l.id ? "border-interactive-border text-interactive" : ""}`}
+              >
+                <Plus size={16} />
+              </button>
+
               {/* Row actions */}
               <RowActions
                 onView={() => router.push(`/lessons/${l.id}`)}
                 onEdit={() => setEditingLesson(l)}
                 onDelete={() => handleSingleDelete(l.id)}
               />
+            </div>
+            {addingToLesson === l.id && (
+              <div className="mt-2 flex justify-end">
+                <AddToLessonPicker
+                  lessonId={l.id}
+                  align="right"
+                  onDone={() => setAddingToLesson(null)}
+                />
+              </div>
+            )}
             </div>
           ))}
         </div>

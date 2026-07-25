@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Modal from "@/components/ui/Modal";
+import AddToLessonPicker from "@/components/lessons/AddToLessonPicker";
 import { createLesson, updateLesson } from "@/lib/actions/lessons";
 import SubjectFormModal from "./SubjectFormModal";
 import CurriculumFormModal from "./CurriculumFormModal";
@@ -311,49 +312,59 @@ export default function LessonFormModal({
               <label className="text-sm font-medium text-secondary">
                 Resources
               </label>
-              <button
-                type="button"
-                onClick={addResource}
-                className="text-sm text-interactive hover:text-interactive-hover"
-              >
-                + Add Resource
-              </button>
-            </div>
-            {resources.map((r, idx) => (
-              <div key={idx} className="mb-2 flex gap-2">
-                <select
-                  value={r.type}
-                  onChange={(e) => updateResource(idx, "type", e.target.value)}
-                  className="rounded-lg border px-2 py-1.5 text-sm"
-                >
-                  <option value="url">URL</option>
-                  <option value="youtube">YouTube</option>
-                  <option value="pdf">PDF</option>
-                  <option value="filerun">FileRun</option>
-                </select>
-                <input
-                  type="url"
-                  value={r.url}
-                  onChange={(e) => updateResource(idx, "url", e.target.value)}
-                  placeholder="URL"
-                  className="flex-1 rounded-lg border px-2 py-1.5 text-sm"
-                />
-                <input
-                  type="text"
-                  value={r.title}
-                  onChange={(e) => updateResource(idx, "title", e.target.value)}
-                  placeholder="Title"
-                  className="w-32 rounded-lg border px-2 py-1.5 text-sm"
-                />
+              {!editData && (
                 <button
                   type="button"
-                  onClick={() => removeResource(idx)}
-                  className="text-sm text-red-500 hover:text-red-700"
+                  onClick={addResource}
+                  className="text-sm text-interactive hover:text-interactive-hover"
                 >
-                  Remove
+                  + Add link
                 </button>
+              )}
+            </div>
+            {editData ? (
+              // An existing lesson can take anything the picker offers.
+              <div className="flex justify-start">
+                <AddToLessonPicker lessonId={editData.id} />
               </div>
-            ))}
+            ) : (
+              // A lesson being created has no id yet, so links ride along with
+              // the form and everything else waits until it exists.
+              resources.map((r, idx) => (
+                <div key={idx} className="mb-2 flex gap-2">
+                  <select
+                    value={r.type}
+                    onChange={(e) => updateResource(idx, "type", e.target.value)}
+                    className="rounded-lg border px-2 py-1.5 text-sm"
+                  >
+                    <option value="url">URL</option>
+                    <option value="youtube">YouTube</option>
+                    <option value="pdf">PDF</option>
+                  </select>
+                  <input
+                    type="url"
+                    value={r.url}
+                    onChange={(e) => updateResource(idx, "url", e.target.value)}
+                    placeholder="URL"
+                    className="flex-1 rounded-lg border px-2 py-1.5 text-sm"
+                  />
+                  <input
+                    type="text"
+                    value={r.title}
+                    onChange={(e) => updateResource(idx, "title", e.target.value)}
+                    placeholder="Title"
+                    className="w-32 rounded-lg border px-2 py-1.5 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeResource(idx)}
+                    className="text-sm text-red-500 hover:text-red-700"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))
+            )}
           </div>
 
           {/* Submit */}
