@@ -53,6 +53,42 @@ async function searchForCover(
 }
 
 /**
+ * The main title, without the parts catalogues usually leave off.
+ *
+ * Homeschool booklists record a book the way its cover reads — "Brothers in
+ * Hope: The Story of the Lost Boys of Sudan", "Benin (Blastoff! Readers:
+ * Exploring Countries)" — while OpenLibrary indexes it as "Brothers in Hope".
+ * Searching the full string matches nothing at all, so a subtitle or a series
+ * name in parentheses silently costs the book its cover.
+ */
+export function simplifyTitle(title: string): string {
+  return title
+    .replace(/\([^)]*\)/g, " ") // series and edition notes
+    .replace(/\s*[:—–]\s.*$/, "") // subtitle after a colon or dash
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Search variants to try in order, stopping at the first that has a cover. */
+function searchVariants(title: string, author: string): URLSearchParams[] {
+  const simplified = simplifyTitle(title);
+  const titles = simplified && simplified !== title ? [title, simplified] : [title];
+
+  const variants: URLSearchParams[] = [];
+  for (const withAuthor of author ? [true, false] : [false]) {
+    for (const candidate of titles) {
+      const params = new URLSearchParams({
+        title: candidate,
+        limit: String(SEARCH_LIMIT),
+      });
+      if (withAuthor) params.set("author", author);
+      variants.push(params);
+    }
+  }
+  return variants;
+}
+
+/**
  * Best-effort cover URL for a book. Returns null when nothing matches, the
  * request fails, or the title is empty — never throws.
  */
@@ -65,23 +101,9 @@ export async function findBookCover(
   const cleanAuthor = (author || "").trim();
 
   try {
-    const params = new URLSearchParams({
-      title: cleanTitle,
-      limit: String(SEARCH_LIMIT),
-    });
-    if (cleanAuthor) params.set("author", cleanAuthor);
-
-    const found = await searchForCover(params);
-    if (found) return found;
-
-    // The author narrowed us to nothing usable; the title alone may still hit.
-    if (cleanAuthor) {
-      const titleOnly = new URLSearchParams({
-        title: cleanTitle,
-        limit: String(SEARCH_LIMIT),
-      });
-      const retry = await searchForCover(titleOnly);
-      if (retry) return retry;
+    for (const params of searchVariants(cleanTitle, cleanAuthor)) {
+      const found = await searchForCover(params);
+      if (found) return found;
     }
 
     console.log("[book-covers] no cover found", { title: cleanTitle, author: cleanAuthor });

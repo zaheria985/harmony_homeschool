@@ -29,11 +29,12 @@ export default function BookCoverBackfillCard({
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState("");
 
-  const estimatedSeconds = Math.ceil(missingCount * 1.1);
-  const estimate =
-    estimatedSeconds >= 60
-      ? `about ${Math.ceil(estimatedSeconds / 60)} min`
-      : `about ${estimatedSeconds}s`;
+  // Measured against the real library rather than the pacing delay alone: a
+  // book that matches costs one request, a book that does not costs up to
+  // four (author and title-only, each on the full and the shortened title),
+  // and the leftovers in any run skew heavily towards misses.
+  const estimatedMinutes = Math.max(1, Math.ceil((missingCount * 5) / 60));
+  const estimate = `roughly ${estimatedMinutes} min`;
 
   async function handleRun() {
     setRunning(true);
@@ -76,8 +77,9 @@ export default function BookCoverBackfillCard({
           ) : (
             <p className="text-sm text-muted">
               {missingCount} {missingCount === 1 ? "book has" : "books have"} no
-              cover. Fetching them takes {estimate} — one lookup a second, which
-              is what OpenLibrary asks for.
+              cover. Fetching them takes {estimate}, pacing itself the way
+              OpenLibrary asks. Safe to run again — it only looks at books that
+              still have none.
             </p>
           )}
 

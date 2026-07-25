@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { findBookCover } from "../lib/server/book-covers";
+import { findBookCover, simplifyTitle } from "../lib/server/book-covers";
 
 /**
  * Covers are fetched once, at creation, from OpenLibrary — so a path that
@@ -81,6 +81,42 @@ test("asks for several matches, not just the top one", async () => {
 
   const limit = new URL(requested).searchParams.get("limit");
   assert.ok(Number(limit) > 1, `limit should exceed 1, got ${limit}`);
+});
+
+test("falls back to the main title when the full one matches nothing", async () => {
+  // Verified against the live API: "Brothers in Hope: The Story of the Lost
+  // Boys of Sudan" returns nothing, "Brothers in Hope" returns covers. This
+  // is why most of the backfill's misses were real, well-catalogued books.
+  const tried: string[] = [];
+  const cover = await withFetch(
+    (async (input: string | URL | Request) => {
+      const title = new URL(String(input)).searchParams.get("title") || "";
+      tried.push(title);
+      if (title.includes(":")) return jsonResponse({ docs: [] });
+      return jsonResponse({ docs: [{ cover_i: 77 }] });
+    }) as FetchLike,
+    () =>
+      findBookCover("Brothers in Hope: The Story of the Lost Boys of Sudan"),
+  );
+
+  assert.equal(cover, "https://covers.openlibrary.org/b/id/77-L.jpg");
+  assert.ok(
+    tried.includes("Brothers in Hope"),
+    `expected a retry on the main title, tried: ${tried.join(" | ")}`,
+  );
+});
+
+test("simplifyTitle strips subtitles and series notes", () => {
+  assert.equal(
+    simplifyTitle("Brothers in Hope: The Story of the Lost Boys of Sudan"),
+    "Brothers in Hope",
+  );
+  assert.equal(
+    simplifyTitle("Benin (Blastoff! Readers: Exploring Countries)"),
+    "Benin",
+  );
+  // A title with nothing to strip is returned unchanged, so no extra request.
+  assert.equal(simplifyTitle("The Cat in the Hat"), "The Cat in the Hat");
 });
 
 test("returns null instead of throwing when the lookup fails", async () => {
