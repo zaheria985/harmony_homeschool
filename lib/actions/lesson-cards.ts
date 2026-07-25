@@ -1,8 +1,9 @@
 "use server";
 
-import { requireParent } from "@/lib/server/authz";
+import { requireParent, requireUser } from "@/lib/server/authz";
 import { z } from "zod";
 import pool from "@/lib/db";
+import { saveUploadedImage } from "@/lib/server/uploads";
 import { revalidatePath } from "next/cache";
 
 // ============================================================================
@@ -168,6 +169,106 @@ export async function createLessonCard(formData: FormData) {
   revalidatePath(`/lessons/${lesson_id}`);
 
   return { success: true, id: res.rows[0].id };
+}
+
+/**
+ * Create an image card from an uploaded file rather than a pasted URL —
+ * photographed workbook pages and art references usually live on the device,
+ * not at some address.
+ */
+export async function createPhotoCard(formData: FormData) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
+
+  const lessonId = z.string().uuid().safeParse(formData.get("lesson_id"));
+  if (!lessonId.success) return { error: "Invalid lesson" };
+
+  const file = formData.get("photo");
+  const saved = await saveUploadedImage(
+    file instanceof File ? file : null,
+    "resources",
+  );
+  if (!saved) return { error: "Choose a photo to upload" };
+  if ("error" in saved) return saved;
+
+  const title = (formData.get("title") as string | null)?.trim() || null;
+
+  const orderRes = await pool.query(
+    `SELECT COALESCE(MAX(order_index), -1) + 1 AS next_idx FROM lesson_cards WHERE lesson_id = $1`,
+    [lessonId.data],
+  );
+  const res = await pool.query(
+    `INSERT INTO lesson_cards (lesson_id, card_type, title, url, thumbnail_url, order_index)
+     VALUES ($1, 'image', $2, $3, $3, $4)
+     RETURNING id`,
+    [lessonId.data, title, saved.path, orderRes.rows[0].next_idx],
+  );
+
+  const lessonRes = await pool.query(
+    `SELECT curriculum_id FROM lessons WHERE id = $1`,
+    [lessonId.data],
+  );
+  if (lessonRes.rows[0]) {
+    revalidatePath(`/curricula/${lessonRes.rows[0].curriculum_id}/board`);
+  }
+  revalidatePath(`/lessons/${lessonId.data}`);
+  return { success: true, id: res.rows[0].id };
+}
+
+/**
+ * Flip one checkbox on a checklist card.
+ *
+ * Kids run their own lessons off these cards, so this is the one card
+ * mutation they may make — hence `requireUser` rather than `requireParent`.
+ * The item index is all the caller supplies; the content is read and
+ * rewritten server-side, so a kid cannot use this to edit card text.
+ */
+export async function toggleLessonCardChecklistItem(
+  cardId: string,
+  lineIndex: number,
+) {
+  const user = await requireUser();
+  if (!user) return { error: "Unauthorized" };
+  if (user.permissionLevel === "view_only") return { error: "Unauthorized" };
+
+  const parsed = z
+    .object({ cardId: z.string().uuid(), lineIndex: z.number().int().min(0) })
+    .safeParse({ cardId, lineIndex });
+  if (!parsed.success) return { error: "Invalid input" };
+
+  const cardRes = await pool.query(
+    `SELECT lc.content, lc.card_type, lc.lesson_id, l.curriculum_id
+     FROM lesson_cards lc
+     JOIN lessons l ON l.id = lc.lesson_id
+     WHERE lc.id = $1`,
+    [parsed.data.cardId],
+  );
+  const card = cardRes.rows[0] as
+    | { content: string | null; card_type: string; lesson_id: string; curriculum_id: string }
+    | undefined;
+  if (!card) return { error: "Card not found" };
+  if (card.card_type !== "checklist") return { error: "Not a checklist card" };
+
+  const lines = (card.content || "").split("\n");
+  const line = lines[parsed.data.lineIndex];
+  if (line === undefined) return { error: "No such checklist item" };
+
+  if (/^(\s*[-*]\s*)\[x\]/i.test(line)) {
+    lines[parsed.data.lineIndex] = line.replace(/\[x\]/i, "[ ]");
+  } else if (/^(\s*[-*]\s*)\[ \]/.test(line)) {
+    lines[parsed.data.lineIndex] = line.replace("[ ]", "[x]");
+  } else {
+    return { error: "No such checklist item" };
+  }
+
+  await pool.query(`UPDATE lesson_cards SET content = $1 WHERE id = $2`, [
+    lines.join("\n"),
+    parsed.data.cardId,
+  ]);
+
+  revalidatePath(`/curricula/${card.curriculum_id}/board`);
+  revalidatePath(`/lessons/${card.lesson_id}`);
+  return { success: true };
 }
 
 export async function updateLessonCard(formData: FormData) {

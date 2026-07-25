@@ -12,7 +12,8 @@ import { suggestResources } from "@/lib/actions/ai";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { createLessonCard, deleteLessonCard, reorderLessonCards, updateLessonCard } from "@/lib/actions/lesson-cards";
+import { createLessonCard, deleteLessonCard, reorderLessonCards, updateLessonCard, toggleLessonCardChecklistItem } from "@/lib/actions/lesson-cards";
+import AddToLessonPicker from "@/components/lessons/AddToLessonPicker";
 
 type CurriculumResource = {
   id: string;
@@ -207,10 +208,6 @@ function ResourceCard({
 
 function AddLessonCardForm({ lessonId }: { lessonId: string }) {
   const [isAdding, setIsAdding] = useState(false);
-  const [url, setUrl] = useState("");
-  const [title, setTitle] = useState("");
-  const [saving, setSaving] = useState(false);
-  const router = useRouter();
 
   if (!isAdding) {
     return (
@@ -219,64 +216,14 @@ function AddLessonCardForm({ lessonId }: { lessonId: string }) {
         onClick={() => setIsAdding(true)}
         className="w-full rounded-lg border border-dashed border-light px-3 py-2 text-xs text-muted hover:border-primary-200 hover:text-interactive transition-colors"
       >
-        + Add lesson card
+        + Add to this lesson
       </button>
     );
   }
 
-  async function handleSave() {
-    if (!url.trim() && !title.trim()) return;
-    setSaving(true);
-    try {
-      const fd = new FormData();
-      fd.set("lesson_id", lessonId);
-      if (url.trim()) fd.set("url", url.trim());
-      if (title.trim()) fd.set("title", title.trim());
-      await createLessonCard(fd);
-      setUrl("");
-      setTitle("");
-      setIsAdding(false);
-      router.refresh();
-    } finally {
-      setSaving(false);
-    }
-  }
-
   return (
-    <div className="rounded-lg border border-light bg-surface p-3 space-y-2">
-      <input
-        type="text"
-        placeholder="Title (optional if URL provided)"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        className="w-full rounded-md border border-light bg-surface px-2 py-1.5 text-sm text-primary placeholder:text-muted focus:border-interactive focus:ring-1 focus:ring-focus"
-      />
-      <input
-        type="text"
-        placeholder="URL (YouTube, link, etc.)"
-        value={url}
-        onChange={(e) => setUrl(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && handleSave()}
-        className="w-full rounded-md border border-light bg-surface px-2 py-1.5 text-sm text-primary placeholder:text-muted focus:border-interactive focus:ring-1 focus:ring-focus"
-        autoFocus
-      />
-      <div className="flex gap-2 justify-end">
-        <button
-          type="button"
-          onClick={() => { setIsAdding(false); setUrl(""); setTitle(""); }}
-          className="rounded-md px-2 py-1 text-xs text-muted hover:text-primary"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving || (!url.trim() && !title.trim())}
-          className="rounded-md bg-interactive px-3 py-1 text-xs font-medium text-white hover:bg-interactive-hover disabled:opacity-50"
-        >
-          {saving ? "Saving..." : "Add"}
-        </button>
-      </div>
+    <div className="flex justify-center">
+      <AddToLessonPicker lessonId={lessonId} onDone={() => setIsAdding(false)} />
     </div>
   );
 }
@@ -302,12 +249,13 @@ function ChecklistCardInline({ card, cardTitle, onOpenModal }: { card: LessonCar
                 type="checkbox"
                 checked={isChecked}
                 onChange={() => {
-                  const updated = [...clLines];
-                  updated[lineIndex] = isChecked ? line.replace(/^- \[x\]/i, "- [ ]") : line.replace("- [ ]", "- [x]");
-                  const fd = new FormData();
-                  fd.set("id", card.id);
-                  fd.set("content", updated.join("\n"));
-                  startClTransition(async () => { await updateLessonCard(fd); clRouter.refresh(); });
+                  // Kids follow their lesson off these cards, so ticking goes
+                  // through the kid-callable action that flips one box rather
+                  // than the parent-only "rewrite the card" one.
+                  startClTransition(async () => {
+                    await toggleLessonCardChecklistItem(card.id, lineIndex);
+                    clRouter.refresh();
+                  });
                 }}
                 className="h-3.5 w-3.5 rounded border-light text-interactive focus:ring-focus"
               />

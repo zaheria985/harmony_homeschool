@@ -9,6 +9,7 @@ import {
   updateLessonCard,
   deleteLessonCard,
   reorderLessonCards,
+  toggleLessonCardChecklistItem,
 } from "@/lib/actions/lesson-cards";
 import {
   ChevronLeft,
@@ -100,18 +101,10 @@ export default function LessonCardModal({
     currentIndex < allCards.length - 1 ? allCards[currentIndex + 1] : null;
 
   async function toggleCheckItem(lineIndex: number) {
-    const lines = (card.content || "").split("\n");
-    const line = lines[lineIndex];
-    if (/^- \[x\]/i.test(line)) {
-      lines[lineIndex] = line.replace(/^- \[x\]/i, "- [ ]");
-    } else if (/^- \[ \]/.test(line)) {
-      lines[lineIndex] = line.replace("- [ ]", "- [x]");
-    }
-    const fd = new FormData();
-    fd.set("id", card.id);
-    fd.set("content", lines.join("\n"));
+    // Flipping one box is the single card edit a kid may make, so it goes
+    // through the kid-callable action rather than a full card rewrite.
     startTransition(async () => {
-      await updateLessonCard(fd);
+      await toggleLessonCardChecklistItem(card.id, lineIndex);
       router.refresh();
     });
   }

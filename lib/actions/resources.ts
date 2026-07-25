@@ -1054,6 +1054,144 @@ export async function bulkAddTagsToResources(resourceIds: string[], tagNames: st
   return { success: true };
 }
 
+/** Books the picker offers; kept small because it feeds a dropdown. */
+export async function searchBooksForPicker(query: string) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
+  const parsed = z.string().max(200).safeParse(query);
+  if (!parsed.success) return { error: "Invalid search" };
+  const { searchBookResources } = await import("@/lib/queries/resources");
+  return { results: await searchBookResources(parsed.data) };
+}
+
+const attachBookSchema = z.object({
+  lessonId: z.string().uuid(),
+  resourceId: z.string().uuid().optional(),
+  title: z.string().min(1).optional(),
+  author: z.string().optional(),
+  pageRef: z.string().optional(),
+});
+
+/**
+ * Put a book on a lesson.
+ *
+ * A book is both something to read *and* something to carry to the table, so
+ * it lands in two places on purpose: a `lesson_cards` row so the board shows
+ * its cover, and a `lesson_resources` row so the planner's materials panel
+ * counts it. Supplying `resourceId` attaches an existing book; supplying a
+ * title creates one first (fetching a cover on the way, like every other
+ * creation path).
+ */
+export async function attachBookToLesson(input: {
+  lessonId: string;
+  resourceId?: string;
+  title?: string;
+  author?: string;
+  pageRef?: string;
+}) {
+  const _authUser = await requireParent();
+  if (!_authUser) return { error: "Unauthorized" };
+  const parsed = attachBookSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.errors[0]?.message || "Invalid input" };
+  }
+  const { lessonId, resourceId, title, author, pageRef } = parsed.data;
+  if (!resourceId && !title) return { error: "Pick a book or give it a title" };
+
+  const client = await pool.connect();
+  let bookId = resourceId;
+  let createdNew = false;
+  try {
+    await client.query("BEGIN");
+
+    if (!bookId && title) {
+      const normalizedAuthor = (author || "").trim();
+      // Reuse a matching book rather than growing a second copy of it.
+      const existing = await client.query(
+        `SELECT id FROM resources
+         WHERE type = 'book' AND LOWER(title) = LOWER($1)
+         ${normalizedAuthor ? "AND LOWER(COALESCE(author, '')) = LOWER($2)" : ""}
+         LIMIT 1`,
+        normalizedAuthor ? [title, normalizedAuthor] : [title],
+      );
+      if (existing.rows[0]) {
+        bookId = existing.rows[0].id as string;
+      } else {
+        const cover = await findBookCover(title, normalizedAuthor);
+        const created = await client.query(
+          `INSERT INTO resources (title, type, author, thumbnail_url)
+           VALUES ($1, 'book', $2, $3) RETURNING id`,
+          [title.trim(), normalizedAuthor || null, cover],
+        );
+        bookId = created.rows[0].id as string;
+        createdNew = true;
+        if (normalizedAuthor) {
+          await syncResourceTags(client, bookId, normalizedAuthor);
+        }
+      }
+    }
+
+    const bookRes = await client.query(
+      `SELECT title, thumbnail_url FROM resources WHERE id = $1 AND type = 'book'`,
+      [bookId],
+    );
+    const book = bookRes.rows[0] as
+      | { title: string; thumbnail_url: string | null }
+      | undefined;
+    if (!book) {
+      await client.query("ROLLBACK");
+      return { error: "Book not found" };
+    }
+
+    const displayTitle = pageRef ? `${book.title} (${pageRef})` : book.title;
+
+    // Board card, carrying the cover.
+    const orderRes = await client.query(
+      `SELECT COALESCE(MAX(order_index), -1) + 1 AS next_idx FROM lesson_cards WHERE lesson_id = $1`,
+      [lessonId],
+    );
+    await client.query(
+      `INSERT INTO lesson_cards (lesson_id, card_type, title, resource_id, thumbnail_url, order_index)
+       VALUES ($1, 'resource', $2, $3, $4, $5)`,
+      [lessonId, displayTitle, bookId, book.thumbnail_url, orderRes.rows[0].next_idx],
+    );
+
+    // Materials row. `type` is constrained to the link kinds, so books ride
+    // as 'url' with an empty url and let the joined resource say 'book' —
+    // the same shape supplies use (see bulkAddSuppliesToLesson).
+    await client.query(
+      `INSERT INTO lesson_resources (lesson_id, resource_id, type, url, title)
+       VALUES ($1, $2, 'url', '', $3)
+       ON CONFLICT (lesson_id, resource_id) DO NOTHING`,
+      [lessonId, bookId, displayTitle],
+    );
+
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Failed to attach book to lesson", {
+      lessonId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { error: "Failed to attach book" };
+  } finally {
+    client.release();
+  }
+
+  const lessonRes = await pool.query(
+    `SELECT curriculum_id FROM lessons WHERE id = $1`,
+    [lessonId],
+  );
+  if (lessonRes.rows[0]) {
+    revalidatePath(`/curricula/${lessonRes.rows[0].curriculum_id}/board`);
+    revalidatePath(`/curricula/${lessonRes.rows[0].curriculum_id}/list`);
+  }
+  revalidatePath(`/lessons/${lessonId}`);
+  revalidatePath("/week");
+  revalidatePath("/resources");
+  return { success: true, resourceId: bookId, createdNew };
+}
+
 // ============================================================================
 // BULK FIND-OR-CREATE BOOKS + ATTACH TO LESSONS (for curriculum importer)
 // ============================================================================

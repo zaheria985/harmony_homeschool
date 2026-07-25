@@ -183,6 +183,33 @@ export async function getResourceUsageStats() {
   }>;
 }
 
+/**
+ * Type-ahead over the book library, for attaching a book to a lesson.
+ * Capped small — this feeds a dropdown, not a page.
+ */
+export async function searchBookResources(query: string, limit = 8) {
+  const term = query.trim();
+  if (!term) return [];
+  const res = await pool.query(
+    `SELECT id, title, author, thumbnail_url
+     FROM resources
+     WHERE type = 'book'
+       AND (title ILIKE '%' || $1 || '%' OR author ILIKE '%' || $1 || '%')
+     ORDER BY
+       -- Titles that start with what was typed are what the user means.
+       CASE WHEN title ILIKE $1 || '%' THEN 0 ELSE 1 END,
+       title
+     LIMIT $2`,
+    [term, limit],
+  );
+  return res.rows as Array<{
+    id: string;
+    title: string;
+    author: string | null;
+    thumbnail_url: string | null;
+  }>;
+}
+
 export async function getAllBookResources() {
   const res = await pool.query(
     `SELECT
